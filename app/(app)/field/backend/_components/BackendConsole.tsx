@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown, RefreshCw, Database, X, ListChecks, Users, MapPin, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown, RefreshCw, Database, X, ListChecks, Users, MapPin, AlertTriangle, Wand2 } from "lucide-react";
 import { NewFacilityModal } from "./NewFacilityModal";
 
 type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; phaseTag: string | null; formKind: string | null; formSchema: any };
@@ -28,6 +28,7 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
   const [formEditor, setFormEditor] = useState<{ kind: "setup" | "visit"; step: SetupRow | VisitRow } | null>(null);
   const [addingDomain, setAddingDomain] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [deriving, setDeriving] = useState(false);
   const d = domains.find((x) => x.config.domain === active) ?? domains[0];
 
   async function call(url: string, method: string, body?: unknown) {
@@ -102,6 +103,7 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
         <Link href="/field/backend/caregiver" className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"><Users size={14} /> Caregiver practices</Link>
         <Link href="/field/backend/assignments" className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"><MapPin size={14} /> Geography &amp; assignment</Link>
         <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"><Plus size={14} /> New intervention</button>
+        <button onClick={() => setDeriving(true)} className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"><Wand2 size={14} /> Derive from legacy template</button>
       </div>
 
       {/* Domain tabs */}
@@ -267,6 +269,15 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
         />
       )}
 
+      {deriving && (
+        <DeriveModal
+          domain={d.config.domain}
+          busy={busy}
+          onClose={() => setDeriving(false)}
+          onApplied={() => { setDeriving(false); router.refresh(); }}
+        />
+      )}
+
       {addingDomain && (
         <AddDomainModal
           available={available}
@@ -367,6 +378,164 @@ function CreateInterventionModal({ domains, pickers, busy, onClose, onCreate }: 
 }
 
 // Create a new /field domain. Pick a needsDomain (so interventions link) or type one.
+/**
+ * Derive a domain's whole recipe from the legacy control-plane config.
+ *
+ * Always previews first: the plan is a dry run over real config, and the
+ * template choice matters (several domains carry near-duplicate templates, so
+ * the pitstop count is shown against each slug).
+ */
+function DeriveModal({ domain, busy, onClose, onApplied }: { domain: string; busy: boolean; onClose: () => void; onApplied: () => void }) {
+  type Options = {
+    setupTemplates: { slug: string; name: string; pitstops: number }[];
+    catalogs: { slug: string; cadence: string }[];
+    scoredIndicators: { key: string; label: string; items: number }[];
+  };
+  type Plan = {
+    config: { overallSlaDays: number | null; cadenceCount: number | null; cadencePeriod: string | null };
+    setup: { order: number; stepKey: string; title: string; slaDays: number | null; blockedByKey: string | null; phaseTag: string | null; itemCount: number }[];
+    visit: { order: number; stepKey: string; title: string; mandatory: boolean; formKind: string | null; itemCount: number }[];
+    warnings: string[];
+  };
+  const [opts, setOpts] = useState<Options | null>(null);
+  const [setupSlug, setSetupSlug] = useState("");
+  const [liveSlug, setLiveSlug] = useState("");
+  const [catalogSlug, setCatalogSlug] = useState("");
+  const [scoredIndicatorKey, setScoredIndicatorKey] = useState("");
+  const [prune, setPrune] = useState(false);
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [working, setWorking] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/field/admin/derive-templates?domain=${encodeURIComponent(domain)}`)
+      .then((r) => r.json())
+      .then((o: Options) => {
+        setOpts(o);
+        // Default to the fullest template — but the counts stay visible so the
+        // choice is the operator's, not a silent guess.
+        const best = [...(o.setupTemplates ?? [])].sort((a, b) => b.pitstops - a.pitstops)[0];
+        if (best) setSetupSlug(best.slug);
+        if (o.catalogs?.length === 1) setCatalogSlug(o.catalogs[0].slug);
+      })
+      .catch(() => setErr("Could not load the legacy templates for this domain."));
+  }, [domain]);
+
+  const send = async (dryRun: boolean) => {
+    setWorking(true); setErr(null);
+    try {
+      const r = await fetch(`/api/field/admin/derive-templates`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain, setupSlug, liveSlug: liveSlug || null, catalogSlug: catalogSlug || null, scoredIndicatorKey: scoredIndicatorKey || null, prune, dryRun }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error ?? "Failed");
+      if (dryRun) setPlan(j.plan);
+      else {
+        const c = j.result?.configChanges ?? [];
+        alert(
+          `Applied — ${j.result.setupUpserted} setup + ${j.result.visitUpserted} visit steps.` +
+          (c.length ? `\n\nDomain config was NOT changed automatically:\n${c.map((x: { field: string; from: unknown; to: unknown }) => `  ${x.field}: now ${JSON.stringify(x.from)}, derived ${JSON.stringify(x.to)}`).join("\n")}` : ""),
+        );
+        onApplied();
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 sm:items-center" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-t-2xl bg-white sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between border-b border-stone-100 p-5 pb-3">
+          <div>
+            <h3 className="text-base font-semibold text-stone-900">Derive {domain} from legacy config</h3>
+            <p className="text-xs text-stone-500">Step keys come from the legacy pitstop keys, so a later backfill lines up with these templates.</p>
+          </div>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X size={20} /></button>
+        </div>
+
+        <div className="flex-1 space-y-3 overflow-y-auto p-5">
+          {!opts ? <p className="text-sm text-stone-400">Loading…</p> : opts.setupTemplates.length === 0 ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              No legacy template carries this domain — it has to be hand-authored step by step.
+            </p>
+          ) : (
+            <>
+              <Field label="Setup steps from">
+                <select value={setupSlug} onChange={(e) => { setSetupSlug(e.target.value); setPlan(null); }} className="inp">
+                  {opts.setupTemplates.map((t) => <option key={t.slug} value={t.slug}>{t.slug} — {t.pitstops} pitstops</option>)}
+                </select>
+              </Field>
+              <Field label="Visit steps from (recurring template, optional)">
+                <select value={liveSlug} onChange={(e) => { setLiveSlug(e.target.value); setPlan(null); }} className="inp">
+                  <option value="">—</option>
+                  {opts.setupTemplates.map((t) => <option key={t.slug} value={t.slug}>{t.slug} — {t.pitstops} pitstops</option>)}
+                </select>
+              </Field>
+              <Field label="Visit catalog (optional — also supplies cadence)">
+                <select value={catalogSlug} onChange={(e) => { setCatalogSlug(e.target.value); setPlan(null); }} className="inp">
+                  <option value="">—</option>
+                  {opts.catalogs.map((c) => <option key={c.slug} value={c.slug}>{c.slug} — cadence {c.cadence}</option>)}
+                </select>
+              </Field>
+              {opts.scoredIndicators.length > 0 && (
+                <Field label="Scored audit to attach (optional)">
+                  <select value={scoredIndicatorKey} onChange={(e) => { setScoredIndicatorKey(e.target.value); setPlan(null); }} className="inp">
+                    <option value="">—</option>
+                    {opts.scoredIndicators.map((i) => <option key={i.key} value={i.key}>{i.label} — {i.items} items</option>)}
+                  </select>
+                </Field>
+              )}
+              <label className="flex items-center gap-2 text-xs text-stone-600">
+                <input type="checkbox" checked={prune} onChange={(e) => { setPrune(e.target.checked); setPlan(null); }} />
+                Retire templates this plan does not contain (deactivated, not deleted, when live steps use them)
+              </label>
+
+              {err && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{err}</p>}
+
+              {plan && (
+                <div className="space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3">
+                  {plan.warnings.map((w, i) => (
+                    <p key={i} className="flex items-start gap-1.5 text-[11px] text-amber-800"><AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />{w}</p>
+                  ))}
+                  <p className="text-xs font-medium text-stone-700">{plan.setup.length} setup steps · overall SLA {plan.config.overallSlaDays ?? "—"}d</p>
+                  <ul className="space-y-0.5 text-[11px] text-stone-600">
+                    {plan.setup.map((st) => (
+                      <li key={st.stepKey} className="truncate">
+                        <span className="text-stone-400">{st.order + 1}.</span> {st.title}
+                        {st.phaseTag && <span className="ml-1 rounded bg-stone-200 px-1 text-[10px]">{st.phaseTag}</span>}
+                        <span className="ml-1 text-stone-400">sla {st.slaDays ?? "—"}d{st.blockedByKey ? " · after prev" : ""}{st.itemCount ? ` · ${st.itemCount} items` : ""}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="pt-1 text-xs font-medium text-stone-700">{plan.visit.length} visit steps · cadence {plan.config.cadenceCount ?? "—"}/{plan.config.cadencePeriod ?? "—"}</p>
+                  <ul className="space-y-0.5 text-[11px] text-stone-600">
+                    {plan.visit.map((v) => (
+                      <li key={v.stepKey} className="truncate">
+                        <span className="text-stone-400">{v.order + 1}.</span> {v.title}
+                        {v.formKind && <span className="ml-1 rounded bg-sky-100 px-1 text-[10px] text-sky-700">{v.formKind}{v.itemCount ? ` ${v.itemCount}` : ""}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-stone-100 p-4">
+          <button onClick={onClose} className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">Cancel</button>
+          <button disabled={busy || working || !setupSlug} onClick={() => send(true)} className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50">Preview</button>
+          <button disabled={busy || working || !plan} title={!plan ? "Preview first" : undefined} onClick={() => send(false)} className="rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-50">Apply</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AddDomainModal({ available, busy, onClose, onCreate }: { available: { domain: string; label: string; unit: string; assessmentLevel: string }[]; busy: boolean; onClose: () => void; onCreate: (body: unknown) => void }) {
   const [domain, setDomain] = useState(available[0]?.domain ?? "");
   const picked = available.find((a) => a.domain === domain);

@@ -34,6 +34,40 @@ export async function loadAvailableDomains(): Promise<{ domain: string; label: s
     .map((d) => ({ domain: d.domain, label: d.label ?? d.domain, unit: d.assessmentLevel === "settlement" ? "settlement" : "cluster", assessmentLevel: d.assessmentLevel ?? "cluster" }));
 }
 
+/**
+ * What a domain can be derived FROM — the legacy templates and catalogs that
+ * carry its recipe. Pitstop counts are surfaced because several domains have
+ * near-duplicate templates (ElderlyCentre has a 13-step one and an 8-step
+ * "-copy"), and picking the wrong one silently produces the wrong programme.
+ */
+export async function loadDerivableTemplates(domain: string): Promise<{
+  setupTemplates: { slug: string; name: string; pitstops: number }[];
+  catalogs: { slug: string; cadence: string }[];
+  scoredIndicators: { key: string; label: string; items: number }[];
+}> {
+  const [templates, catalogs, indicators] = await Promise.all([
+    prisma.goalTemplateDef.findMany({
+      where: { needsDomain: domain, isActive: true },
+      orderBy: { slug: "asc" },
+      select: { slug: true, name: true, _count: { select: { pitstopDefs: true } } },
+    }),
+    prisma.catalogTemplateDef.findMany({
+      where: { needsDomain: domain, isActive: true },
+      orderBy: { slug: "asc" },
+      select: { slug: true, defaultCadenceCount: true, defaultCadencePeriod: true },
+    }),
+    prisma.facilityIndicatorDef.findMany({
+      where: { checklistItems: { some: { isActive: true } } },
+      select: { key: true, label: true, _count: { select: { checklistItems: true } } },
+    }),
+  ]);
+  return {
+    setupTemplates: templates.map((t) => ({ slug: t.slug, name: t.name, pitstops: t._count.pitstopDefs })),
+    catalogs: catalogs.map((c) => ({ slug: c.slug, cadence: `${c.defaultCadenceCount ?? "-"}/${c.defaultCadencePeriod ?? "-"}` })),
+    scoredIndicators: indicators.map((i) => ({ key: i.key, label: i.label, items: i._count.checklistItems })),
+  };
+}
+
 /** Small lists for the "create intervention" modal. */
 export async function loadCreatePickers(): Promise<{
   clusters: { id: string; name: string }[];
