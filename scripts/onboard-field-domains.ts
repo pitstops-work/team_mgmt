@@ -19,6 +19,13 @@
  *  - FoodDistribution has five competing templates; its one real setup goal was
  *    built from `vendor-new-setup-ops`, so that is the honest choice rather than
  *    whichever template is largest.
+ *  - WelfareRights' SETUP template is `scheme-linkage-drive`, which is not what
+ *    the domain is named after. Checked against what the 30 real goals were
+ *    built from: 20 of them (120 of 134 setup pitstops) came from that drive
+ *    template. Scored every candidate by how many real pitstop keys it matches
+ *    — scheme-linkage-drive 120/134, welfare-rights-copy 10/134, welfare-rights
+ *    10/134, welfare-rights-temp 9/134. Naming similarity is not evidence; what
+ *    the goals were actually built from is.
  *  - WelfareRights also takes its visit recipe from the CATALOG ONLY. Its
  *    recurring template's checklists are oversight prose ("Confirm partner
  *    team's current map of all active MAS groups") rather than a visit
@@ -50,7 +57,7 @@ const TARGETS: Target[] = [
   // against its hand-verified recipe and is how its steps gain phase names.
   // The scored indicator MUST be passed or the 24-point audit loses its form.
   { domain: "Creche", unit: "settlement", setupSlug: "creche-program", liveSlug: "creche-program-existing", catalogSlug: "creche-visit-catalog", scoredIndicatorKey: "creche_hygiene_score", note: "re-derive for phase names only — recipe is unchanged" },
-  { domain: "WelfareRights", unit: "settlement", setupSlug: "welfare-rights-copy", catalogSlug: "welfare-rights-visit-catalog", note: "slug inversion + catalog-only visit recipe — see header" },
+  { domain: "WelfareRights", unit: "settlement", setupSlug: "scheme-linkage-drive", catalogSlug: "welfare-rights-visit-catalog", prune: true, note: "scheme-linkage-drive is what the goals were actually built from — see header" },
   { domain: "ChildrenCentre", unit: "cluster", setupSlug: "children-learning-centre", liveSlug: "children-learning-centre-existing", catalogSlug: "children-centre-visit-catalog", prune: true, note: "prunes the abandoned hand-authored steps" },
   { domain: "ElderlyCentre", unit: "cluster", setupSlug: "elderly-centre", liveSlug: "elderly-centre-existing", catalogSlug: "elderly-centre-visit-catalog", note: "NOT elderly-centre-copy (8 steps, different programme)" },
   { domain: "YouthResourceCentre", unit: "cluster", setupSlug: "youth-resource-centre", liveSlug: "youth-resource-centre-existing", catalogSlug: "youth-resource-centre-visit-catalog" },
