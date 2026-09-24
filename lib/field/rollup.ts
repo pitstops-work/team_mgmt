@@ -57,6 +57,8 @@ export type FieldFact = {
   clusterIds: string[];
   zoneId: string | null;
   zoneName: string | null;
+  /** Both cities have a "Central" and a "North" zone — the label needs this. */
+  cityName: string | null;
   locationName: string;
 
   phase: FieldPhase;
@@ -187,9 +189,9 @@ export async function loadFieldFacts(scope: FactScope = {}): Promise<FieldFact[]
       id: true, title: true, needsDomain: true, mode: true, fieldAnchorAt: true, createdAt: true,
       overallSlaDays: true, cadenceCount: true, cadencePeriod: true,
       ownerId: true, owner: { select: { name: true } },
-      needsCluster: { select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } } },
-      needsSettlement: { select: { name: true, cluster: { select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } } } } },
-      linkedFacility: { select: { name: true, cluster: { select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } } } } },
+      needsCluster: { select: { id: true, name: true, zoneId: true, zone: { select: { name: true, city: { select: { name: true } } } } } },
+      needsSettlement: { select: { name: true, cluster: { select: { id: true, name: true, zoneId: true, zone: { select: { name: true, city: { select: { name: true } } } } } } } },
+      linkedFacility: { select: { name: true, cluster: { select: { id: true, name: true, zoneId: true, zone: { select: { name: true, city: { select: { name: true } } } } } } } },
     },
   });
   if (!goals.length) return [];
@@ -287,6 +289,7 @@ export async function loadFieldFacts(scope: FactScope = {}): Promise<FieldFact[]
       clusterIds,
       zoneId: cl?.zoneId ?? null,
       zoneName: cl?.zone?.name ?? null,
+      cityName: cl?.zone?.city?.name ?? null,
       locationName: g.needsSettlement?.name ?? g.linkedFacility?.name ?? cl?.name ?? "—",
 
       phase,
@@ -382,7 +385,8 @@ export const byCluster = (f: FieldFact) => (f.clusterId ? { key: f.clusterId, la
 /** Facts that resolve to this cluster by ANY of the three paths — the same
  *  membership test goalInClusterFilter applies in SQL. */
 export const factsForCluster = (facts: FieldFact[], clusterId: string) => facts.filter((f) => f.clusterIds.includes(clusterId));
-export const byZone = (f: FieldFact) => (f.zoneId ? { key: f.zoneId, label: f.zoneName ?? "—" } : { key: "__none", label: "No zone" });
+export const byZone = (f: FieldFact) =>
+  f.zoneId ? { key: f.zoneId, label: f.cityName ? `${f.zoneName} · ${f.cityName}` : f.zoneName ?? "—" } : { key: "__none", label: "No zone" };
 export const byOwner = (f: FieldFact) => ({ key: f.ownerId, label: f.ownerName });
 export const byDomain = (f: FieldFact) => ({ key: f.domain, label: f.domainLabel });
 /** Only meaningful for interventions still setting up. */
