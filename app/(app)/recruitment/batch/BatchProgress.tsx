@@ -12,7 +12,7 @@ export type RunProgress = {
   totalCvs: number;
   doneCvs: number;
   currentLabel: string | null;
-  desks: { key: string; label: string; slug: string | null; done: number; total: number }[];
+  desks: { key: string; label: string; slug: string | null; done: number; total: number; dupes?: number }[];
 };
 
 /**
@@ -116,6 +116,11 @@ export default function BatchProgress({ initial }: { initial: RunProgress }) {
                 <span className="w-3 h-3 shrink-0 rounded-full border border-stone-300" />
               )}
               <span className={`truncate ${complete ? "text-stone-600" : "text-stone-400"}`}>{d.label}</span>
+              {!!d.dupes && (
+                <span className="text-stone-400 shrink-0" title="Copies of CVs already on the desk, passed over">
+                  · {d.dupes} repeat{d.dupes === 1 ? "" : "s"} skipped
+                </span>
+              )}
               <span className="ml-auto tabular-nums text-stone-400">
                 {d.done}/{d.total}
               </span>
@@ -124,7 +129,9 @@ export default function BatchProgress({ initial }: { initial: RunProgress }) {
         })}
       </div>
 
-      {run.error && <p className="mt-3 text-[11px] text-rose-700 leading-relaxed">{run.error}</p>}
+      {run.error && (
+        <p className={`mt-3 text-[11px] leading-relaxed ${failed ? "text-rose-700" : "text-amber-700"}`}>{run.error}</p>
+      )}
 
       {failed && (
         <div className="mt-3 flex flex-wrap items-center gap-2">

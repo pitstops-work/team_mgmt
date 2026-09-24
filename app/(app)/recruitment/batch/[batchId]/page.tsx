@@ -31,8 +31,12 @@ export default async function RecruitmentBatchPage({
   // before any desk does. So the page has to be openable with zero desks on
   // it, which is also the state they land in straight after pressing Scout.
   const run = await prisma.recruitmentBatchRun.findUnique({ where: { id: batchId } });
+  // A recovery run appends to a desk an EARLIER run created, so that desk
+  // carries the earlier batchId. Find it by the slug in the plan too, or the
+  // page shows "0 candidates" and no desk while the run fills it.
+  const planSlugs = run ? describeRun(run).desks.flatMap((d) => (d.slug ? [d.slug] : [])) : [];
   const days = await prisma.recruitmentScoutingDay.findMany({
-    where: { batchId },
+    where: planSlugs.length ? { OR: [{ batchId }, { slug: { in: planSlugs } }] } : { batchId },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -62,7 +66,7 @@ export default async function RecruitmentBatchPage({
         <UserSearch className="w-5 h-5 text-sky-500" />
         <h1 className="text-lg font-semibold text-stone-900">
           {progress && progress.status !== "done"
-            ? `${progress.desks.length} desks from one posting`
+            ? `${progress.desks.length} desk${progress.desks.length === 1 ? "" : "s"} from one posting`
             : `${days.length} desks from one posting`}
         </h1>
       </div>
@@ -73,7 +77,8 @@ export default async function RecruitmentBatchPage({
           </>
         ) : null}
         — {totalCandidates} candidate{totalCandidates === 1 ? "" : "s"} sorted across{" "}
-        {progress ? progress.desks.length : days.length} cities. Each desk judges its pool against that city&apos;s own
+        {progress ? progress.desks.length : days.length}{" "}
+        {(progress ? progress.desks.length : days.length) === 1 ? "city" : "cities"}. Each desk judges its pool against that city&apos;s own
         language, reference orgs and red flags.
       </p>
 
