@@ -30,8 +30,10 @@ export async function POST(req: NextRequest) {
   ]);
   const tKeys = new Set(templates.map((t) => t.stepKey));
 
+  // Anchor guard as above. This one is only accidentally safe — a legacy goal has
+  // no FieldSteps today, but that is a coincidence, not an invariant.
   const goals = await prisma.goal.findMany({
-    where: { needsDomain: domain, deletedAt: null, fieldSteps: { some: { kind: "Setup" } } },
+    where: { needsDomain: domain, deletedAt: null, fieldAnchorAt: { not: null }, fieldSteps: { some: { kind: "Setup" } } },
     select: { id: true, fieldAnchorAt: true, createdAt: true, fieldSteps: { where: { kind: "Setup" }, select: { id: true, stepKey: true, templateSlug: true, deletedAt: true } } },
   });
 

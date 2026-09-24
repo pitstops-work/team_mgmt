@@ -18,7 +18,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ do
   if (b.overallSlaDays === null || Number.isFinite(b.overallSlaDays)) data.overallSlaDays = b.overallSlaDays;
   if (b.cadenceCount === null || Number.isFinite(b.cadenceCount)) data.cadenceCount = b.cadenceCount;
   if (typeof b.hasLivePhase === "boolean") data.hasLivePhase = b.hasLivePhase;
-  if (typeof b.caregiverForm === "boolean") data.caregiverForm = b.caregiverForm;
+  if (typeof b.caregiverForm === "boolean") {
+    // Caregiver capture files observations against a facility + settlement. With
+    // no facility layer mapped to the domain there is no facility picker, so the
+    // form would be offered and then refuse every write. Refuse the toggle instead.
+    if (b.caregiverForm) {
+      const layer = await prisma.facilityLayerConfig.findFirst({ where: { needsDomain: domain, isActive: true }, select: { layerKey: true } });
+      if (!layer) {
+        return Response.json(
+          { error: `${domain} has no facility layer, so caregiver observations would have nowhere to file. Map a layer to this domain in Settings → Facility layers first.` },
+          { status: 409 },
+        );
+      }
+    }
+    data.caregiverForm = b.caregiverForm;
+  }
   if (typeof b.isActive === "boolean") data.isActive = b.isActive;
 
   // Diff against the stored row so the log records what actually changed,

@@ -1,13 +1,13 @@
 /** Admin: create a caregiver practice. */
 import { NextRequest } from "next/server";
+import { requireCaregiverCatalogWrite } from "@/lib/field/access";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { isAdminUser } from "@/lib/roleGuard";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isAdminUser(session)) return Response.json({ error: "Forbidden" }, { status: 403 });
+  if (!(await requireCaregiverCatalogWrite())) return Response.json({ error: "Forbidden" }, { status: 403 });
 
   const b = await req.json().catch(() => null);
   const code = String(b?.code ?? "").trim().toUpperCase();

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown, RefreshCw, Database, X, ListChecks, Users, MapPin } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown, RefreshCw, Database, X, ListChecks, Users, MapPin, AlertTriangle } from "lucide-react";
 import { NewFacilityModal } from "./NewFacilityModal";
 
 type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; phaseTag: string | null; formKind: string | null; formSchema: any };
@@ -11,7 +11,7 @@ type VisitRow = { id: string; order: number; stepKey: string; title: string; man
 type Domain = {
   config: { domain: string; label: string; unit: string; overallSlaDays: number | null; cadenceCount: number | null; cadencePeriod: string | null; hasLivePhase: boolean; caregiverForm: boolean; isActive: boolean };
   setupSteps: SetupRow[]; visitSteps: VisitRow[];
-  counts: { interventions: number; setupSteps: number; visitRecipe: number; visits: number; openFollowups: number };
+  counts: { interventions: number; legacyCandidates: number; setupSteps: number; visitRecipe: number; visits: number; openFollowups: number };
 };
 
 // Forms any step can carry. `caregiver_practices` is intentionally excluded here:
@@ -21,7 +21,7 @@ const BASE_FORM_KINDS = ["", "checklist", "questionnaire"];
 
 type Pickers = { clusters: { id: string; name: string }[]; users: { id: string; name: string; designation: string }[]; layerKeyByDomain: Record<string, string> };
 
-export function BackendConsole({ domains, available, pickers }: { domains: Domain[]; available: { domain: string; label: string; unit: string }[]; pickers: Pickers }) {
+export function BackendConsole({ domains, available, pickers }: { domains: Domain[]; available: { domain: string; label: string; unit: string; assessmentLevel: string }[]; pickers: Pickers }) {
   const router = useRouter();
   const [active, setActive] = useState(domains[0]?.config.domain ?? "");
   const [busy, setBusy] = useState(false);
@@ -112,7 +112,9 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
         <button onClick={() => setAddingDomain(true)} className="inline-flex items-center gap-1 rounded-lg border border-dashed border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-500 hover:bg-stone-50"><Plus size={14} /> Add domain</button>
       </div>
 
-      {/* Live-data snapshot */}
+      {/* Live-data snapshot. Every count is field-native only (fieldAnchorAt set);
+          legacy /operations goals sharing this needsDomain are counted separately
+          below, since they are what onboarding converts. */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {[["Interventions", d.counts.interventions], ["Setup steps", d.counts.setupSteps], ["Visit recipe", d.counts.visitRecipe], ["Visits logged", d.counts.visits], ["Open follow-ups", d.counts.openFollowups]].map(([l, v]) => (
           <div key={l as string} className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-center">
@@ -121,6 +123,15 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
           </div>
         ))}
       </div>
+      {d.counts.legacyCandidates > 0 && (
+        <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+          <span>
+            <span className="font-medium">{d.counts.legacyCandidates} legacy {d.config.label} goal{d.counts.legacyCandidates > 1 ? "s" : ""}</span> still
+            on the old /operations spine — not counted above and not visible in /field. Backfilling this domain converts them.
+          </span>
+        </p>
+      )}
 
       {/* Domain config */}
       <section className="rounded-xl border border-stone-200 bg-white p-4 space-y-3">
@@ -356,7 +367,7 @@ function CreateInterventionModal({ domains, pickers, busy, onClose, onCreate }: 
 }
 
 // Create a new /field domain. Pick a needsDomain (so interventions link) or type one.
-function AddDomainModal({ available, busy, onClose, onCreate }: { available: { domain: string; label: string; unit: string }[]; busy: boolean; onClose: () => void; onCreate: (body: unknown) => void }) {
+function AddDomainModal({ available, busy, onClose, onCreate }: { available: { domain: string; label: string; unit: string; assessmentLevel: string }[]; busy: boolean; onClose: () => void; onCreate: (body: unknown) => void }) {
   const [domain, setDomain] = useState(available[0]?.domain ?? "");
   const picked = available.find((a) => a.domain === domain);
   const [label, setLabel] = useState(available[0]?.label ?? "");
@@ -378,15 +389,25 @@ function AddDomainModal({ available, busy, onClose, onCreate }: { available: { d
         <div className="mb-3 flex items-start justify-between"><h3 className="text-base font-semibold text-stone-900">Add domain</h3><button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X size={20} /></button></div>
         <div className="space-y-3">
           <Field label="Domain (needsDomain key)">
-            {available.length > 0 ? (
-              <select value={domain} onChange={(e) => onPick(e.target.value)} className="inp">{available.map((a) => <option key={a.domain} value={a.domain}>{a.label} ({a.domain})</option>)}</select>
-            ) : (
-              <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="e.g. ChildrenCentre" className="inp" />
+            {available.length > 0 && (
+              <select value={available.some((a) => a.domain === domain) ? domain : ""} onChange={(e) => e.target.value && onPick(e.target.value)} className="inp">
+                {available.map((a) => <option key={a.domain} value={a.domain}>{a.label} ({a.domain})</option>)}
+                <option value="">— or type a key below —</option>
+              </select>
             )}
+            {/* Always reachable: the picker only lists domains with an ACTIVE
+                NeedsFormulaConfig row, so hiding this behind an empty list made
+                any other domain impossible to add without a detour to /settings. */}
+            <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="e.g. ChildrenCentre" className="inp mt-1.5 font-mono text-xs" />
           </Field>
           <Field label="Label"><input value={label} onChange={(e) => setLabel(e.target.value)} className="inp" /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Geo unit"><select value={unit} onChange={(e) => setUnit(e.target.value)} className="inp"><option value="settlement">settlement</option><option value="cluster">cluster</option></select></Field>
+            <Field label="Geo unit">
+              <select value={unit} onChange={(e) => setUnit(e.target.value)} className="inp"><option value="settlement">settlement</option><option value="cluster">cluster</option></select>
+              {picked && picked.assessmentLevel !== unit && (
+                <p className="mt-1 text-[11px] text-amber-700">Assessed at <span className="font-medium">{picked.assessmentLevel}</span> level — /field models only settlement and cluster, so this is a deliberate choice.</p>
+              )}
+            </Field>
             <Field label="Overall SLA (days)"><input type="number" value={overallSlaDays} onChange={(e) => setOverallSlaDays(e.target.value)} className="inp" /></Field>
             <Field label="Cadence count"><input type="number" value={cadenceCount} onChange={(e) => setCadenceCount(e.target.value)} className="inp" /></Field>
             <Field label="Cadence period"><select value={cadencePeriod} onChange={(e) => setCadencePeriod(e.target.value)} className="inp"><option value="month">month</option><option value="week">week</option></select></Field>

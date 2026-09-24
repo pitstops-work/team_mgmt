@@ -75,3 +75,28 @@ export async function activeFieldDomains(): Promise<Map<string, { label: string;
   const rows = await prisma.fieldDomainConfig.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } });
   return new Map(rows.map((r) => [r.domain, { label: r.label, unit: r.unit, cadenceCount: r.cadenceCount, cadencePeriod: r.cadencePeriod, overallSlaDays: r.overallSlaDays }]));
 }
+
+/**
+ * Who may edit the caregiver-practice catalog.
+ *
+ * The catalog is shared: /settings/caregiver-practices and /field/backend/caregiver
+ * are two views of the same tables. But the /field page is gated on
+ * `requireFieldAdmin` while its writes go to /api/admin/caregiver-practices*,
+ * which checked `isAdminUser` only — so a `field.manage` holder could open the
+ * editor, see everything, and have every save fail with a bare 403.
+ *
+ * Accepts admins, `field.manage` holders (they own the field backend), and
+ * anyone granted `caregiver_practice.update` directly.
+ */
+export async function requireCaregiverCatalogWrite(): Promise<string | null> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return null;
+  if (isAdminUser(session)) return userId;
+  const { buildRbacContext, can } = await import("@/lib/rbac");
+  const ctx = await buildRbacContext(session);
+  if (!ctx) return null;
+  if (await can(ctx, "field", "manage")) return userId;
+  if (await can(ctx, "caregiver_practice", "update")) return userId;
+  return null;
+}

@@ -20,8 +20,11 @@ export async function POST(req: NextRequest) {
   const tKeys = new Set(templates.map((t) => t.stepKey));
 
   // Live interventions = those that already carry a visit recipe, or are mode=live.
+  // fieldAnchorAt is THE discriminator for "created through /field" — without it
+  // this writes a visit recipe onto legacy /operations goals that merely share a
+  // needsDomain (and mode=live), which are invisible in /field but very much live.
   const goals = await prisma.goal.findMany({
-    where: { needsDomain: domain, deletedAt: null, OR: [{ mode: "live" }, { fieldSteps: { some: { kind: "Visit" } } }] },
+    where: { needsDomain: domain, deletedAt: null, fieldAnchorAt: { not: null }, OR: [{ mode: "live" }, { fieldSteps: { some: { kind: "Visit" } } }] },
     select: { id: true, fieldSteps: { where: { kind: "Visit" }, select: { id: true, stepKey: true, templateSlug: true, deletedAt: true } } },
   });
 

@@ -23,9 +23,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ goal
   const { goalId } = await params;
   const fieldVisitId = new URL(req.url).searchParams.get("fieldVisitId");
 
-  const goal = await prisma.goal.findFirst({ where: { id: goalId, deletedAt: null }, select: { linkedFacility: { select: { id: true } } } });
+  // Mirror the writer's requirement exactly (lib/field/caregiver.ts): a facility
+  // AND a settlement to file against. Checking only the facility let the UI open
+  // a capture the writer would then refuse.
+  const goal = await prisma.goal.findFirst({
+    where: { id: goalId, deletedAt: null },
+    select: { needsSettlementId: true, linkedFacility: { select: { id: true, settlementId: true } } },
+  });
   const facilityId = goal?.linkedFacility?.id ?? null;
-  if (!facilityId) return Response.json({ facilityLinked: false, categories: [], openFlags: [], thisVisit: [] });
+  const settlementId = goal?.needsSettlementId ?? goal?.linkedFacility?.settlementId ?? null;
+  if (!facilityId || !settlementId) return Response.json({ facilityLinked: false, categories: [], openFlags: [], thisVisit: [] });
 
   const categories = await prisma.caregiverPracticeCategory.findMany({
     where: { isActive: true },
@@ -75,6 +82,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
   const observations = Array.isArray(body?.observations) ? (body.observations as ObservationInput[]) : null;
   if (!fieldVisitId || !observations) return Response.json({ error: "fieldVisitId + observations required" }, { status: 400 });
 
-  const { written, escalated } = await captureFieldCaregiverPractices({ fieldVisitId, capturedById: userId, observations });
-  return Response.json({ ok: true, written, escalated });
+  const res = await captureFieldCaregiverPractices({ fieldVisitId, capturedById: userId, observations });
+  if (!res.ok) return Response.json({ error: res.reason }, { status: 422 });
+  return Response.json({ ok: true, written: res.written, escalated: res.escalated });
 }

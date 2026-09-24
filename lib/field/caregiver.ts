@@ -26,6 +26,11 @@ async function resolveFieldVisitContext(fieldVisitId: string): Promise<Ctx | nul
   };
 }
 
+/** Either the write happened, or it explicitly did not and says why. */
+export type CaptureResult =
+  | { ok: true; written: number; escalated: number }
+  | { ok: false; reason: string };
+
 export async function captureFieldCaregiverPractices({
   fieldVisitId,
   capturedById,
@@ -34,10 +39,15 @@ export async function captureFieldCaregiverPractices({
   fieldVisitId: string;
   capturedById: string;
   observations: ObservationInput[];
-}): Promise<{ written: number; escalated: number }> {
-  if (!observations.length) return { written: 0, escalated: 0 };
+}): Promise<CaptureResult> {
+  if (!observations.length) return { ok: true, written: 0, escalated: 0 };
   const ctx = await resolveFieldVisitContext(fieldVisitId);
-  if (!ctx?.facilityId || !ctx.settlementId) return { written: 0, escalated: 0 }; // silent no-op (mirrors legacy)
+  // Was a silent no-op "mirroring legacy" — but silence here means the RP fills
+  // in dozens of observations, gets a success, and the whole lot is discarded.
+  // (Exactly the /operations failure fixed in def3684.) Say why instead.
+  if (!ctx) return { ok: false, reason: "This visit no longer exists." };
+  if (!ctx.facilityId) return { ok: false, reason: "No creche is linked to this intervention, so there is nowhere to record observations. An admin can link one in Backend → Geography & assignment." };
+  if (!ctx.settlementId) return { ok: false, reason: "This intervention's creche has no settlement, so observations cannot be filed against a location. An admin can set one in Backend → Geography & assignment." };
   const { facilityId, settlementId, goalId } = ctx;
 
   const practiceIds = [...new Set(observations.map((o) => o.practiceId))];
@@ -45,7 +55,7 @@ export async function captureFieldCaregiverPractices({
     (await prisma.caregiverPractice.findMany({ where: { id: { in: practiceIds }, isActive: true }, select: { id: true, shortLabel: true } })).map((p) => [p.id, p.shortLabel]),
   );
   const rows = observations.filter((o) => practices.has(o.practiceId));
-  if (!rows.length) return { written: 0, escalated: 0 };
+  if (!rows.length) return { ok: true, written: 0, escalated: 0 };
 
   const dueDate = new Date(Date.now() + FOLLOWUP_DUE_DAYS * 86_400_000);
   let escalated = 0;
@@ -87,5 +97,5 @@ export async function captureFieldCaregiverPractices({
       update: { status: r.status, remarks: r.remarks?.trim() || null, action: r.action ?? null, photoUrl: r.photoUrl?.trim() || null, actionPointId, capturedById, capturedAt: new Date() },
     });
   }
-  return { written: rows.length, escalated };
+  return { ok: true, written: rows.length, escalated };
 }

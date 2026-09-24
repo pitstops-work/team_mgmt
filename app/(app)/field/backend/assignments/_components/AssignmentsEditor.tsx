@@ -8,7 +8,7 @@ import { NewFacilityModal } from "../../_components/NewFacilityModal";
 
 type Cluster = { id: string; name: string };
 type Rp = { id: string; name: string; designation: string; clusterIds: string[] };
-type Intervention = { id: string; title: string; domain: string; unit: string; status: string; mode: string; ownerId: string; ownerName: string; clusterId: string | null; clusterName: string | null; settlementId: string | null; settlementName: string | null; facilityId: string | null; facilityName: string | null };
+type Intervention = { id: string; title: string; domain: string; unit: string; status: string; mode: string; fieldNative: boolean; ownerId: string; ownerName: string; clusterId: string | null; clusterName: string | null; settlementId: string | null; settlementName: string | null; facilityId: string | null; facilityName: string | null };
 type User = { id: string; name: string; designation: string };
 type Data = { clusters: Cluster[]; rps: Rp[]; interventions: Intervention[] };
 
@@ -18,6 +18,10 @@ export function AssignmentsEditor({ data, layerKeyByDomain, users }: { data: Dat
   const [expandedRp, setExpandedRp] = useState<string | null>(null);
   const [editGeo, setEditGeo] = useState<Intervention | null>(null);
   const [q, setQ] = useState("");
+  // Legacy /operations goals share these needsDomains but are invisible in /field.
+  // Hidden by default so the list reflects /field, shown on demand because their
+  // geography must be fixed before a backfill converts them.
+  const [showLegacy, setShowLegacy] = useState(false);
 
   async function call(url: string, method: string, body?: unknown) {
     setBusy(true);
@@ -29,7 +33,10 @@ export function AssignmentsEditor({ data, layerKeyByDomain, users }: { data: Dat
     } catch (e) { alert(e instanceof Error ? e.message : "Error"); } finally { setBusy(false); }
   }
 
-  const filtered = data.interventions.filter((i) => !q || i.title.toLowerCase().includes(q.toLowerCase()) || (i.clusterName ?? "").toLowerCase().includes(q.toLowerCase()));
+  const legacyCount = data.interventions.filter((i) => !i.fieldNative).length;
+  const filtered = data.interventions
+    .filter((i) => showLegacy || i.fieldNative)
+    .filter((i) => !q || i.title.toLowerCase().includes(q.toLowerCase()) || (i.clusterName ?? "").toLowerCase().includes(q.toLowerCase()));
 
   return (
     <div className="max-w-4xl mx-auto px-5 py-6 space-y-8">
@@ -79,11 +86,21 @@ export function AssignmentsEditor({ data, layerKeyByDomain, users }: { data: Dat
           <Search size={14} className="absolute left-2.5 top-2.5 text-stone-400" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search interventions…" className="w-full rounded-lg border border-stone-200 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-stone-400" />
         </div>
+        {legacyCount > 0 && (
+          <label className="flex items-center gap-1.5 text-xs text-stone-500">
+            <input type="checkbox" checked={showLegacy} onChange={(e) => setShowLegacy(e.target.checked)} />
+            Show {legacyCount} legacy /operations goal{legacyCount > 1 ? "s" : ""} not yet on the field spine
+          </label>
+        )}
         <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white">
           {filtered.map((i) => (
             <li key={i.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
               <div className="min-w-0">
-                <p className="truncate text-sm text-stone-800">{i.title}{i.status !== "Active" && <span className="ml-1.5 rounded bg-stone-100 px-1 text-[10px] font-medium text-stone-500">{i.status}</span>}</p>
+                <p className="truncate text-sm text-stone-800">
+                  {i.title}
+                  {i.status !== "Active" && <span className="ml-1.5 rounded bg-stone-100 px-1 text-[10px] font-medium text-stone-500">{i.status}</span>}
+                  {!i.fieldNative && <span className="ml-1.5 rounded bg-amber-100 px-1 text-[10px] font-medium text-amber-700" title="Legacy /operations goal — not visible in /field until backfilled">legacy</span>}
+                </p>
                 <p className="text-xs text-stone-500">{i.clusterName ?? "—"}{i.settlementName ? ` · ${i.settlementName}` : ""}{i.facilityName ? ` · ${i.facilityName}` : ""} · {i.ownerName}</p>
               </div>
               <button onClick={() => setEditGeo(i)} className="flex-shrink-0 rounded-lg border border-stone-300 px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50">Edit</button>
