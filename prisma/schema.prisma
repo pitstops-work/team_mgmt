@@ -174,6 +174,9 @@ model User {
   recruitmentJobsCreated    RecruitmentJob[]               @relation("RecruitmentJobCreator")
   recruitmentScoutingDays   RecruitmentScoutingDay[]       @relation("RecruitmentScoutingDayCreator")
   recruitmentBatchRuns      RecruitmentBatchRun[]          @relation("RecruitmentBatchRunCreator")
+  screeningReviews          ScreeningReview[]              @relation("ScreeningReviewer")
+  screeningEvents           ScreeningEvent[]               @relation("ScreeningEventActor")
+  screeningScopes           ScreeningScope[]               @relation("ScreeningScopeUser")
   // Field-ops surface (/field) — the minimal RP spine
   fieldStepsCompleted       FieldStep[]                    @relation("FieldStepCompleter")
   fieldVisitsArrived        FieldVisit[]                   @relation("FieldVisitArriver")
@@ -4192,6 +4195,8 @@ model SeedingGeo {
   channels  SeedingChannel[]
   sessions  SeedingSession[]
   leads     SeedingLead[]
+  screeningApplications ScreeningApplication[]
+  screeningScopes       ScreeningScope[]
 }
 
 /// Top-level workstream (A-E + Launch Gate). Admin add/remove/reorder.
@@ -5418,4 +5423,148 @@ model FieldDomainConfig {
 
   // RPs who work this domain. Empty on the user side = unrestricted.
   rps User[] @relation("RPFieldDomains")
+}
+
+// ── Seeding: application screening ─────────────────────────────────────────
+//
+// Applications arrive from the application portal (intake API) or a spreadsheet
+// import, get an AI draft against the geography's rubric, and are then scored
+// and decided by people: L2 screeners (Shortlist / Hold / Reject), then the
+// geography lead at L3 (Approve / Reject / Hold). See lib/seeding/screening/.
+
+enum ScreeningStatus {
+  new         // awaiting an L2 read
+  l2_hold     // held at L2; needs a second L2 read
+  l3_pending  // shortlisted; awaiting the geography lead
+  l3_hold
+  approved
+  rejected
+}
+
+model ScreeningApplication {
+  id            String          @id @default(cuid())
+  /// The application portal's reference. Intake is idempotent on it.
+  ref           String          @unique
+  geoId         String?
+  geo           SeedingGeo?     @relation(fields: [geoId], references: [id], onDelete: SetNull)
+  email         String
+  name          String
+  phone         String?
+  state         String?
+  district      String?
+  block         String?
+  theme         String?
+  isGroup       Boolean         @default(false)
+  /// Structured form answers, as { label: value }. Shape follows the portal.
+  profile       Json            @default("{}")
+  /// Long-form answers and the statement of purpose: [{ key, label, text }].
+  answers       Json            @default("[]")
+  /// Group members, entered by the primary applicant: [{ name, ... }].
+  members       Json            @default("[]")
+  /// Criteria the portal computed as below threshold: [{ criterion, detail }].
+  criteriaFlags Json            @default("[]")
+  /// Uploaded files: [{ kind, name, url }].
+  documents     Json            @default("[]")
+  cvText        String?
+  sopText       String?
+  status        ScreeningStatus @default(new)
+  /// red_flag | safeguarding | low_dimension | divergent
+  flags         String[]        @default([])
+  /// People who declared a conflict of interest; they never see it again.
+  conflictUserIds String[]      @default([])
+  source        String          @default("import")
+  submittedAt   DateTime?
+
+  /// pending | running | done | failed | off
+  aiStatus        String    @default("pending")
+  /// { scores: { [dimKey]: { score, evidence } }, summary, concerns[] }
+  aiDraft         Json?
+  aiRubricVersion Int?
+  aiError         String?
+  aiAttempts      Int       @default(0)
+  aiLockedAt      DateTime?
+
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  reviews   ScreeningReview[]
+  events    ScreeningEvent[]
+
+  @@index([geoId, status])
+  @@index([aiStatus, aiLockedAt])
+  @@index([email])
+}
+
+model ScreeningReview {
+  id            String               @id @default(cuid())
+  applicationId String
+  application   ScreeningApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  /// l2 | l3
+  level         String
+  reviewerId    String?
+  reviewer      User?                @relation("ScreeningReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  /// { [dimKey]: 1..5 }
+  scores        Json
+  /// Null when a lead decided on the screeners' scores without re-scoring.
+  total         Float?
+  /// The rubric as it stood when this review was made, so a later edit to the
+  /// rubric never changes a recorded total.
+  rubric        Json
+  /// shortlist | hold | reject | approve
+  decision      String
+  justification String
+  createdAt     DateTime             @default(now())
+
+  @@index([applicationId])
+  @@index([reviewerId, createdAt])
+}
+
+/// Audit trail: every decision, flag, reopen, import and rubric change.
+model ScreeningEvent {
+  id            String                @id @default(cuid())
+  applicationId String?
+  application   ScreeningApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  actorId       String?
+  actor         User?                 @relation("ScreeningEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  type          String
+  detail        Json?
+  createdAt     DateTime              @default(now())
+
+  @@index([applicationId, createdAt])
+  @@index([type, createdAt])
+}
+
+/// The scoring rubric: "default", or a geography key for that geography's own.
+model ScreeningRubric {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  version     Int      @default(1)
+  /// [{ key, label, description, weight, groupWeight, groupOnly, anchors: { "1","3","5" } }]
+  dimensions  Json
+  /// What reviewers and the AI draft should know about this geography.
+  guidance    String   @default("")
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+model ScreeningSettings {
+  id         Int      @id @default(1)
+  advanceMin Int      @default(70)
+  holdMin    Int      @default(50)
+  /// Two L2 totals further apart than this go to the geography lead.
+  divergence Int      @default(15)
+  dailyCap   Int      @default(20)
+  aiEnabled  Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+}
+
+/// Narrows an L2 screener to some districts of a geography. No row = the whole geography.
+model ScreeningScope {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation("ScreeningScopeUser", fields: [userId], references: [id], onDelete: Cascade)
+  geoId     String
+  geo       SeedingGeo @relation(fields: [geoId], references: [id], onDelete: Cascade)
+  districts String[]   @default([])
+
+  @@unique([userId, geoId])
 }

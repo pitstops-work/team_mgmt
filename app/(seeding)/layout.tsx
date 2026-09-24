@@ -14,6 +14,7 @@ const NAV: { href: string; label: string; mobile?: boolean; external?: boolean }
   { href: "/seeding/workstreams", label: "Checklist", mobile: true },
   { href: "/seeding/funnel", label: "Funnel", mobile: true },
   { href: "/seeding/outreach", label: "Outreach", mobile: true },
+  { href: "/seeding/screening", label: "Screening", mobile: true },
   { href: "/seeding/geo", label: "Geographies" },
   { href: "/seeding/my", label: "My tasks", mobile: true },
   { href: "/seeding/timeline", label: "Timeline" },
