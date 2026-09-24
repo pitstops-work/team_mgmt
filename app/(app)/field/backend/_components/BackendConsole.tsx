@@ -49,8 +49,24 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
   const patchDomain = (body: unknown) => call(`/api/field/admin/domain/${d.config.domain}`, "PATCH", body);
   const patchStep = (kind: "setup" | "visit", id: string, body: unknown) => call(`/api/field/admin/step/${id}`, "PATCH", { kind, ...(body as object) });
   const delStep = (kind: "setup" | "visit", id: string) => call(`/api/field/admin/step/${id}?kind=${kind}`, "DELETE");
-  const addStep = (kind: "setup" | "visit") => call(`/api/field/admin/step`, "POST", { op: "create", kind, domain: d.config.domain, title: "New step" });
+  // Ask for the title up front: stepKey is slugified from it at creation and is
+  // the resync identity thereafter, so "New step" would permanently key the row
+  // as new-step-N. (Renaming a key later is possible but is a cascade — see the
+  // key column below.)
+  const addStep = (kind: "setup" | "visit") => {
+    const title = window.prompt(`New ${kind} step — title?`)?.trim();
+    if (!title) return;
+    return call(`/api/field/admin/step`, "POST", { op: "create", kind, domain: d.config.domain, title });
+  };
   const reorder = (kind: "setup" | "visit", ids: string[]) => call(`/api/field/admin/step`, "POST", { op: "reorder", kind, domain: d.config.domain, orderedIds: ids });
+  const renameKey = (kind: "setup" | "visit", id: string, current: string) => {
+    const next = window.prompt(
+      `Step key — the identity template resync matches on.\n\nRenaming it moves the key on every materialised step too, so completion is preserved. Blank or cancel to leave it alone.`,
+      current,
+    )?.trim();
+    if (!next || next === current) return;
+    return call(`/api/field/admin/step/${id}`, "PATCH", { kind, stepKey: next });
+  };
 
   // Setup steps never get caregiver-practices; visit steps do only when the
   // domain opts in. (Caregiver observation is a live-phase activity.)
@@ -144,7 +160,7 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-stone-100 text-left text-[11px] uppercase text-stone-400">
-              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">Phase</th><th className="px-2">SLA</th><th className="px-2">Start</th><th className="px-2">Blocked by</th><th className="px-2">Form</th><th className="px-2"></th>
+              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">Key</th><th className="px-2">Phase</th><th className="px-2">SLA</th><th className="px-2">Start</th><th className="px-2">Blocked by</th><th className="px-2">Form</th><th className="px-2"></th>
             </tr></thead>
             <tbody>
               {d.setupSteps.map((s, i) => (
@@ -155,6 +171,15 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
                     <button disabled={busy || i === d.setupSteps.length - 1} onClick={() => move("setup", d.setupSteps, i, 1)} className="text-stone-300 hover:text-stone-600 disabled:opacity-30"><ArrowDown size={12} /></button>
                   </td>
                   <td className="px-2"><input defaultValue={s.title} onBlur={(e) => e.target.value !== s.title && patchStep("setup", s.id, { title: e.target.value })} className="w-56 rounded border border-transparent px-1 py-0.5 hover:border-stone-200 focus:border-stone-300 focus:outline-none" /></td>
+                  <td className="px-2">
+                    <button
+                      onClick={() => renameKey("setup", s.id, s.stepKey)}
+                      title="Template resync matches on this key — click to rename it (cascades to every materialised step)"
+                      className="max-w-[11rem] truncate rounded px-1 py-0.5 font-mono text-[11px] text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                    >
+                      {s.stepKey}
+                    </button>
+                  </td>
                   <td className="px-2">
                     {/* Workstream label ("Infrastructure"). Drives the "Infrastructure · 3/9"
                         phase chip and the manager phase lens. Free text — a domain may coin its own. */}
@@ -191,7 +216,7 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-stone-100 text-left text-[11px] uppercase text-stone-400">
-              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">Required</th><th className="px-2">Form</th><th className="px-2"></th>
+              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">Key</th><th className="px-2">Required</th><th className="px-2">Form</th><th className="px-2"></th>
             </tr></thead>
             <tbody>
               {d.visitSteps.map((s, i) => (
@@ -202,6 +227,15 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
                     <button disabled={busy || i === d.visitSteps.length - 1} onClick={() => move("visit", d.visitSteps, i, 1)} className="text-stone-300 hover:text-stone-600 disabled:opacity-30"><ArrowDown size={12} /></button>
                   </td>
                   <td className="px-2"><input defaultValue={s.title} onBlur={(e) => e.target.value !== s.title && patchStep("visit", s.id, { title: e.target.value })} className="w-64 rounded border border-transparent px-1 py-0.5 hover:border-stone-200 focus:border-stone-300 focus:outline-none" /></td>
+                  <td className="px-2">
+                    <button
+                      onClick={() => renameKey("visit", s.id, s.stepKey)}
+                      title="Template resync matches on this key — click to rename it (cascades to every materialised step)"
+                      className="max-w-[11rem] truncate rounded px-1 py-0.5 font-mono text-[11px] text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                    >
+                      {s.stepKey}
+                    </button>
+                  </td>
                   <td className="px-2"><input type="checkbox" defaultChecked={s.mandatory} onChange={(e) => patchStep("visit", s.id, { mandatory: e.target.checked })} /></td>
                   <td className="px-2"><FormCell value={s.formKind} schema={s.formSchema} options={visitFormKinds} onChange={(v) => patchStep("visit", s.id, { formKind: v })} onEdit={() => setFormEditor({ kind: "visit", step: s })} /></td>
                   <td className="px-2"><button disabled={busy} onClick={() => confirm("Delete this step?") && delStep("visit", s.id)} className="text-stone-300 hover:text-red-500"><Trash2 size={14} /></button></td>
