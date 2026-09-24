@@ -178,20 +178,46 @@ export async function buildTemplatePlan(input: DeriveInput): Promise<TemplatePla
     visit.push({ ...s, order: visit.length });
   };
 
-  // What the RP does each visit, from the recurring template's checklists.
+  // What the RP does each visit, from the recurring template.
+  //
+  // The pitstop becomes the STEP and its checklist becomes that step's FORM —
+  // the same shape setup steps already use. Flattening each checklist item into
+  // its own step instead produced a visit that was a wall of bare ticks with no
+  // detail behind any of them (109 across the nine domains), and for
+  // WelfareRights 73 of them.
+  //
+  // The exception is a scored audit: the 24-point safety check is substantial
+  // enough to be its own step with its own pass/fail/NA form, so a matching
+  // item is promoted out rather than buried in the parent's checklist.
   for (const p of liveTemplate?.pitstopDefs ?? []) {
-    for (const c of p.checklist) {
-      const scored = scoredItems.length > 0 && matchesScoredStep(c.key, c.text, scoredIndicatorKey!);
+    const scoredHere = scoredItems.length > 0
+      ? p.checklist.filter((c) => matchesScoredStep(c.key, c.text, scoredIndicatorKey!))
+      : [];
+    const scoredKeys = new Set(scoredHere.map((c) => c.key));
+    const rest = p.checklist.filter((c) => !scoredKeys.has(c.key));
+
+    for (const c of scoredHere) {
+      push({ stepKey: c.key, title: c.text, mandatory: true, formKind: "checklist", formSchema: { scored: true, items: scoredItems }, itemCount: scoredItems.length });
+    }
+    if (rest.length > 0) {
       push({
-        stepKey: c.key, title: c.text, mandatory: true,
-        formKind: scored ? "checklist" : null,
-        formSchema: scored ? { scored: true, items: scoredItems } : undefined,
-        itemCount: scored ? scoredItems.length : 0,
+        stepKey: p.key,
+        title: p.title,
+        mandatory: true,
+        formKind: "checklist",
+        formSchema: { items: rest.map((c) => ({ key: c.key, text: c.text })) },
+        itemCount: rest.length,
       });
     }
   }
-  // Plus the visit catalog's own items.
-  for (const cat of catalog?.categoryDefs ?? []) {
+  // Plus the visit catalog's own items — but ONLY when the live template gave
+  // us nothing. The catalog was derived from that template in the first place
+  // (ElderlyCentre: 7 of 9 items word-for-word identical, the rest differing
+  // only in phrasing), so taking both lists the same work twice: once as a
+  // checklist step and again as a row of bare ticks. The catalog still supplies
+  // cadence either way.
+  const liveGaveSteps = visit.length > 0;
+  for (const cat of liveGaveSteps ? [] : catalog?.categoryDefs ?? []) {
     for (const it of cat.items) {
       const isCaregiver = /caregiver/i.test(it.key) || /caregiver/i.test(it.text);
       push({ stepKey: it.key, title: it.text, mandatory: it.blocksSignoff, formKind: isCaregiver ? "caregiver_practices" : null, itemCount: 0 });

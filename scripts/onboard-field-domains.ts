@@ -26,13 +26,11 @@
  *    — scheme-linkage-drive 120/134, welfare-rights-copy 10/134, welfare-rights
  *    10/134, welfare-rights-temp 9/134. Naming similarity is not evidence; what
  *    the goals were actually built from is.
- *  - WelfareRights also takes its visit recipe from the CATALOG ONLY. Its
- *    recurring template's checklists are oversight prose ("Confirm partner
- *    team's current map of all active MAS groups") rather than a visit
- *    tick-list, and pulling them in produced 73 weekly steps against the
- *    catalog's curated 15. Measured: the recurring template adds 58 steps to
- *    WelfareRights and exactly 0 to ChildrenCentre, ElderlyCentre and
- *    YouthResourceCentre, so this is one domain's data shape, not a rule.
+ *  - WelfareRights' visit recipe comes from `welfare-rights` after all. It was
+ *    briefly catalog-only because flattening that template produced 73 weekly
+ *    steps. The flattening was the bug: a recurring pitstop is now the step and
+ *    its checklist that step's form, so the same source gives 8 steps carrying
+ *    67 checklist items — which is what a weekly visit form should look like.
  *  - ElderlyOutreach has no template of its own, but its single goal's eight
  *    pitstop titles match `elderly-centre-copy` exactly, 8/8 — it was built from
  *    that ElderlyCentre template. Deriving across the domain boundary beats
@@ -53,19 +51,22 @@ type Target = {
 };
 
 const TARGETS: Target[] = [
-  // Creche was seeded before phaseTag existed. Re-deriving is proven zero-diff
-  // against its hand-verified recipe and is how its steps gain phase names.
-  // The scored indicator MUST be passed or the 24-point audit loses its form.
-  { domain: "Creche", unit: "settlement", setupSlug: "creche-program", liveSlug: "creche-program-existing", catalogSlug: "creche-visit-catalog", scoredIndicatorKey: "creche_hygiene_score", note: "re-derive for phase names only — recipe is unchanged" },
-  { domain: "WelfareRights", unit: "settlement", setupSlug: "scheme-linkage-drive", catalogSlug: "welfare-rights-visit-catalog", prune: true, note: "scheme-linkage-drive is what the goals were actually built from — see header" },
+  // Creche is DELIBERATELY ABSENT. Its visit recipe predates the change that
+  // makes a recurring pitstop the step and its checklist that step's form, so
+  // re-deriving would fold "Monthly visit conducted" and "Health referrals
+  // verified" into one checklist step — 4 steps become 3. It is the only live
+  // domain (96 materialised visit steps, the 24-point audit, caregiver
+  // practices), so it keeps the recipe it has. Its phaseTags were backfilled
+  // separately. Add it back only with a deliberate migration of those steps.
+  { domain: "WelfareRights", unit: "settlement", setupSlug: "scheme-linkage-drive", liveSlug: "welfare-rights", catalogSlug: "welfare-rights-visit-catalog", prune: true, note: "scheme-linkage-drive setup; welfare-rights supplies the visit checklists — see header" },
   { domain: "ChildrenCentre", unit: "cluster", setupSlug: "children-learning-centre", liveSlug: "children-learning-centre-existing", catalogSlug: "children-centre-visit-catalog", prune: true, note: "prunes the abandoned hand-authored steps" },
-  { domain: "ElderlyCentre", unit: "cluster", setupSlug: "elderly-centre", liveSlug: "elderly-centre-existing", catalogSlug: "elderly-centre-visit-catalog", note: "NOT elderly-centre-copy (8 steps, different programme)" },
-  { domain: "YouthResourceCentre", unit: "cluster", setupSlug: "youth-resource-centre", liveSlug: "youth-resource-centre-existing", catalogSlug: "youth-resource-centre-visit-catalog" },
-  { domain: "CommunityToilet", unit: "settlement", setupSlug: "community-toilet", liveSlug: "community-toilet-existing", note: "no progressTags — steps get no phase name" },
-  { domain: "WaterATM", unit: "settlement", setupSlug: "water-atm", liveSlug: "water-atm-existing" },
-  { domain: "ElderlyKitchen", unit: "settlement", setupSlug: "elderly-kitchen", liveSlug: "elderly-kitchen-existing" },
-  { domain: "FoodDistribution", unit: "cluster", setupSlug: "vendor-new-setup-ops", liveSlug: "food-distribution-monthly", note: "assessed at city level; cluster is the closest grain /field models" },
-  { domain: "ElderlyOutreach", unit: "settlement", setupSlug: "elderly-centre-copy", note: "cross-domain — its goal was built from this ElderlyCentre template" },
+  { domain: "ElderlyCentre", unit: "cluster", setupSlug: "elderly-centre", liveSlug: "elderly-centre-existing", catalogSlug: "elderly-centre-visit-catalog", note: "NOT elderly-centre-copy (8 steps, different programme)", prune: true },
+  { domain: "YouthResourceCentre", unit: "cluster", setupSlug: "youth-resource-centre", liveSlug: "youth-resource-centre-existing", catalogSlug: "youth-resource-centre-visit-catalog", prune: true },
+  { domain: "CommunityToilet", unit: "settlement", setupSlug: "community-toilet", liveSlug: "community-toilet-existing", note: "no progressTags — steps get no phase name", prune: true },
+  { domain: "WaterATM", unit: "settlement", setupSlug: "water-atm", liveSlug: "water-atm-existing", prune: true },
+  { domain: "ElderlyKitchen", unit: "settlement", setupSlug: "elderly-kitchen", liveSlug: "elderly-kitchen-existing", prune: true },
+  { domain: "FoodDistribution", unit: "cluster", setupSlug: "vendor-new-setup-ops", liveSlug: "food-distribution-monthly", note: "assessed at city level; cluster is the closest grain /field models", prune: true },
+  { domain: "ElderlyOutreach", unit: "settlement", setupSlug: "elderly-centre-copy", note: "cross-domain — its goal was built from this ElderlyCentre template", prune: true },
 ];
 
 const flag = (n: string) => process.argv.includes(`--${n}`);
