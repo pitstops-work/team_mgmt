@@ -79,6 +79,12 @@ export function validateInput(x: Partial<ApplicationInput>): string | null {
  * its status and reviews; only its content is refreshed. One that nobody has
  * read yet is re-drafted, since what it says may have changed.
  */
+export class ReferenceCollision extends Error {
+  constructor(ref: string) {
+    super(`${ref}: this reference already belongs to a different applicant (another email). Each application needs its own reference.`);
+  }
+}
+
 export async function upsertApplication(
   input: ApplicationInput,
   source: "api" | "import",
@@ -112,8 +118,15 @@ export async function upsertApplication(
 
   const existing = await prisma.screeningApplication.findUnique({
     where: { ref: input.ref },
-    select: { id: true, _count: { select: { reviews: true } } },
+    select: { id: true, email: true, _count: { select: { reviews: true } } },
   });
+  // Same reference, different person: refuse rather than overwrite. An update
+  // is the same applicant re-sending; anything else is a reference collision
+  // on the sender's side, and merging two people's applications is the one
+  // mistake here nobody would notice.
+  if (existing && existing.email !== data.email) {
+    throw new ReferenceCollision(input.ref);
+  }
   if (existing) {
     const unread = existing._count.reviews === 0;
     await prisma.screeningApplication.update({

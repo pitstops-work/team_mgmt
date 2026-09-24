@@ -52,3 +52,27 @@ Send the whole application each time. An update replaces every field sent before
 - A new application goes into the geography's queue as **Awaiting L2**.
 - If first reads are switched on in Settings, Claude drafts scores within a few minutes.
 - An update to an application nobody has reviewed yet is drafted again. An update to an application already under review keeps its reviews and status.
+
+## Mapping from the applicant portal prototype
+
+Field ids are from `Seed_Applicant_Portal_standalone_-Updated.html`.
+
+| Prototype field | Send as |
+|---|---|
+| application ID | `ref`. Must be unique per applicant. A 4-digit code derived from the email is not unique across 10,000 applications, and a reused reference with a different email is refused. |
+| `elig_email` | `email` |
+| `full_name`, `mobile` | `name`, `phone` |
+| `geography` (or `geography_other` when "Any other") | `geography` (send the free text for "Any other"; it lands as Unassigned for the central team) |
+| `location` | `district`. For North-East India, where the options are states, send it as `state`. |
+| `theme` | `theme` |
+| `state`, `district` (current location) | `profile["Current location"]` |
+| `dob`, `gender`, `languages`, `highest_qual`, `field_of_study`, `institution`, `year_completion`, `total_years`, `community_years`, `engaged`, `current_org`, `based_state`/`based_district`, `years_with_org`, `relocate`, `committed`, `connection`, `role_from`/`role_to`, `joining`, `source`/`source_name` | `profile`, keyed by the question label |
+| `theme_opt2` | `profile["Theme — option 2"]` if the field stays |
+| `role_desc` | `answers[{ key: "recent_role", label: "A brief summary about your most recent role", text }]` |
+| `ref1_*`, `ref2_*` | `profile["Reference 1"]`, `profile["Reference 2"]` |
+| `cv`, `sop`, `photo`, `cert10`, `degree_cert`, `exp_cert` | `documents` with kinds `cv`, `sop`, `photo`, `class10`, `degree`, `experience` |
+| `g1`–`g7`, `g8` | `profile["Declarations"]`, `profile["Future cycles"]` |
+
+The statement of purpose is read from PDF, Word (.docx) or PowerPoint (.pptx). Older `.doc` and `.ppt` files can't be read.
+
+Criteria below the stated thresholds go in `criteriaFlags`, one entry per criterion, so they reach the decline queue rather than being turned away at the door.
