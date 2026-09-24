@@ -19,6 +19,11 @@ export default async function PortalPage() {
   const schoolPlans = await getSchoolPlanAccess(session);
   // budget-admins get a restricted chooser: Budget + Seeding only.
   const budgetOnly = isBudgetAdmin(session);
+  // Same rule as AppNav: a non-admin only reaches /field deliberately, and for
+  // them it replaces /operations rather than sitting beside it.
+  const { fieldEnabledForSession } = await import("@/lib/field/access");
+  const { isAdminUser } = await import("@/lib/roleGuard");
+  const fieldReplacesOps = fieldEnabledForSession(session) && !isAdminUser(session);
   // Recruitment card — gated on the same recruitment.list grant that used to
   // gate the nav-bar entry.
   const rbacCtx = await buildRbacContext(session);
@@ -45,16 +50,21 @@ export default async function PortalPage() {
         {/* Operations + Setup — hidden for budget-admins */}
         {!budgetOnly && (
         <>
+        {/* A pilot user's card points at /field instead: the nav swaps the two
+            for them, and the portal sending them back to /operations would undo
+            that. Admins keep Operations — they see Field in the nav anyway. */}
         <Link
-          href="/operations"
+          href={fieldReplacesOps ? "/field" : "/operations"}
           className="group flex flex-col gap-3 p-6 bg-sky-500 hover:bg-sky-600 rounded-2xl shadow-sm transition-all hover:shadow-md"
         >
           <div className="w-10 h-10 rounded-xl bg-sky-400/50 flex items-center justify-center">
             <CalendarClock className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-white font-semibold text-base">Operations</p>
-            <p className="text-sky-100 text-xs mt-0.5 leading-relaxed">Centres · Today · Checklists · Follow-ups</p>
+            <p className="text-white font-semibold text-base">{fieldReplacesOps ? "Field" : "Operations"}</p>
+            <p className="text-sky-100 text-xs mt-0.5 leading-relaxed">
+              {fieldReplacesOps ? "Clusters · Interventions · Visits · Follow-ups" : "Centres · Today · Checklists · Follow-ups"}
+            </p>
           </div>
         </Link>
 

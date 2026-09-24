@@ -44,6 +44,14 @@ export default function AppNav({
   const pathname = usePathname();
   // Supervisors (ZL/PM/Leader or admin) get the Oversight drill-down entry.
   const isSupervisor = !!isAdmin || ["ZL", "PM", "Leader"].includes(designation ?? "");
+  // fieldEnabled is true for every admin (they pass the gate by role), so it
+  // alone cannot mean "on the pilot". A non-admin only sees /field if they were
+  // put on FIELD_ALLOWLIST or the surface was switched on globally — that is a
+  // deliberate act, and for them /field REPLACES /operations rather than
+  // sitting beside it. The two spines do not sync, so offering both invites
+  // ticking a step in one and an activity in the other. Admins keep both:
+  // they are comparing the surfaces, not working them.
+  const fieldReplacesOps = !!fieldEnabled && !isAdmin;
   const allowedSet = new Set(allowedNavHrefs ?? []);
   const [showMore, setShowMore] = useState(false);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
@@ -105,12 +113,14 @@ export default function AppNav({
 
   // ── Operations nav items ───────────────────────────────────────────────────
   const operationsNav = [
-    ...(fieldEnabled ? [{ href: "/field", icon: <Compass className="w-3.5 h-3.5" />, label: "Field (beta)" }] : []),
+    ...(fieldEnabled ? [{ href: "/field", icon: <Compass className="w-3.5 h-3.5" />, label: fieldReplacesOps ? "Field" : "Field (beta)" }] : []),
     // Sits next to the legacy Oversight entry on purpose — same audience, and
     // during the transition a supervisor needs both: /operations/oversight for
     // whatever is still on the old spine, this for whatever has moved.
     ...(fieldEnabled && isSupervisor ? [{ href: "/field/oversight", icon: <Layers className="w-3.5 h-3.5" />, label: "Field oversight" }] : []),
-    { href: "/operations",    icon: <LayoutGrid className="w-3.5 h-3.5" />,    label: "Operations"    },
+    // Still reachable by URL for a pilot user — just not offered, so there is
+    // one obvious place to do the work.
+    ...(fieldReplacesOps ? [] : [{ href: "/operations", icon: <LayoutGrid className="w-3.5 h-3.5" />, label: "Operations" }]),
     ...(isSupervisor ? [{ href: "/operations/oversight", icon: <Layers className="w-3.5 h-3.5" />, label: "Oversight" }] : []),
     { href: "/home",          icon: <CalendarClock className="w-3.5 h-3.5" />, label: "Home"          },
     { href: "/activities",    icon: <CalendarClock className="w-3.5 h-3.5" />, label: "Activities"    },
@@ -221,9 +231,18 @@ export default function AppNav({
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-200 flex items-stretch h-16">
         {isOperations ? (
           <>
-            <MobileLink href="/operations" label="Operations" active={pathname === "/operations" || pathname.startsWith("/operations/")}>
-              <LayoutGrid className="w-5 h-5" />
-            </MobileLink>
+            {/* The primary slot: /field for a pilot user, /operations for everyone
+                else. Five slots is already the comfortable maximum at this width,
+                so this is a swap rather than an addition. */}
+            {fieldReplacesOps ? (
+              <MobileLink href="/field" label="Field" active={pathname === "/field" || pathname.startsWith("/field/")}>
+                <Compass className="w-5 h-5" />
+              </MobileLink>
+            ) : (
+              <MobileLink href="/operations" label="Operations" active={pathname === "/operations" || pathname.startsWith("/operations/")}>
+                <LayoutGrid className="w-5 h-5" />
+              </MobileLink>
+            )}
             <MobileLink href="/home"       label="Home"       active={pathname === "/home"}>
               <CalendarClock className="w-5 h-5" />
             </MobileLink>
