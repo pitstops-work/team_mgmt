@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LayoutGrid, ChevronLeft, ChevronRight, Clock } from "lucide-react";
-import { getFieldSession } from "@/lib/field/access";
+import { getFieldOversightScope } from "@/lib/field/access";
 import { getUserClusters } from "@/lib/operations/clusters";
 import { loadFieldFacts, rollupFacts, byZone, factsForCluster, deriveFieldClusterStatus, type FieldClusterStatus } from "@/lib/field/rollup";
 
@@ -20,10 +20,11 @@ export const dynamic = "force-dynamic";
  * show is worst days-stuck, which is the whole point of computeSetupFront.
  */
 export default async function FieldOversightPage() {
-  const session = await getFieldSession();
-  if (!session) redirect("/operations");
+  // Supervisor-scoped: an RP is bounced to their own /field home.
+  const scope = await getFieldOversightScope();
+  if (!scope) redirect("/field");
 
-  const clusters = await getUserClusters([session.userId]);
+  const clusters = await getUserClusters(scope.visibleIds);
   const facts = await loadFieldFacts({ clusterIds: clusters.map((c) => c.id) });
 
   // Group clusters by zone for the page structure, but compute each cluster's

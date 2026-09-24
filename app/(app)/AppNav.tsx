@@ -106,6 +106,10 @@ export default function AppNav({
   // ── Operations nav items ───────────────────────────────────────────────────
   const operationsNav = [
     ...(fieldEnabled ? [{ href: "/field", icon: <Compass className="w-3.5 h-3.5" />, label: "Field (beta)" }] : []),
+    // Sits next to the legacy Oversight entry on purpose — same audience, and
+    // during the transition a supervisor needs both: /operations/oversight for
+    // whatever is still on the old spine, this for whatever has moved.
+    ...(fieldEnabled && isSupervisor ? [{ href: "/field/oversight", icon: <Layers className="w-3.5 h-3.5" />, label: "Field oversight" }] : []),
     { href: "/operations",    icon: <LayoutGrid className="w-3.5 h-3.5" />,    label: "Operations"    },
     ...(isSupervisor ? [{ href: "/operations/oversight", icon: <Layers className="w-3.5 h-3.5" />, label: "Oversight" }] : []),
     { href: "/home",          icon: <CalendarClock className="w-3.5 h-3.5" />, label: "Home"          },

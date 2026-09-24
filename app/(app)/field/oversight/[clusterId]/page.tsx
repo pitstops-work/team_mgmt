@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
-import { getFieldSession } from "@/lib/field/access";
+import { getFieldOversightScope } from "@/lib/field/access";
 import { getUserClusters } from "@/lib/operations/clusters";
 import { loadFieldFacts, factsForCluster, rollupFacts, byPhase, type FieldFact } from "@/lib/field/rollup";
 import { ymKey } from "@/lib/operations/month";
@@ -24,11 +24,12 @@ export const dynamic = "force-dynamic";
  * ordered step list per goal needs much less machinery.
  */
 export default async function FieldClusterOversightPage({ params }: { params: Promise<{ clusterId: string }> }) {
-  const session = await getFieldSession();
-  if (!session) redirect("/operations");
+  // Supervisor-scoped: an RP is bounced to their own /field home.
+  const scope = await getFieldOversightScope();
+  if (!scope) redirect("/field");
   const { clusterId } = await params;
 
-  const clusters = await getUserClusters([session.userId]);
+  const clusters = await getUserClusters(scope.visibleIds);
   const cluster = clusters.find((c) => c.id === clusterId);
   if (!cluster) notFound();
 
