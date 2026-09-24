@@ -34,6 +34,9 @@
  * Usage:
  *   npx tsx scripts/backfill-field-domain.ts --domain ElderlyCentre        (dry run)
  *   npx tsx scripts/backfill-field-domain.ts --domain ElderlyCentre --commit
+ *   npx tsx scripts/backfill-field-domain.ts --domain X --include-unplaced
+ *       Also convert goals with no cluster/settlement/facility. They are
+ *       unreachable in /field until given geography, so this is opt-in.
  *   npx tsx scripts/backfill-field-domain.ts --fix-orphans [--commit]
  *       Repairs already-backfilled steps whose key matches no active template,
  *       by making them ad-hoc. Without this a resync soft-deletes them.
@@ -126,18 +129,37 @@ async function main() {
   const goals = await prisma.goal.findMany({
     where: { needsDomain: DOMAIN, deletedAt: null },
     include: { pitstops: { where: { deletedAt: null }, orderBy: { order: "asc" }, include: { checklistItems: true } }, centreCatalog: true },
+    // needsClusterId / needsSettlementId / linkedFacilityId come through by default on the model.
   });
 
   let setupCount = 0, visitRecipeCount = 0, visitOccCount = 0, matched = 0, unmatched = 0;
   const unmatchedKeys = new Map<string, number>();
   const report: string[] = [];
 
-  let skipped = 0;
+  let skipped = 0, unplaced = 0;
+  const unplacedTitles: string[] = [];
   for (const goal of goals) {
     if (inUse.has(goal.id) && !flag("force")) {
       report.push(`  ${goal.title.slice(0, 44).padEnd(44)} SKIPPED — worked on through /field already`);
       skipped++;
       continue;
+    }
+    // /field is place-based: every screen groups by cluster, so a goal with no
+    // cluster, settlement or facility renders as "—" and is unreachable. The
+    // first run of this script swept six programme-level goals in that way
+    // (training prep, partner scouting, roadmaps, a monthly review) and they had
+    // to be removed again. Absence of geography is not proof a goal is
+    // programme-level — "Community Sanitation Complex" is a real place that was
+    // simply missing its cluster — so this asks rather than decides.
+    const placed = !!(goal.needsClusterId || goal.needsSettlementId || goal.linkedFacilityId);
+    if (!placed) {
+      unplaced++;
+      unplacedTitles.push(goal.title);
+      if (!flag("include-unplaced")) {
+        report.push(`  ${goal.title.slice(0, 44).padEnd(44)} SKIPPED — no cluster/settlement/facility`);
+        skipped++;
+        continue;
+      }
     }
     const anchor = goal.startDate ?? goal.createdAt;
     const cadenceCount = goal.centreCatalog?.cadenceCount ?? domainConfig.cadenceCount;
@@ -230,6 +252,18 @@ async function main() {
   console.log(report.join("\n"));
   console.log(`\nTotals: ${goals.length - skipped} goals converted${skipped ? ` · ${skipped} skipped (real /field use)` : ""} · ${setupCount} setup · ${visitRecipeCount} visit-recipe · ${visitOccCount} completed visits`);
   console.log(`Key alignment: ${matched} matched a template, ${unmatched} did not (imported as ad-hoc)`);
+  if (unplaced > 0) {
+    console.log(
+      `\n${unplaced} goal(s) have NO cluster, settlement or facility. /field groups everything by\n` +
+      `cluster, so these would render as "—" and be unreachable:`,
+    );
+    for (const t of unplacedTitles) console.log(`    ${t.slice(0, 70)}`);
+    console.log(
+      flag("include-unplaced")
+        ? "  --include-unplaced given: converting them anyway."
+        : "  Skipped. Give them geography first, or pass --include-unplaced if they belong here.",
+    );
+  }
   if (unmatchedKeys.size) {
     console.log("  unmatched keys:");
     for (const [k, n] of [...unmatchedKeys].sort((a, b) => b[1] - a[1]).slice(0, 12)) console.log(`    ${String(n).padStart(3)}x  ${k}`);
