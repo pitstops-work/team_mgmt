@@ -12,7 +12,7 @@ export type DomainBackend = {
   visitSteps: VisitRow[];
   counts: { interventions: number; setupSteps: number; visitRecipe: number; visits: number; openFollowups: number };
 };
-export type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; formKind: string | null; formSchema: unknown };
+export type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; phaseTag: string | null; formKind: string | null; formSchema: unknown };
 export type VisitRow = { id: string; order: number; stepKey: string; title: string; mandatory: boolean; formKind: string | null; formSchema: unknown };
 
 /** needsDomains that aren't yet configured for /field — candidates for "Add domain". */
@@ -87,7 +87,7 @@ export async function loadFieldBackend(): Promise<DomainBackend[]> {
     ]);
     out.push({
       config: { domain: c.domain, label: c.label, unit: c.unit, overallSlaDays: c.overallSlaDays, cadenceCount: c.cadenceCount, cadencePeriod: c.cadencePeriod, hasLivePhase: c.hasLivePhase, caregiverForm: c.caregiverForm, isActive: c.isActive },
-      setupSteps: setup.map((s) => ({ id: s.id, order: s.order, stepKey: s.stepKey, title: s.title, slaDays: s.slaDays, startSlaDays: s.startSlaDays, blockedByKey: s.blockedByKey, formKind: s.formKind, formSchema: s.formSchema })),
+      setupSteps: setup.map((s) => ({ id: s.id, order: s.order, stepKey: s.stepKey, title: s.title, slaDays: s.slaDays, startSlaDays: s.startSlaDays, blockedByKey: s.blockedByKey, phaseTag: s.phaseTag, formKind: s.formKind, formSchema: s.formSchema })),
       visitSteps: visit.map((s) => ({ id: s.id, order: s.order, stepKey: s.stepKey, title: s.title, mandatory: s.mandatory, formKind: s.formKind, formSchema: s.formSchema })),
       counts: { interventions, setupSteps, visitRecipe, visits, openFollowups },
     });

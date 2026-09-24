@@ -2,11 +2,13 @@
 //   POST { domain, label, unit?, cadenceCount?, cadencePeriod?, overallSlaDays?, hasLivePhase? }
 // `domain` should match a needsDomain (NeedsFormulaConfig.domain) so interventions link.
 import { NextRequest } from "next/server";
+import { logField } from "@/lib/field/audit";
 import prisma from "@/lib/prisma";
 import { requireFieldAdmin } from "@/lib/field/access";
 
 export async function POST(req: NextRequest) {
-  if (!(await requireFieldAdmin())) return Response.json({ error: "Forbidden" }, { status: 403 });
+  const actorId = await requireFieldAdmin();
+  if (!actorId) return Response.json({ error: "Forbidden" }, { status: 403 });
   const b = await req.json().catch(() => ({}));
   const domain = String(b?.domain ?? "").trim();
   const label = String(b?.label ?? "").trim() || domain;
@@ -27,5 +29,6 @@ export async function POST(req: NextRequest) {
       sortOrder: (max._max.sortOrder ?? 0) + 10,
     },
   });
+  logField("FieldDomain", domain, actorId, "created", { field: "label", to: label });
   return Response.json({ ok: true, domain });
 }

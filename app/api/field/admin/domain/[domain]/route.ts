@@ -2,11 +2,13 @@
 //   PATCH { label?, unit?, overallSlaDays?, cadenceCount?, cadencePeriod?, hasLivePhase?, caregiverForm?, isActive? }
 //   DELETE — remove the domain config (only when it has no interventions).
 import { NextRequest } from "next/server";
+import { logField, logFieldChanges, diffChanges } from "@/lib/field/audit";
 import prisma from "@/lib/prisma";
 import { requireFieldAdmin } from "@/lib/field/access";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ domain: string }> }) {
-  if (!(await requireFieldAdmin())) return Response.json({ error: "Forbidden" }, { status: 403 });
+  const actorId = await requireFieldAdmin();
+  if (!actorId) return Response.json({ error: "Forbidden" }, { status: 403 });
   const { domain } = await params;
   const b = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
@@ -19,17 +21,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ do
   if (typeof b.caregiverForm === "boolean") data.caregiverForm = b.caregiverForm;
   if (typeof b.isActive === "boolean") data.isActive = b.isActive;
 
+  // Diff against the stored row so the log records what actually changed,
+  // not the whole payload.
+  const before = await prisma.fieldDomainConfig.findUnique({ where: { domain } });
   await prisma.fieldDomainConfig.update({ where: { domain }, data });
+  if (before) logFieldChanges("FieldDomain", domain, actorId, "updated", diffChanges(before as unknown as Record<string, unknown>, data));
   return Response.json({ ok: true });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ domain: string }> }) {
-  if (!(await requireFieldAdmin())) return Response.json({ error: "Forbidden" }, { status: 403 });
+  const actorId = await requireFieldAdmin();
+  if (!actorId) return Response.json({ error: "Forbidden" }, { status: 403 });
   const { domain } = await params;
   const inUse = await prisma.goal.count({ where: { needsDomain: domain, deletedAt: null, fieldSteps: { some: {} } } });
   if (inUse > 0) return Response.json({ error: `In use by ${inUse} intervention(s) — deactivate instead` }, { status: 409 });
+  // Hard delete of the domain AND its whole recipe — record what was destroyed.
+  const setup = await prisma.setupStepTemplate.count({ where: { domain } });
+  const visit = await prisma.visitStepTemplate.count({ where: { domain } });
   await prisma.setupStepTemplate.deleteMany({ where: { domain } });
   await prisma.visitStepTemplate.deleteMany({ where: { domain } });
   await prisma.fieldDomainConfig.delete({ where: { domain } });
+  logField("FieldDomain", domain, actorId, "deleted", { field: "templates", from: { setup, visit }, to: null });
   return Response.json({ ok: true });
 }

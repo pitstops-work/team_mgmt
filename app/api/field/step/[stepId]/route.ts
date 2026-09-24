@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { assertFieldGoalAccess } from "@/lib/field/access";
 import { checklistGate } from "@/lib/field/stepGate";
+import { logStepReversal } from "@/lib/field/audit";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ stepId: string }> }) {
   const session = await auth();
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ste
   const body = await req.json().catch(() => ({}));
   const action: string = body?.action ?? "";
 
-  const step = await prisma.fieldStep.findFirst({ where: { id: stepId, kind: "Setup", deletedAt: null }, select: { id: true, goalId: true, formKind: true, formSchema: true, answers: true } });
+  const step = await prisma.fieldStep.findFirst({ where: { id: stepId, kind: "Setup", deletedAt: null }, select: { id: true, goalId: true, title: true, formKind: true, formSchema: true, answers: true, completedById: true } });
   if (!step) return Response.json({ error: "Not found" }, { status: 404 });
   if (!(await assertFieldGoalAccess(userId, step.goalId))) return Response.json({ error: "Forbidden" }, { status: 403 });
 
@@ -38,11 +39,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ste
       data.status = "InProgress";
       data.completedAt = null;
       data.completedById = null;
+      // Log BEFORE the update: it clears completedById, so this is the only
+      // moment the previous completer is still knowable.
+      logStepReversal(stepId, userId, "reopened", { title: step.title, previousCompletedById: step.completedById });
       break;
     case "skip":
       data.status = "Skipped";
       data.completedAt = now;
       data.completedById = userId;
+      logStepReversal(stepId, userId, "skipped", { title: step.title, previousCompletedById: step.completedById });
       break;
     case "save":
       data.answers = body.answers ?? {};
@@ -52,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ste
       return Response.json({ error: "Unknown action" }, { status: 400 });
   }
 
+  data.lastUpdatedById = userId;
   await prisma.fieldStep.update({ where: { id: stepId }, data });
   return Response.json({ ok: true });
 }

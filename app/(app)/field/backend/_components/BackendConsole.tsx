@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown, RefreshCw, Database, X, ListChecks, Users, MapPin } from "lucide-react";
 import { NewFacilityModal } from "./NewFacilityModal";
 
-type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; formKind: string | null; formSchema: any };
+type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; phaseTag: string | null; formKind: string | null; formSchema: any };
 type VisitRow = { id: string; order: number; stepKey: string; title: string; mandatory: boolean; formKind: string | null; formSchema: any };
 type Domain = {
   config: { domain: string; label: string; unit: string; overallSlaDays: number | null; cadenceCount: number | null; cadencePeriod: string | null; hasLivePhase: boolean; caregiverForm: boolean; isActive: boolean };
@@ -135,10 +135,16 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
             <button disabled={busy} onClick={() => addStep("setup")} className="inline-flex items-center gap-1 rounded-lg border border-stone-300 px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50"><Plus size={13} /> Add</button>
           </div>
         </div>
+        {/* Suggestions only — the vocabulary carried over from the legacy
+            progressTag values, but any domain may coin its own label. */}
+        <datalist id="field-phase-tags">
+          {[...new Set(d.setupSteps.map((s) => s.phaseTag).filter(Boolean) as string[])].map((t) => <option key={t} value={t} />)}
+          {["Permissions", "Team", "Infrastructure", "Baseline", "Training", "Mobilisation", "Monitoring", "Live"].map((t) => <option key={t} value={t} />)}
+        </datalist>
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-stone-100 text-left text-[11px] uppercase text-stone-400">
-              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">SLA</th><th className="px-2">Start</th><th className="px-2">Blocked by</th><th className="px-2">Form</th><th className="px-2"></th>
+              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">Phase</th><th className="px-2">SLA</th><th className="px-2">Start</th><th className="px-2">Blocked by</th><th className="px-2">Form</th><th className="px-2"></th>
             </tr></thead>
             <tbody>
               {d.setupSteps.map((s, i) => (
@@ -149,6 +155,13 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
                     <button disabled={busy || i === d.setupSteps.length - 1} onClick={() => move("setup", d.setupSteps, i, 1)} className="text-stone-300 hover:text-stone-600 disabled:opacity-30"><ArrowDown size={12} /></button>
                   </td>
                   <td className="px-2"><input defaultValue={s.title} onBlur={(e) => e.target.value !== s.title && patchStep("setup", s.id, { title: e.target.value })} className="w-56 rounded border border-transparent px-1 py-0.5 hover:border-stone-200 focus:border-stone-300 focus:outline-none" /></td>
+                  <td className="px-2">
+                    {/* Workstream label ("Infrastructure"). Drives the "Infrastructure · 3/9"
+                        phase chip and the manager phase lens. Free text — a domain may coin its own. */}
+                    <input list="field-phase-tags" defaultValue={s.phaseTag ?? ""} placeholder="—"
+                      onBlur={(e) => e.target.value !== (s.phaseTag ?? "") && patchStep("setup", s.id, { phaseTag: e.target.value.trim() || null })}
+                      className="w-28 rounded border border-transparent px-1 py-0.5 hover:border-stone-200 focus:border-stone-300 focus:outline-none" />
+                  </td>
                   <td className="px-2"><input type="number" defaultValue={s.slaDays ?? ""} onBlur={(e) => patchStep("setup", s.id, { slaDays: e.target.value === "" ? null : Number(e.target.value) })} className="w-14 rounded border border-transparent px-1 py-0.5 hover:border-stone-200 focus:border-stone-300 focus:outline-none" /></td>
                   <td className="px-2"><input type="number" defaultValue={s.startSlaDays ?? ""} onBlur={(e) => patchStep("setup", s.id, { startSlaDays: e.target.value === "" ? null : Number(e.target.value) })} className="w-14 rounded border border-transparent px-1 py-0.5 hover:border-stone-200 focus:border-stone-300 focus:outline-none" /></td>
                   <td className="px-2">

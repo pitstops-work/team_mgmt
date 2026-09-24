@@ -77,7 +77,14 @@ function Row({ row, muted }: { row: InterventionRow; muted?: boolean }) {
           <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium text-stone-500">{row.domainLabel}</span>
         </span>
         <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-500">
-          {row.phase === "setting_up" && <span>{row.setupDone}/{row.setupTotal} steps</span>}
+          {row.phase === "setting_up" && (
+            // "Infrastructure · 3/9" when the front step carries a workstream tag,
+            // plain "3/9 steps" when it doesn't.
+            <span>
+              {row.phaseLabel && <span className="font-medium text-stone-600">{row.phaseLabel} · </span>}
+              {row.setupDone}/{row.setupTotal} steps
+            </span>
+          )}
           {row.phase === "live" && (
             <span className={row.behind ? "font-medium text-amber-700" : ""}>
               {row.visitDone}/{row.visitRequired} visits this month

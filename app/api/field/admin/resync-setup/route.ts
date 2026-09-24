@@ -6,6 +6,7 @@
 // soft-deleted. Only targets goals that already went through setup (have setup
 // steps) — existing/auto-live centres without a setup phase are left alone.
 import { NextRequest } from "next/server";
+import { logDomainBulkOp } from "@/lib/field/audit";
 import prisma from "@/lib/prisma";
 import { requireFieldAdmin } from "@/lib/field/access";
 
@@ -18,7 +19,8 @@ function addDays(d: Date, n: number): Date {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await requireFieldAdmin())) return Response.json({ error: "Forbidden" }, { status: 403 });
+  const actorId = await requireFieldAdmin();
+  if (!actorId) return Response.json({ error: "Forbidden" }, { status: 403 });
   const { domain } = await req.json().catch(() => ({ domain: "" }));
   if (!domain) return Response.json({ error: "domain required" }, { status: 400 });
 
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
     const byKey = new Map(g.fieldSteps.map((s) => [s.stepKey, s]));
     for (const [i, t] of templates.entries()) {
       const dueDate = t.slaDays != null ? addDays(anchor, t.slaDays) : null;
-      const structure = { title: t.title, order: i, slaDays: t.slaDays, startSlaDays: t.startSlaDays, blockedByKey: t.blockedByKey, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, dueDate, templateSlug: MARKER };
+      const structure = { title: t.title, order: i, slaDays: t.slaDays, startSlaDays: t.startSlaDays, blockedByKey: t.blockedByKey, phaseTag: t.phaseTag, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, dueDate, templateSlug: MARKER };
       const ex = byKey.get(t.stepKey);
       if (ex) { await prisma.fieldStep.update({ where: { id: ex.id }, data: { ...structure, deletedAt: null } }); updated++; }
       else { await prisma.fieldStep.create({ data: { goalId: g.id, kind: "Setup", stepKey: t.stepKey, status: "Todo", ...structure } }); added++; }
@@ -52,5 +54,7 @@ export async function POST(req: NextRequest) {
     }
     if (cfg?.overallSlaDays != null) await prisma.goal.update({ where: { id: g.id }, data: { overallSlaDays: cfg.overallSlaDays } });
   }
+  // ONE row for the whole domain — a resync is a single operator decision, not N.
+  logDomainBulkOp(domain, actorId, "resync_setup", { goals: goals.length, updated, added, removed });
   return Response.json({ ok: true, goals: goals.length, updated, added, removed });
 }

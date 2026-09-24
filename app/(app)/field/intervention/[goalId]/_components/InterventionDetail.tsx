@@ -19,7 +19,7 @@ type SetupStep = {
 type VisitStep = { id: string; title: string; mandatory: boolean; formKind: string | null; formSchema: any; done: boolean; answers: any };
 type Followup = { id: string; title: string; detail: string | null; dueDate: string | null; priority: string };
 type Data = {
-  id: string; title: string; domainLabel: string; phase: "setting_up" | "live" | "done";
+  id: string; title: string; domainLabel: string; phase: "setting_up" | "live" | "done"; phaseLabel: string | null;
   locationName: string; overallSlaAt: string | null; overallOverdue: boolean;
   setupDone: number; setupTotal: number; setupSteps: SetupStep[];
   visitRequired: number; visitDoneThisMonth: number; openVisit: { id: string; arrivedAt: string | null } | null;
@@ -70,7 +70,8 @@ export function InterventionDetail({ data }: { data: Data }) {
             <p className="mt-0.5 text-sm text-stone-500">{data.domainLabel} · {data.title}</p>
           </div>
           <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${phaseChip}`}>
-            {data.phase === "setting_up" ? "Setting up" : data.phase === "live" ? "Live" : "Done"}
+            {/* Name the workstream when the front step carries one. */}
+            {data.phase === "setting_up" ? (data.phaseLabel ?? "Setting up") : data.phase === "live" ? "Live" : "Done"}
           </span>
         </div>
       </div>

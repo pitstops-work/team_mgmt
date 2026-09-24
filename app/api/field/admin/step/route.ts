@@ -2,6 +2,7 @@
 //   POST { op: "create", kind: "setup"|"visit", domain, title }
 //   POST { op: "reorder", kind, domain, orderedIds: string[] }
 import { NextRequest } from "next/server";
+import { logField } from "@/lib/field/audit";
 import prisma from "@/lib/prisma";
 import { requireFieldAdmin } from "@/lib/field/access";
 
@@ -10,7 +11,8 @@ function slug(s: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await requireFieldAdmin())) return Response.json({ error: "Forbidden" }, { status: 403 });
+  const actorId = await requireFieldAdmin();
+  if (!actorId) return Response.json({ error: "Forbidden" }, { status: 403 });
   const b = await req.json().catch(() => ({}));
   const kind = b.kind === "visit" ? "visit" : "setup";
   const domain: string = b.domain ?? "";
@@ -20,6 +22,7 @@ export async function POST(req: NextRequest) {
     const ids: string[] = Array.isArray(b.orderedIds) ? b.orderedIds : [];
     const model = kind === "visit" ? prisma.visitStepTemplate : prisma.setupStepTemplate;
     await prisma.$transaction(ids.map((id, i) => (model as any).update({ where: { id }, data: { order: i } })));
+    logField("FieldDomain", domain, actorId, `${kind}_steps_reordered`, { field: "order", to: ids });
     return Response.json({ ok: true });
   }
 
@@ -34,5 +37,6 @@ export async function POST(req: NextRequest) {
   const order = (maxOrder._max.order ?? -1) + 1;
 
   const row = await (model as any).create({ data: { domain, stepKey, title, order } });
+  logField("FieldTemplate", row.id, actorId, `${kind}_step_created`, { field: domain, to: { stepKey, title } });
   return Response.json({ ok: true, id: row.id, stepKey });
 }

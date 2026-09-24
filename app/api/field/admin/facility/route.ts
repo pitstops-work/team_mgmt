@@ -3,11 +3,13 @@
 // clusterId?, settlementId?, centreType?, lat?, lng? }. A settlement implies its
 // cluster; lat/lng default to the settlement centroid when not given explicitly.
 import { NextRequest } from "next/server";
+import { logField } from "@/lib/field/audit";
 import prisma from "@/lib/prisma";
 import { requireFieldAdmin } from "@/lib/field/access";
 
 export async function POST(req: NextRequest) {
-  if (!(await requireFieldAdmin())) return Response.json({ error: "Forbidden" }, { status: 403 });
+  const actorId = await requireFieldAdmin();
+  if (!actorId) return Response.json({ error: "Forbidden" }, { status: 403 });
   const b = await req.json().catch(() => ({}));
   const name = String(b?.name ?? "").trim();
   const layerKey = String(b?.layerKey ?? "").trim();
@@ -35,5 +37,6 @@ export async function POST(req: NextRequest) {
     data: { name, layerKey, centreType: b?.centreType || null, settlementId, clusterId, zoneId, lat, lng },
     select: { id: true, name: true, settlementId: true },
   });
+  logField("FieldIntervention", f.id, actorId, "facility_created", { field: layerKey, to: { name, lat, lng } });
   return Response.json({ ok: true, facility: f });
 }

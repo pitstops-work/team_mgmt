@@ -63,7 +63,7 @@ export async function createIntervention(opts: {
   if (opts.mode === "setup") {
     setupTmpls.forEach((t, i) => rows.push({
       goalId: goal.id, kind: "Setup", title: t.title, order: i, templateSlug: SETUP_MARKER, stepKey: t.stepKey,
-      slaDays: t.slaDays, startSlaDays: t.startSlaDays, blockedByKey: t.blockedByKey,
+      slaDays: t.slaDays, startSlaDays: t.startSlaDays, blockedByKey: t.blockedByKey, phaseTag: t.phaseTag,
       dueDate: t.slaDays != null ? addDays(opts.anchorAt, t.slaDays) : null,
       formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, status: "Todo",
     }));

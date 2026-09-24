@@ -1,6 +1,7 @@
 // Create a new intervention (Goal + materialised setup/visit FieldSteps).
 //   POST { domain, title, ownerId?, mode?, anchorAt?, settlementId?, clusterId?, facilityId? }
 import { NextRequest } from "next/server";
+import { logField } from "@/lib/field/audit";
 import { auth } from "@/lib/auth";
 import { requireFieldAdmin } from "@/lib/field/access";
 import { createIntervention } from "@/lib/field/materialize";
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
       clusterId: b?.clusterId || null,
       facilityId: b?.facilityId || null,
     });
+    logField("FieldIntervention", res.goalId, adminId, "created", { field: domain, to: { title, mode: b?.mode === "live" ? "live" : "setup" } });
     return Response.json({ ok: true, ...res });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 400 });

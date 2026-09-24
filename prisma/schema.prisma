@@ -174,6 +174,8 @@ model User {
   fieldVisitsArrived        FieldVisit[]                   @relation("FieldVisitArriver")
   fieldVisitsClosed         FieldVisit[]                   @relation("FieldVisitCloser")
   fieldVisitStepsCompleted  FieldVisitStep[]               @relation("FieldVisitStepCompleter")
+  fieldStepsUpdated         FieldStep[]                    @relation("FieldStepUpdater")
+  fieldVisitStepsUpdated    FieldVisitStep[]               @relation("FieldVisitStepUpdater")
 }
 
 model Account {
@@ -5258,6 +5260,11 @@ model FieldStep {
   templateSlug String?
   stepKey      String?
 
+  // Workstream label, copied from SetupStepTemplate.phaseTag at materialise /
+  // resync / backfill time. Null = untagged (the step still counts, it just has
+  // no phase name). See lib/field/phase.ts deriveFieldPhase.
+  phaseTag String?
+
   // ── Setup semantics ──────────────────────────────────────────────────────
   slaDays      Int? // step SLA in days from its start anchor
   startSlaDays Int? // days after the intervention anchor that this step may start
@@ -5272,19 +5279,24 @@ model FieldStep {
   formSchema Json? // questionnaire field defs (null for caregiver_practices — uses its own tables)
 
   // ── Completion (setup steps only; Visit recipes stay Todo) ─────────────────
-  status        FieldStepStatus @default(Todo)
-  answers       Json? // questionnaire answers blob for a Setup step
-  completedById String?
-  completedAt   DateTime?
-  startedAt     DateTime?
+  status          FieldStepStatus @default(Todo)
+  answers         Json? // questionnaire answers blob for a Setup step
+  completedById   String?
+  completedAt     DateTime?
+  startedAt       DateTime?
+  // Last actor to touch this row, whatever the outcome. Unlike completedById it
+  // SURVIVES A REOPEN — which is the whole point: without it, undoing a
+  // completion erases every trace of who had completed it. Pairs with AuditLog.
+  lastUpdatedById String?
 
   deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  goal        Goal             @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  completedBy User?            @relation("FieldStepCompleter", fields: [completedById], references: [id], onDelete: SetNull)
-  visitSteps  FieldVisitStep[]
+  goal          Goal             @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  completedBy   User?            @relation("FieldStepCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+  lastUpdatedBy User?            @relation("FieldStepUpdater", fields: [lastUpdatedById], references: [id], onDelete: SetNull)
+  visitSteps    FieldVisitStep[]
 
   @@index([goalId, kind, order])
   @@index([goalId, status])
@@ -5316,19 +5328,22 @@ model FieldVisit {
 
 // Per-visit tick of a Visit-recipe step. Replaces the child PitstopEvent + its tick.
 model FieldVisitStep {
-  id            String          @id @default(cuid())
-  visitId       String
-  stepId        String // → FieldStep(kind=Visit) recipe row
-  status        FieldStepStatus @default(Todo)
-  answers       Json? // questionnaire answers for this occurrence
-  completedById String?
-  completedAt   DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id              String          @id @default(cuid())
+  visitId         String
+  stepId          String // → FieldStep(kind=Visit) recipe row
+  status          FieldStepStatus @default(Todo)
+  answers         Json? // questionnaire answers for this occurrence
+  completedById   String?
+  completedAt     DateTime?
+  // Survives an untick, unlike completedById. See FieldStep.lastUpdatedById.
+  lastUpdatedById String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  visit       FieldVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  step        FieldStep  @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  completedBy User?      @relation("FieldVisitStepCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+  visit         FieldVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  step          FieldStep  @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  completedBy   User?      @relation("FieldVisitStepCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+  lastUpdatedBy User?      @relation("FieldVisitStepUpdater", fields: [lastUpdatedById], references: [id], onDelete: SetNull)
 
   @@unique([visitId, stepId])
   @@index([stepId, status])
@@ -5346,7 +5361,12 @@ model SetupStepTemplate {
   slaDays      Int?
   startSlaDays Int?
   blockedByKey String? // predecessor stepKey (null = parallel)
-  formKind     String? // null | "questionnaire" | "caregiver_practices"
+  // Workstream label this step belongs to (Permissions | Team | Infrastructure |
+  // Baseline | Training | Mobilisation | Monitoring | Live | …). Derived from the
+  // legacy TemplatePitstopDef.progressTag; free-text so a domain can coin its own.
+  // Drives the "Infrastructure · 3/9" phase label and the manager phase lens.
+  phaseTag     String?
+  formKind     String? // null | "checklist" | "questionnaire" | "caregiver_practices"
   formSchema   Json?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())

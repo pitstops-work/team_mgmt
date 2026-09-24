@@ -8,7 +8,16 @@ export type AuditEntityType =
   | "Activity"     // PitstopEvent
   | "Checklist"    // ChecklistItem
   | "ActionPoint"  // ActionPoint — follow-ups raised from a visit
-  | "WikiArticle"; // Wiki v2 — programme-spine reference articles
+  | "WikiArticle"  // Wiki v2 — programme-spine reference articles
+  // ── /field surface ────────────────────────────────────────────────────────
+  // The spine stamps the happy path itself (completedById/arrivedById/closedById),
+  // so these cover what stamping CANNOT: reversals, overrides, config edits and
+  // bulk mutations. See lib/field/audit.ts.
+  | "FieldStep"         // a setup step or a visit-step tick
+  | "FieldVisit"        // a cadence visit occurrence
+  | "FieldIntervention" // the Goal, seen through /field
+  | "FieldTemplate"     // Setup/VisitStepTemplate — the recipe
+  | "FieldDomain";      // FieldDomainConfig + domain-wide bulk ops (resync, derive)
 
 export type AuditEntry = {
   entityType: AuditEntityType;

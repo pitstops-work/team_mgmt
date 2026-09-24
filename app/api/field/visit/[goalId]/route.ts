@@ -4,6 +4,7 @@
 //   POST { action: "tick", stepId, done, answers? }    → tick one recipe step
 //   POST { action: "close", note? }                    → sign the visit off
 import { NextRequest } from "next/server";
+import { logVisitStepUntick, logVisitForceClose } from "@/lib/field/audit";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { assertFieldGoalAccess } from "@/lib/field/access";
@@ -68,10 +69,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
         followupResult = { opened, closed };
       }
 
+      if (!done) {
+        // An untick clears completedById, so read it first — that is the only
+        // moment the previous completer is still knowable.
+        const prevDone = await prisma.fieldVisitStep.findUnique({ where: { visitId_stepId: { visitId: v.id, stepId } }, select: { status: true, completedById: true } });
+        if (prevDone?.status === "Done") logVisitStepUntick(v.id, userId, { stepId, previousCompletedById: prevDone.completedById });
+      }
+
       await prisma.fieldVisitStep.upsert({
         where: { visitId_stepId: { visitId: v.id, stepId } },
-        create: { visitId: v.id, stepId, status: done ? "Done" : "Todo", answers, completedById: done ? userId : null, completedAt: done ? now : null },
-        update: { status: done ? "Done" : "Todo", answers, completedById: done ? userId : null, completedAt: done ? now : null },
+        create: { visitId: v.id, stepId, status: done ? "Done" : "Todo", answers, completedById: done ? userId : null, completedAt: done ? now : null, lastUpdatedById: userId },
+        update: { status: done ? "Done" : "Todo", answers, completedById: done ? userId : null, completedAt: done ? now : null, lastUpdatedById: userId },
       });
       return Response.json({ ok: true, visitId: v.id, followups: followupResult });
     }
@@ -89,6 +97,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
       const reason: string = (body?.note ?? "").trim();
       if (blockers.length && !force) return Response.json({ error: "blocked", blockers }, { status: 400 });
       if (blockers.length && force && !reason) return Response.json({ error: "reason_required", blockers }, { status: 400 });
+
+      if (blockers.length) logVisitForceClose(v.id, userId, { reason, blockers });
 
       await prisma.fieldVisit.update({ where: { id: v.id }, data: { closedAt: now, closedById: userId, note: reason || null } });
       return Response.json({ ok: true, forced: blockers.length > 0 });

@@ -4,13 +4,15 @@
 // Upsert semantics (no hard delete) — updates matching recipe steps, adds new
 // ones, soft-deletes removed ones. FieldVisitStep tick history is preserved.
 import { NextRequest } from "next/server";
+import { logDomainBulkOp } from "@/lib/field/audit";
 import prisma from "@/lib/prisma";
 import { requireFieldAdmin } from "@/lib/field/access";
 
 const MARKER = "field-visit-template";
 
 export async function POST(req: NextRequest) {
-  if (!(await requireFieldAdmin())) return Response.json({ error: "Forbidden" }, { status: 403 });
+  const actorId = await requireFieldAdmin();
+  if (!actorId) return Response.json({ error: "Forbidden" }, { status: 403 });
   const { domain } = await req.json().catch(() => ({ domain: "" }));
   if (!domain) return Response.json({ error: "domain required" }, { status: 400 });
 
@@ -44,5 +46,6 @@ export async function POST(req: NextRequest) {
       }
     }
   }
+  logDomainBulkOp(domain, actorId, "resync_visit", { goals: goals.length, updated, added, removed });
   return Response.json({ ok: true, goals: goals.length, updated, added, removed });
 }

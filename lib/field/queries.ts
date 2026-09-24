@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { goalInClusterFilter } from "@/lib/operations/clusters";
 import { monthBounds, requiredVisitsForMonth } from "@/lib/operations/month";
-import { deriveFieldPhase, type FieldPhase } from "@/lib/field/phase";
+import { deriveFieldPhase, deriveCurrentPhaseLabel, type FieldPhase } from "@/lib/field/phase";
 import { activeFieldDomains } from "@/lib/field/access";
 import { computeCloseBlockers } from "@/lib/field/visitClose";
 
@@ -15,6 +15,8 @@ export type InterventionRow = {
   domain: string;
   domainLabel: string;
   phase: FieldPhase;
+  /** Named workstream of the front setup step ("Infrastructure"); null when untagged or past setup. */
+  phaseLabel: string | null;
   locationName: string;
   // Setup progress
   setupDone: number;
@@ -41,7 +43,7 @@ function addDays(d: Date, n: number): Date {
 const GOAL_INCLUDE = {
   fieldSteps: {
     where: { deletedAt: null },
-    select: { kind: true, status: true, dueDate: true },
+    select: { kind: true, status: true, dueDate: true, order: true, phaseTag: true },
   },
   needsSettlement: { select: { name: true } },
   needsCluster: { select: { name: true } },
@@ -94,6 +96,8 @@ export async function loadInterventions(userId: string, clusterId?: string): Pro
       const overdueSetup = setup.filter((s) => s.status !== "Done" && s.dueDate && s.dueDate < now).length;
       const hasVisitRecipe = g.fieldSteps.some((s) => s.kind === "Visit");
       const phase = deriveFieldPhase({ mode: g.mode, setupTotal, setupDone, hasVisitRecipe });
+      // The named workstream ("Infrastructure"), null when untagged or past setup.
+      const phaseLabel = phase === "setting_up" ? deriveCurrentPhaseLabel(setup) : null;
 
       const anchor = g.fieldAnchorAt ?? g.createdAt;
       const overallSlaAt = g.overallSlaDays != null ? addDays(anchor, g.overallSlaDays) : null;
@@ -114,6 +118,7 @@ export async function loadInterventions(userId: string, clusterId?: string): Pro
         domain: g.needsDomain ?? "",
         domainLabel: cfg?.label ?? g.needsDomain ?? "",
         phase,
+        phaseLabel,
         locationName,
         setupDone,
         setupTotal,
@@ -165,6 +170,8 @@ export type InterventionDetail = {
   title: string;
   domainLabel: string;
   phase: FieldPhase;
+  /** Named workstream of the front setup step; null when untagged or past setup. */
+  phaseLabel: string | null;
   locationName: string;
   overallSlaAt: Date | null;
   overallOverdue: boolean;
@@ -204,6 +211,7 @@ export async function loadIntervention(goalId: string): Promise<InterventionDeta
   const setupDone = setupRaw.filter((s) => s.status === "Done").length;
   const hasVisitRecipe = visitRecipe.length > 0;
   const phase = deriveFieldPhase({ mode: goal.mode, setupTotal: setupRaw.length, setupDone, hasVisitRecipe });
+  const phaseLabel = phase === "setting_up" ? deriveCurrentPhaseLabel(setupRaw) : null;
 
   const setupSteps: SetupStepView[] = setupRaw.map((s) => {
     const blocked = !!s.blockedByKey && !doneKeys.has(s.blockedByKey) && s.status !== "Done";
@@ -256,6 +264,7 @@ export async function loadIntervention(goalId: string): Promise<InterventionDeta
     title: goal.title,
     domainLabel: cfg?.label ?? goal.needsDomain,
     phase,
+    phaseLabel,
     locationName: goal.needsSettlement?.name ?? goal.linkedFacility?.settlement?.name ?? goal.linkedFacility?.name ?? goal.needsCluster?.name ?? "—",
     overallSlaAt,
     overallOverdue: phase === "setting_up" && !!overallSlaAt && overallSlaAt < now,
