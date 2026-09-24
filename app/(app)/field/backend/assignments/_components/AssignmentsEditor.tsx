@@ -7,10 +7,10 @@ import { ChevronLeft, MapPin, Users, X, Search } from "lucide-react";
 import { NewFacilityModal } from "../../_components/NewFacilityModal";
 
 type Cluster = { id: string; name: string };
-type Rp = { id: string; name: string; designation: string; clusterIds: string[] };
+type Rp = { id: string; name: string; designation: string; clusterIds: string[]; domains: string[] };
 type Intervention = { id: string; title: string; domain: string; unit: string; status: string; mode: string; fieldNative: boolean; ownerId: string; ownerName: string; clusterId: string | null; clusterName: string | null; settlementId: string | null; settlementName: string | null; facilityId: string | null; facilityName: string | null };
 type User = { id: string; name: string; designation: string };
-type Data = { clusters: Cluster[]; rps: Rp[]; interventions: Intervention[] };
+type Data = { clusters: Cluster[]; rps: Rp[]; interventions: Intervention[]; domains: { domain: string; label: string }[] };
 
 export function AssignmentsEditor({ data, layerKeyByDomain, users }: { data: Data; layerKeyByDomain: Record<string, string>; users: User[] }) {
   const router = useRouter();
@@ -48,13 +48,16 @@ export function AssignmentsEditor({ data, layerKeyByDomain, users }: { data: Dat
       {/* RP → clusters */}
       <section className="space-y-2">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-stone-700"><Users size={15} /> RP cluster assignments</h2>
-        <p className="text-xs text-stone-400">Which clusters each field person sees on /field.</p>
+        <p className="text-xs text-stone-400">Which clusters each field person sees on /field, and which domains they actually run within them.</p>
         <ul className="space-y-1.5">
           {data.rps.map((rp) => (
             <li key={rp.id} className="rounded-xl border border-stone-200 bg-white">
               <button onClick={() => setExpandedRp(expandedRp === rp.id ? null : rp.id)} className="flex w-full items-center justify-between px-4 py-2.5 text-left">
                 <span className="text-sm font-medium text-stone-800">{rp.name} <span className="text-xs font-normal text-stone-400">{rp.designation}</span></span>
-                <span className="text-xs text-stone-500">{rp.clusterIds.length} cluster{rp.clusterIds.length === 1 ? "" : "s"}</span>
+                <span className="text-xs text-stone-500">
+                  {rp.clusterIds.length} cluster{rp.clusterIds.length === 1 ? "" : "s"}
+                  {rp.domains.length > 0 && <span className="text-sky-600"> · {rp.domains.length} domain{rp.domains.length === 1 ? "" : "s"}</span>}
+                </span>
               </button>
               {expandedRp === rp.id && (
                 <div className="border-t border-stone-100 p-3">
@@ -71,6 +74,33 @@ export function AssignmentsEditor({ data, layerKeyByDomain, users }: { data: Dat
                         </label>
                       );
                     })}
+                  </div>
+
+                  {/* Domain scope. Empty = every domain in their clusters, which
+                      is what /field did before this existed. Set it for a
+                      specialist — a creche RP covering five clusters should not
+                      be handed the welfare and toilet work in them. */}
+                  <div className="mt-3 border-t border-stone-100 pt-3">
+                    <p className="mb-1.5 text-[11px] text-stone-500">
+                      Domains{" "}
+                      <span className="text-stone-400">
+                        {rp.domains.length === 0 ? "— none selected, so they see every domain in their clusters" : `— limited to ${rp.domains.length}`}
+                      </span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+                      {data.domains.map((d) => {
+                        const on = rp.domains.includes(d.domain);
+                        return (
+                          <label key={d.domain} className="flex items-center gap-1.5 text-sm text-stone-600">
+                            <input type="checkbox" checked={on} disabled={busy} onChange={(e) => {
+                              const next = e.target.checked ? [...rp.domains, d.domain] : rp.domains.filter((x) => x !== d.domain);
+                              call(`/api/field/admin/assign-rp`, "POST", { userId: rp.id, clusterIds: rp.clusterIds, domains: next });
+                            }} />
+                            <span className="truncate">{d.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}

@@ -55,9 +55,16 @@ export async function loadInterventions(userId: string, clusterId?: string): Pro
   const domains = await activeFieldDomains();
   if (domains.size === 0) return [];
 
+  // Cluster-scoped, then narrowed to the domains this person actually runs.
+  // Unset = unrestricted, which is the original behaviour.
+  const { getRpDomainScope } = await import("@/lib/field/access");
+  const rpDomains = await getRpDomainScope(userId);
+  const inScope = rpDomains ? [...domains.keys()].filter((d) => rpDomains.includes(d)) : [...domains.keys()];
+  if (inScope.length === 0) return [];
+
   const where: Prisma.GoalWhereInput = {
     deletedAt: null,
-    needsDomain: { in: [...domains.keys()] },
+    needsDomain: { in: inScope },
     // Only interventions created through /field (createIntervention stamps
     // fieldAnchorAt). Excludes legacy /operations goals that merely share a
     // needsDomain value and were never materialised with FieldStep rows.
@@ -309,7 +316,11 @@ export async function loadClusterSummaries(userId: string, opts: { includeEmpty?
   const clusters = await getUserClusters([userId]);
   if (clusters.length === 0) return [];
 
-  const facts = await loadFieldFacts({ clusterIds: clusters.map((c) => c.id) });
+  const { getRpDomainScope } = await import("@/lib/field/access");
+  const facts = await loadFieldFacts({
+    clusterIds: clusters.map((c) => c.id),
+    domains: await getRpDomainScope(userId),
+  });
   const { factsForCluster } = await import("@/lib/field/rollup");
 
   return clusters
