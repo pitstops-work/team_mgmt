@@ -290,23 +290,42 @@ export type ClusterSummary = {
   attention: number;
 };
 
-/** Cluster list with a one-line summary each. */
-export async function loadClusterSummaries(userId: string): Promise<ClusterSummary[]> {
+/**
+ * Cluster list with a one-line summary each.
+ *
+ * Built on loadFieldFacts rather than a loadInterventions call per cluster:
+ * that was three queries times the number of clusters, which is why a manager
+ * scope would not have scaled. Numbers are unchanged by construction — the
+ * facts loader derives phase and needsAttention with the same functions and
+ * the same predicate this used.
+ *
+ * `includeEmpty` is the one behavioural difference between the two callers: an
+ * RP's home hides a cluster with nothing in it, while for a manager an assigned
+ * cluster holding no work is itself the signal.
+ */
+export async function loadClusterSummaries(userId: string, opts: { includeEmpty?: boolean } = {}): Promise<ClusterSummary[]> {
   const { getUserClusters } = await import("@/lib/operations/clusters");
+  const { loadFieldFacts } = await import("@/lib/field/rollup");
   const clusters = await getUserClusters([userId]);
   if (clusters.length === 0) return [];
-  // One pass over all the user's interventions, bucketed by cluster.
-  const rowsPerCluster = await Promise.all(
-    clusters.map(async (c) => ({ c, rows: await loadInterventions(userId, c.id) })),
-  );
-  return rowsPerCluster
-    .map(({ c, rows }): ClusterSummary => ({
-      id: c.id,
-      name: c.name,
-      live: rows.filter((r) => r.phase === "live").length,
-      settingUp: rows.filter((r) => r.phase === "setting_up").length,
-      attention: rows.filter((r) => r.needsAttention).length,
-    }))
-    .filter((c) => c.live + c.settingUp > 0)
+
+  const facts = await loadFieldFacts({ clusterIds: clusters.map((c) => c.id) });
+  const { factsForCluster } = await import("@/lib/field/rollup");
+
+  return clusters
+    .map((c): ClusterSummary => {
+      // Membership, not a single resolved cluster: an intervention whose
+      // settlement and facility sit in different clusters belongs to both, and
+      // the per-cluster query this replaced counted it in both.
+      const rows = factsForCluster(facts, c.id);
+      return {
+        id: c.id,
+        name: c.name,
+        live: rows.filter((r) => r.phase === "live").length,
+        settingUp: rows.filter((r) => r.phase === "setting_up").length,
+        attention: rows.filter((r) => r.needsAttention).length,
+      };
+    })
+    .filter((c) => opts.includeEmpty || c.live + c.settingUp > 0)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
