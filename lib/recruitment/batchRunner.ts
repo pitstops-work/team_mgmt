@@ -81,6 +81,8 @@ export type BatchDesk = {
   slug: string | null;
   /** CVs COMMITTED to the desk. The resume point, and never a guess. */
   done: number;
+  /** Of `done`, how many were passed over as copies of someone already on the desk. */
+  dupes?: number;
   cvs: CvRef[];
 };
 
@@ -102,7 +104,7 @@ export type RunProgress = {
   doneCvs: number;
   /** The desk currently being worked, if any. */
   currentLabel: string | null;
-  desks: { key: string; label: string; slug: string | null; done: number; total: number }[];
+  desks: { key: string; label: string; slug: string | null; done: number; total: number; dupes: number }[];
 };
 
 export function readPlan(run: Pick<RecruitmentBatchRun, "planJson">): BatchPlan {
@@ -122,7 +124,14 @@ export function describeRun(run: RecruitmentBatchRun): RunProgress {
     totalCvs: plan.desks.reduce((n, d) => n + d.cvs.length, 0),
     doneCvs: plan.desks.reduce((n, d) => n + d.done, 0),
     currentLabel: run.status === "running" ? next?.label ?? null : null,
-    desks: plan.desks.map((d) => ({ key: d.key, label: d.label, slug: d.slug, done: d.done, total: d.cvs.length })),
+    desks: plan.desks.map((d) => ({
+      key: d.key,
+      label: d.label,
+      slug: d.slug,
+      done: d.done,
+      total: d.cvs.length,
+      dupes: d.dupes ?? 0,
+    })),
   };
 }
 
@@ -181,6 +190,14 @@ export function isRunId(v: unknown): v is string {
 /**
  * Take the run if nobody is working it. Conditional UPDATE, so two workers
  * racing on the same run can never both win — one of them updates zero rows.
+ *
+ * Taking the run COUNTS as an attempt at its current chunk. Counting only
+ * failures missed the one failure that never reports itself: a chunk that
+ * runs past the 300s ceiling is killed mid-call, nothing catches it, the
+ * lease goes stale, the cron hands the same chunk to a fresh worker, and that
+ * one is killed too — forever, with the run still showing "running" and the
+ * attempt count still 0. That is how a recovery run sat at 32/173 with a
+ * spinner and nothing to press.
  */
 async function claim(runId: string): Promise<RecruitmentBatchRun | null> {
   const cutoff = new Date(Date.now() - LEASE_MS);
@@ -190,7 +207,7 @@ async function claim(runId: string): Promise<RecruitmentBatchRun | null> {
       status: "running",
       OR: [{ lockedAt: null }, { lockedAt: { lt: cutoff } }],
     },
-    data: { lockedAt: new Date() },
+    data: { lockedAt: new Date(), attempts: { increment: 1 } },
   });
   if (got.count === 0) return null;
   return prisma.recruitmentBatchRun.findUnique({ where: { id: runId } });
@@ -210,6 +227,39 @@ export async function findStaleRuns(limit = 3): Promise<string[]> {
 
 // ── One chunk ────────────────────────────────────────────────────────────────
 
+const CODE = /APPRF[-_ ]?(\d{3,6})/i;
+
+/** The APPRF code a CV's filename carries, normalised, or null. */
+export function cvCode(name: string): string | null {
+  const m = name.match(CODE);
+  return m ? `APPRF-${m[1]}` : null;
+}
+
+/** Candidate codes already on a desk — pulled in SQL so no cvText is loaded. */
+async function codesOnDesk(slug: string): Promise<Set<string>> {
+  const rows = await prisma.$queryRaw<{ code: string | null }[]>`
+    SELECT DISTINCT c->>'code' AS code
+    FROM "RecruitmentScoutingDay",
+         LATERAL jsonb_array_elements("snapshotJson"->'candidates') AS c
+    WHERE slug = ${slug} AND jsonb_typeof("snapshotJson"->'candidates') = 'array'
+  `;
+  const out = new Set<string>();
+  for (const r of rows) {
+    const code = r.code ? cvCode(r.code) : null;
+    if (code) out.add(code);
+  }
+  return out;
+}
+
+/** "Unplaced, CVs 33–40" — the chunk a run is on, for messages about it. */
+function currentChunkLabel(run: RecruitmentBatchRun): string {
+  const plan = readPlan(run);
+  const desk = plan.desks.find((d) => d.done < d.cvs.length);
+  if (!desk) return run.title;
+  const end = Math.min(desk.done + plan.chunkSize, desk.cvs.length);
+  return `${desk.label}, CVs ${desk.done + 1}–${end}`;
+}
+
 type ChunkOutcome =
   | { kind: "committed"; more: boolean }
   | { kind: "finished" }
@@ -222,6 +272,29 @@ async function runOneChunk(run: RecruitmentBatchRun, session: SessionLike): Prom
 
   const chunk = desk.cvs.slice(desk.done, desk.done + plan.chunkSize);
 
+  // A person already on the desk is not scouted again. The temp area holds a
+  // copy of a pool for every time it was uploaded, and the recovery survey
+  // hands all of them over — so without this a re-uploaded CV lands on the
+  // desk once per upload, each copy a separate model spend.
+  const seen = desk.slug ? await codesOnDesk(desk.slug) : new Set<string>();
+  const fresh = chunk.filter((cv) => {
+    const code = cvCode(cv.name);
+    if (!code) return true;
+    if (seen.has(code)) return false;
+    seen.add(code);
+    return true;
+  });
+
+  if (fresh.length === 0) {
+    desk.done += chunk.length;
+    desk.dupes = (desk.dupes ?? 0) + chunk.length;
+    await prisma.recruitmentBatchRun.update({
+      where: { id: run.id },
+      data: { planJson: plan as unknown as never, attempts: 0, error: null, lockedAt: new Date() },
+    });
+    return { kind: "committed", more: plan.desks.some((d) => d.done < d.cvs.length) };
+  }
+
   // First chunk of a desk creates it; every later chunk appends to it.
   //
   // The append is FORCED rather than left to decideMode(), which would read
@@ -229,7 +302,7 @@ async function runOneChunk(run: RecruitmentBatchRun, session: SessionLike): Prom
   // chunk — quadratic model spend, and the radar axes would churn each time.
   // Chunked building wants a locked-axes append.
   const result = desk.slug
-    ? await appendCandidates(desk.slug, chunk, session, { keepCvs: true })
+    ? await appendCandidates(desk.slug, fresh, session, { keepCvs: true })
     : await generateDesk({
         // The city is part of the title so the desks are tellable apart in
         // the listing, where they otherwise sit together.
@@ -240,7 +313,7 @@ async function runOneChunk(run: RecruitmentBatchRun, session: SessionLike): Prom
         locationId: desk.locationId,
         unplaced: desk.unplaced,
         batchId: run.id,
-        cvs: chunk,
+        cvs: fresh,
         session,
       });
 
@@ -254,6 +327,7 @@ async function runOneChunk(run: RecruitmentBatchRun, session: SessionLike): Prom
 
   desk.slug = desk.slug ?? result.slug;
   desk.done += chunk.length;
+  if (fresh.length < chunk.length) desk.dupes = (desk.dupes ?? 0) + chunk.length - fresh.length;
 
   // Commit progress in the same write that releases the lease. Everything
   // before this point is repeatable; everything after it is never redone.
@@ -284,7 +358,8 @@ async function finish(run: RecruitmentBatchRun): Promise<void> {
 }
 
 async function park(run: RecruitmentBatchRun, error: string, retryable: boolean): Promise<void> {
-  const attempts = retryable ? run.attempts + 1 : MAX_ATTEMPTS;
+  // `run.attempts` already counts this attempt — claim() took it.
+  const attempts = retryable ? run.attempts : MAX_ATTEMPTS;
   const spent = attempts >= MAX_ATTEMPTS;
   await prisma.recruitmentBatchRun.update({
     where: { id: run.id },
@@ -309,6 +384,27 @@ export async function drainOneChunk(
   const run = await claim(runId);
   if (!run) return { claimed: false, more: false, retrying: false };
 
+  const stuck = currentChunkLabel(run);
+  if (run.attempts > MAX_ATTEMPTS) {
+    // Every attempt so far was killed before it could report — the chunk
+    // outlives the function ceiling. Park it so the recruiter can skip it.
+    await park(
+      run,
+      `${stuck}: never finished inside the server's 5-minute limit, ${MAX_ATTEMPTS} times running. ` +
+        `One of these CVs is probably too heavy to read (a long scan, say) — skip them to carry on.`,
+      false,
+    );
+    return { claimed: true, more: false, retrying: false };
+  }
+  if (run.attempts > 1 && !run.error) {
+    // The previous worker vanished without a word. Say so, so the page isn't
+    // just a spinner that looks exactly like progress.
+    await prisma.recruitmentBatchRun.update({
+      where: { id: run.id },
+      data: { error: `${stuck}: the last attempt didn't finish — trying again (${run.attempts} of ${MAX_ATTEMPTS}).` },
+    });
+  }
+
   let outcome: ChunkOutcome;
   try {
     outcome = await runOneChunk(run, session);
@@ -329,7 +425,7 @@ export async function drainOneChunk(
     // `retrying` tells the caller to wait before the next attempt. Retrying a
     // model overload immediately just spends the attempt budget in a few
     // seconds and parks the run on a condition that would have cleared.
-    const willRetry = outcome.retryable && run.attempts + 1 < MAX_ATTEMPTS;
+    const willRetry = outcome.retryable && run.attempts < MAX_ATTEMPTS;
     return { claimed: true, more: willRetry, retrying: willRetry };
   }
   if (!outcome.more) {

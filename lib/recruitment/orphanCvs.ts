@@ -26,14 +26,7 @@
 import { list } from "@vercel/blob";
 import prisma from "@/lib/prisma";
 import type { CvRef } from "@/lib/recruitment/scoutingDayOps";
-import { readPlan } from "@/lib/recruitment/batchRunner";
-
-const CODE = /APPRF[-_ ]?(\d{3,6})/i;
-
-function codeOf(name: string): string | null {
-  const m = name.match(CODE);
-  return m ? `APPRF-${m[1]}` : null;
-}
+import { cvCode as codeOf, readPlan } from "@/lib/recruitment/batchRunner";
 
 export type TempCv = CvRef & { code: string | null; uploadedAt: string };
 
@@ -44,6 +37,13 @@ export type TempCvSurvey = {
   scouted: TempCv[];
   /** No APPRF code in the filename, so neither claim can be made safely. */
   unmatched: TempCv[];
+  /**
+   * Further uploads of a CV already in `unscouted`. A pool that was uploaded
+   * four times sits here four times over; scouting every copy puts the same
+   * person on the desk four times. Once the first copy is scouted these
+   * become `scouted`, and clearable.
+   */
+  copies: TempCv[];
   /** Held by a live run. Left strictly alone. */
   inFlight: number;
 };
@@ -60,7 +60,7 @@ export async function surveyTempCvs(): Promise<TempCvSurvey> {
     cursor = page.hasMore ? page.cursor : undefined;
   } while (cursor);
 
-  const survey: TempCvSurvey = { unscouted: [], scouted: [], unmatched: [], inFlight: 0 };
+  const survey: TempCvSurvey = { unscouted: [], scouted: [], unmatched: [], copies: [], inFlight: 0 };
   // Nothing in the temp area is the normal case, and it must not cost a
   // snapshot scan on every page load.
   if (blobs.length === 0) return survey;
@@ -83,11 +83,18 @@ export async function surveyTempCvs(): Promise<TempCvSurvey> {
     WHERE jsonb_typeof("snapshotJson"->'candidates') = 'array'
   `;
   const scoutedCodes = new Set(rows.map((r) => r.code?.toUpperCase()).filter(Boolean) as string[]);
+  // Oldest first, so the copy kept for scouting is the original upload.
+  blobs.sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
+  const taken = new Set<string>();
   for (const b of blobs) {
     if (claimed.has(b.url)) survey.inFlight++;
     else if (!b.code) survey.unmatched.push(b);
     else if (scoutedCodes.has(b.code.toUpperCase())) survey.scouted.push(b);
-    else survey.unscouted.push(b);
+    else if (taken.has(b.code)) survey.copies.push(b);
+    else {
+      taken.add(b.code);
+      survey.unscouted.push(b);
+    }
   }
   const byName = (a: TempCv, b: TempCv) => a.name.localeCompare(b.name);
   survey.unscouted.sort(byName);
