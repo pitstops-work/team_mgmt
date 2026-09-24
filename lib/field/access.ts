@@ -137,3 +137,25 @@ export async function getFieldOversightScope(): Promise<{ userId: string; visibl
 
   return { userId, visibleIds: visibleIds.length ? visibleIds : [userId] };
 }
+
+
+/**
+ * The /field domains a user is scoped to, or null for "no restriction".
+ *
+ * /field is cluster-scoped by design — an RP sees all the work in their patch,
+ * so a colleague can cover. But the team is not made of cluster generalists:
+ * most people run several domains across several clusters, and two are pure
+ * domain specialists spanning five clusters each. Assigning a creche RP their
+ * five clusters handed them the welfare and toilet work in them too.
+ *
+ * An empty set means unrestricted, so this changes nothing for anyone until a
+ * domain is deliberately assigned.
+ */
+export async function getRpDomainScope(userId: string): Promise<string[] | null> {
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { rpFieldDomains: { where: { isActive: true }, select: { domain: true } } },
+  });
+  const domains = u?.rpFieldDomains.map((d) => d.domain) ?? [];
+  return domains.length ? domains : null;
+}

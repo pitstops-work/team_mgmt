@@ -95,13 +95,14 @@ export async function loadCreatePickers(): Promise<{
  */
 export async function loadAssignments(): Promise<{
   clusters: { id: string; name: string }[];
-  rps: { id: string; name: string; designation: string; clusterIds: string[] }[];
+  rps: { id: string; name: string; designation: string; clusterIds: string[]; domains: string[] }[];
+  domains: { domain: string; label: string }[];
   interventions: { id: string; title: string; domain: string; unit: string; status: string; mode: string; fieldNative: boolean; ownerId: string; ownerName: string; clusterId: string | null; clusterName: string | null; settlementId: string | null; settlementName: string | null; facilityId: string | null; facilityName: string | null }[];
 }> {
   const domains = await activeFieldDomains();
   const [clusters, rps, goals] = await Promise.all([
     prisma.cluster.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.user.findMany({ where: { designation: { in: ["RP", "ZL", "PM", "Leader"] } }, orderBy: { name: "asc" }, select: { id: true, name: true, designation: true, rpClusters: { select: { id: true } } } }),
+    prisma.user.findMany({ where: { designation: { in: ["RP", "ZL", "PM", "Leader"] } }, orderBy: { name: "asc" }, select: { id: true, name: true, designation: true, rpClusters: { select: { id: true } }, rpFieldDomains: { select: { domain: true } } } }),
     prisma.goal.findMany({
       where: { deletedAt: null, needsDomain: { in: [...domains.keys()] } },
       orderBy: { title: "asc" },
@@ -110,7 +111,8 @@ export async function loadAssignments(): Promise<{
   ]);
   return {
     clusters,
-    rps: rps.map((u) => ({ id: u.id, name: u.name ?? "—", designation: u.designation, clusterIds: u.rpClusters.map((c) => c.id) })),
+    domains: [...domains.entries()].map(([domain, cfg]) => ({ domain, label: cfg.label ?? domain })),
+    rps: rps.map((u) => ({ id: u.id, name: u.name ?? "—", designation: u.designation, clusterIds: u.rpClusters.map((c) => c.id), domains: u.rpFieldDomains.map((d) => d.domain) })),
     interventions: goals.map((g) => ({
       id: g.id, title: g.title, domain: g.needsDomain ?? "", unit: domains.get(g.needsDomain ?? "")?.unit ?? "settlement",
       status: g.status, mode: g.mode, fieldNative: g.fieldAnchorAt != null, ownerId: g.ownerId, ownerName: g.owner?.name ?? "—",

@@ -63,6 +63,11 @@ model User {
   eventAttendances          PitstopEventAttendee[]
   leadZones                 Zone[]                         @relation("ZoneLead")
   rpClusters                Cluster[]                      @relation("RPClusters")
+  // Which /field domains this person actually runs. EMPTY = no restriction —
+  // they see every domain in their clusters, which is the original
+  // cluster-scoped behaviour. Set it for a specialist: a creche RP works across
+  // five clusters but should not be handed the welfare and toilet work in them.
+  rpFieldDomains            FieldDomainConfig[]            @relation("RPFieldDomains")
   eventFollowups            PitstopEventFollowup[]
   planItems                 PlanItem[]
   // Accountability
@@ -5410,4 +5415,7 @@ model FieldDomainConfig {
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  // RPs who work this domain. Empty on the user side = unrestricted.
+  rps User[] @relation("RPFieldDomains")
 }

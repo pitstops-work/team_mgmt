@@ -159,6 +159,8 @@ export function deriveFieldClusterStatus(c: {
 export type FactScope = {
   /** Restrict to these clusters. Omit for "everything the active domains cover". */
   clusterIds?: string[];
+  /** Restrict to these domains. Omit for all active ones. See getRpDomainScope. */
+  domains?: string[] | null;
   now?: Date;
   /** How many months of closed visits to carry for the heatmap. */
   monthsBack?: number;
@@ -174,12 +176,14 @@ export async function loadFieldFacts(scope: FactScope = {}): Promise<FieldFact[]
   const domains = await activeFieldDomains();
   if (domains.size === 0) return [];
   if (scope.clusterIds && scope.clusterIds.length === 0) return [];
+  const inScope = scope.domains ? [...domains.keys()].filter((d) => scope.domains!.includes(d)) : [...domains.keys()];
+  if (inScope.length === 0) return [];
 
   // 2. the interventions themselves
   const goals = await prisma.goal.findMany({
     where: {
       deletedAt: null,
-      needsDomain: { in: [...domains.keys()] },
+      needsDomain: { in: inScope },
       // Only interventions created through /field; a legacy goal sharing the
       // needsDomain is invisible to the RP screens and must be invisible here.
       fieldAnchorAt: { not: null },
