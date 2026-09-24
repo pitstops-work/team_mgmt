@@ -45,9 +45,13 @@ export async function POST(req: NextRequest) {
     }
     if (!(await resolveGeo(input.geography))) noGeo++;
     if (dryRun) continue;
-    const r = await upsertApplication(input, "import", s.userId);
-    if (r.created) created++;
-    else updated++;
+    try {
+      const r = await upsertApplication(input, "import", s.userId);
+      if (r.created) created++;
+      else updated++;
+    } catch (e) {
+      problems.push(e instanceof Error ? e.message : `${input.ref}: could not be saved`);
+    }
   }
   if (!dryRun && created + updated > 0) {
     const origin = selfOrigin(req.url);
