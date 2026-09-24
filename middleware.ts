@@ -12,6 +12,9 @@ const PUBLIC_PREFIXES = [
   "/api/auth/",
   "/api/register",
   "/api/cron/",
+  // The application portal pushes submissions here; it authenticates with
+  // SCREENING_INTAKE_TOKEN, not a session.
+  "/api/seeding/screening/intake",
   "/api/debug/",
   // Vercel Blob client uploader. The endpoint itself uses handleUpload from
   // @vercel/blob/client, which signs short-lived tokens server-side and
