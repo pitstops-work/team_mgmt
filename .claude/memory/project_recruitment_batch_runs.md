@@ -4,6 +4,8 @@ description: How server-owned scouting runs fail and recover, the duplicate-CV t
 type: project
 ---
 
+**CV files are not kept once candidates are on a desk.** The uploaded file lives in `recruitment/cv-tmp/` only until scouting is done. A single desk deletes it straight away; a batch run deletes all its CVs once, at the end, so a parked run stays resumable. What IS kept is the extracted text, as `cvText` on each candidate in `snapshotJson`, and every move or re-scout works from that. Unscouted temp CVs are never auto-deleted, because they're the only copy.
+
 Multi-city scouting runs are owned by the server (`lib/recruitment/batchRunner.ts`). The browser only watches.
 
 - One chunk of CVs per invocation, inside Vercel's 300s ceiling. Each chunk kicks the next (`/api/cron/recruitment-batch-drain`). The 5-minute cron and the batch page's status poll both restart a run whose lease went stale.
