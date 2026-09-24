@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CalendarClock, CheckSquare, Target, MapPin, BarChart3, ChevronRight, ChevronLeft, LayoutDashboard, Users, TrendingUp, AlertTriangle, CheckCircle2, Clock, Filter, ChevronDown, ChevronUp, Mic, Square, Loader2, Paperclip } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
 import Avatar from "@/components/Avatar";
+import { fetchJson, describeFetchError } from "@/lib/fetchJson";
 import type { ActivityGoal, Activity, ChecklistItem, Goal, TeamMember, ZLTeamActivity, TabKey } from "../_lib/types";
 import { fmtTime, fmtDate, fmtDateShort, isToday, daysDiff, daysAgo, activityMeta, groupByDay, fmtDomain, groupBySla, slaHeaderLabel, engLevel, istTodayStr, shiftIstDate } from "../_lib/helpers";
 import { STATUS_BADGE, STATUS_DOT, CHECKLIST_STATUS_DOT, EVENT_TYPE_COLOR, ACTIVITY_TYPE_STYLE, DESIGNATION_ORDER, DESIGNATION_COLOR, PITSTOP_STATUS_COLOR } from "../_lib/constants";
@@ -22,6 +23,7 @@ export function RPChecklistRow({
   const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
   const [uploading, setUploading] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -31,13 +33,15 @@ export function RPChecklistRow({
   async function handleActivityDone() {
     if (!activity) return;
     setMarkingDone(true);
-    const res = await fetch(`/api/pitstop-events/${activity.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Done" }),
-    });
-    if (res.ok) onCompleted(item.id);
-    setMarkingDone(false);
+    setError(null);
+    try {
+      await fetchJson(`/api/pitstop-events/${activity.id}`, { method: "PATCH", json: { status: "Done" } });
+      onCompleted(item.id);
+    } catch (e) {
+      setError(describeFetchError(e, "Couldn't mark that done."));
+    } finally {
+      setMarkingDone(false);
+    }
   }
 
   async function startVoiceLog() {
@@ -52,8 +56,14 @@ export function RPChecklistRow({
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const fd = new FormData();
         fd.append("audio", blob, "voice.webm");
-        const res = await fetch(`/api/checklist/${item.id}/voice`, { method: "POST", body: fd });
-        if (res.ok) onCompleted(item.id);
+        try {
+          // fetchJson (not bare fetch) so X-Surface rides along — the voice
+          // route is gated on a surface-restricted pitstop_event.update.
+          await fetchJson(`/api/checklist/${item.id}/voice`, { method: "POST", body: fd });
+          onCompleted(item.id);
+        } catch (e) {
+          setError(describeFetchError(e, "Couldn't save that voice log."));
+        }
         setVoiceState("idle");
       };
       mediaRecorderRef.current = mr;
@@ -70,12 +80,18 @@ export function RPChecklistRow({
 
   async function handleAttach(file: File) {
     setUploading(true);
+    setError(null);
     const fd = new FormData();
     fd.append("file", file);
     fd.append("checklistItemId", item.id);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    setUploading(false);
-    if (res.ok) onCompleted(item.id);
+    try {
+      await fetchJson("/api/upload", { method: "POST", body: fd });
+      onCompleted(item.id);
+    } catch (e) {
+      setError(describeFetchError(e, "Couldn't attach that file."));
+    } finally {
+      setUploading(false);
+    }
   }
 
   const isBusy = voiceState !== "idle" || uploading || markingDone;
@@ -139,6 +155,13 @@ export function RPChecklistRow({
         </div>
       ) : (
         <p className="ml-4.5 text-[10px] text-stone-300 italic">No activity scheduled</p>
+      )}
+
+      {error && (
+        <p className="ml-4.5 flex items-start gap-1.5 text-[11px] text-red-600">
+          <AlertTriangle className="mt-px w-3 h-3 flex-shrink-0" />
+          <span>{error}</span>
+        </p>
       )}
 
       <input

@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft, ChevronUp, ChevronDown, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar,
-  CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History, FileText, UserPlus, Mic, Square, Loader2, CheckCircle2,
+  CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History, FileText, UserPlus, Mic, Square, Loader2, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
 import { confirmManualChecklistTick } from "@/lib/checklistGate";
@@ -25,7 +25,7 @@ import { PROGRESS_TAGS, progressTagColor } from "@/lib/progressTags";
 import { PitstopAPPanel } from "@/components/action-points/PitstopAPPanel";
 import { RescheduleVisitModal } from "@/components/pitstops/RescheduleVisitModal";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
-import { fetchJson } from "@/lib/fetchJson";
+import { fetchJson, describeFetchError } from "@/lib/fetchJson";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -207,6 +207,7 @@ function ChecklistItemRow({
   const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
   const [uploading, setUploading] = useState(false);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -222,16 +223,21 @@ function ChecklistItemRow({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setActionError(null);
     const fd = new FormData();
     fd.append("file", file);
     fd.append("checklistItemId", item.id);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (res.ok) {
-      const att: Attachment = await res.json();
+    try {
+      // fetchJson (not bare fetch) so X-Surface rides along — an upload that
+      // carries a checklistItemId is gated on pitstop_event.update.
+      const att = await fetchJson<Attachment>("/api/upload", { method: "POST", body: fd });
       onAttachmentLogged(item.id, att);
+    } catch (e) {
+      setActionError(describeFetchError(e, "Couldn't attach that file."));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const startVoiceLog = useCallback(async () => {
@@ -254,8 +260,8 @@ function ChecklistItemRow({
               { method: "POST", body: fd },
             );
             onVoiceLogged(item.id, updated.notes ?? "");
-          } catch {
-            // surface gate or transcription error
+          } catch (e) {
+            setActionError(describeFetchError(e, "Couldn't save that voice log."));
           }
         } finally {
           setVoiceState("idle");
@@ -533,6 +539,13 @@ function ChecklistItemRow({
                 <FileText className="w-2.5 h-2.5" />
                 Notes
               </button>
+            )}
+
+            {actionError && (
+              <span className="text-[9px] text-red-600 flex items-start gap-0.5">
+                <AlertTriangle className="w-2.5 h-2.5 mt-px flex-shrink-0" />
+                {actionError}
+              </span>
             )}
           </div>
         </div>

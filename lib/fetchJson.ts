@@ -30,6 +30,20 @@ export type FetchJsonInit = Omit<RequestInit, "body"> & {
   body?: BodyInit | null;
 };
 
+/**
+ * Turn a failed request into a line a field user can act on. Surface-restricted
+ * grants fail with a bare 403, which is otherwise indistinguishable from a dead
+ * button — always render this rather than swallowing the error.
+ */
+export function describeFetchError(e: unknown, fallback: string): string {
+  if (e instanceof FetchJsonError) {
+    if (e.status === 403) return "You don't have permission to do that here. Ask an admin to check your access, then try again.";
+    if (e.status === 401) return "You've been signed out. Reload the page and sign in, then try again.";
+    return `${fallback} (${e.status}${e.message ? ` — ${e.message}` : ""})`;
+  }
+  return `${fallback} Check your network connection.`;
+}
+
 export async function fetchJson<T = unknown>(input: string, init: FetchJsonInit = {}): Promise<T> {
   const { json, headers: rawHeaders, ...rest } = init;
   const headers = new Headers(rawHeaders);

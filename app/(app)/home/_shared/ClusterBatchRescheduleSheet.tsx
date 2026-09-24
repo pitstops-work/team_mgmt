@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchJson, describeFetchError } from "@/lib/fetchJson";
 import { Loader2, X } from "lucide-react";
 import { fmtTime } from "../_lib/helpers";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
@@ -72,22 +73,16 @@ export function ClusterBatchRescheduleSheet({
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/pitstop-events/batch-reschedule`, {
+      // fetchJson (not bare fetch) so X-Surface rides along — the batch route
+      // is gated on a surface-restricted pitstop_event.update.
+      await fetchJson(`/api/pitstop-events/batch-reschedule`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventIds: events.map(e => e.id),
-          targetDate,
-        }),
+        json: { eventIds: events.map(e => e.id), targetDate },
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error ?? "Reschedule failed");
-      }
       onRescheduled();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Reschedule failed");
+      setError(describeFetchError(e, "Reschedule failed."));
     } finally {
       setSubmitting(false);
     }

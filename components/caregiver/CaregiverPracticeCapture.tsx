@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, X, Camera, Check } from "lucide-react";
+import { fetchJson, describeFetchError } from "@/lib/fetchJson";
 
 type Practice = { id: string; code: string; shortLabel: string; fullText: string; subcategory: string; trainingModule: number | null };
 type Sub = { label: string; practices: Practice[] };
@@ -60,6 +61,7 @@ export function CaregiverPracticeCapture({
   const [loading, setLoading] = useState(true);
   const [facilityLinked, setFacilityLinked] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const [catId, setCatId] = useState<string | null>(null);
   const [subLabel, setSubLabel] = useState<string | null>(null);
@@ -118,12 +120,14 @@ export function CaregiverPracticeCapture({
 
   const uploadPhoto = useCallback(async (pid: string, file: File) => {
     setUploadingFor(pid);
+    setError(null);
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const r = await fetch("/api/upload", { method: "POST", body: fd });
-      const d = await r.json().catch(() => ({}));
-      if (r.ok && d.url) patch(pid, { photoUrl: d.url });
+      const d = await fetchJson<{ url?: string }>("/api/upload", { method: "POST", body: fd });
+      if (d?.url) patch(pid, { photoUrl: d.url });
+    } catch (e) {
+      setError(describeFetchError(e, "Couldn't upload that photo."));
     } finally {
       setUploadingFor(null);
     }
@@ -137,18 +141,24 @@ export function CaregiverPracticeCapture({
 
   const save = async () => {
     setSaving(true);
+    setError(null);
     const observations = Object.entries(answers)
       .filter(([, a]) => a.status)
       .map(([practiceId, a]) => ({ practiceId, status: a.status, remarks: a.remarks || null, action: a.action || null, photoUrl: a.photoUrl || null }));
     try {
-      const r = await fetch(base, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [idParam]: visitEventId, observations }),
-      });
-      if (r.ok) onSaved();
-      else setSaving(false);
-    } catch {
+      // fetchJson (not bare fetch) so the X-Surface header rides along — the
+      // /operations write is gated on a surface-restricted pitstop_event.update.
+      const res = await fetchJson<{ written?: number }>(base, { method: "POST", json: { [idParam]: visitEventId, observations } });
+      // The writer no-ops silently when the visit can't be resolved to a creche
+      // + settlement. Surface that rather than letting the RP think it saved.
+      if (observations.length > 0 && res?.written === 0) {
+        setError("Nothing was saved — this visit isn't linked to a creche. Tell an admin before closing the visit.");
+        setSaving(false);
+        return;
+      }
+      onSaved();
+    } catch (e) {
+      setError(describeFetchError(e, "Couldn't save. Your entries are still here — try again."));
       setSaving(false);
     }
   };
@@ -184,6 +194,14 @@ export function CaregiverPracticeCapture({
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Save
         </button>
       </div>
+
+      {error && (
+        <div className="shrink-0 flex items-start gap-2 border-b border-red-200 bg-red-50 px-4 py-2.5">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+          <p className="text-xs text-red-700">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto shrink-0 text-red-400 hover:text-red-600"><X className="h-4 w-4" /></button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex-1 grid place-items-center text-stone-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
