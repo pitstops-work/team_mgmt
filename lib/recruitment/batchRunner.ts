@@ -213,6 +213,11 @@ async function claim(runId: string): Promise<RecruitmentBatchRun | null> {
   return prisma.recruitmentBatchRun.findUnique({ where: { id: runId } });
 }
 
+/** True when a running run has no live worker — its chain broke. */
+export function isStale(run: Pick<RecruitmentBatchRun, "status" | "lockedAt">): boolean {
+  return run.status === "running" && (!run.lockedAt || run.lockedAt.getTime() < Date.now() - LEASE_MS);
+}
+
 /** Runs nobody is working that still have chunks left. The cron's input. */
 export async function findStaleRuns(limit = 3): Promise<string[]> {
   const cutoff = new Date(Date.now() - LEASE_MS);
