@@ -133,6 +133,8 @@ Tag goals and pitstops to **Zones** (North, South, East, West, Central) and **Cl
 
 The **Programme Map** (`/map`) shows all settlements, resource centres, children's centres, youth centres, and creches as a live map. Click any settlement to see linked goals and pitstops. Click a zone or cluster boundary to see a summary of work in that area.
 
+**Find clusters** (left panel) narrows the city's clusters with filters that combine: zone, partner, health work (a health centre within 2 km of any settlement in the cluster), a school or Indira Canteen within a chosen distance of any settlement, and "only clusters where I own a goal". Each option shows how many clusters you would get with it, the matching clusters are listed below (click one to zoom in; **CSV** downloads the list), and the map shows only those clusters. **Map display** picks one thing to colour the map by — nothing, partner, health work, goal progress or needs — and which points to show.
+
 ### Risks (`/risks`)
 When you identify a threat to a goal — funding delay, staff change, external dependency — log it as a risk. Give it a likelihood and impact. Don't wait until it happens.
 

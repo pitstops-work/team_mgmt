@@ -8,6 +8,7 @@ import { LAYERS, type LayerConfig, type LayerKey, type MapCity } from "@/lib/lay
 import type { FacilityLayer } from "@/components/map/MapDashboard";
 import { type MapFilter, settlementMatchesFilter, centreMatchesFilter } from "@/lib/mapFilter";
 import type { NeedsHeatmapData, NeedsLevel } from "./NeedsToolbar";
+import { normName, HEALTH_WORK_COLOR, NO_HEALTH_WORK_COLOR, type ColorBy } from "@/lib/clusterQuery";
 
 export interface CentreFeature {
   name: string;
@@ -68,8 +69,11 @@ interface MapViewProps {
   bbmpSchoolFeatures?: { type: string; features: unknown[] };
   healthFeatures?: { type: string; features: unknown[] };
   healthTypes?: Set<string>;
-  showHealthClusters?: boolean;
-  healthClusterMap?: Record<string, boolean>;
+  colorBy?: ColorBy;
+  /** Normalised names of clusters with a health centre within 2 km of a settlement. */
+  healthWorkClusters?: Set<string>;
+  /** Show cluster outlines regardless of the Clusters toggle (panel filters are active). */
+  highlightClusters?: boolean;
   facilityLayers?: FacilityLayer[];
   needsMode?: boolean;
   needsHeatmap?: NeedsHeatmapData | null;
@@ -94,6 +98,37 @@ const HEALTH_COLORS: Record<string, string> = {
   amber: "#f59e0b",
   green: "#10b981",
 };
+
+// Neutral drawing used whenever the map is not coloured by partner.
+const NEUTRAL_SETTLEMENT = "#64748b";
+const NEUTRAL_CLUSTER_LINE = "#475569";
+
+// Settlement paint: lens colours (progress / needs) win, otherwise `base`.
+function settlementFillColorExpr(base: string): maplibregl.ExpressionSpecification {
+  return [
+    "case",
+    ["==", ["get", "health"], "needs"],     ["coalesce", ["get", "needsColor"], "#f1f5f9"],
+    ["==", ["get", "health"], "checklist"], ["coalesce", ["get", "checklistColor"], "#e2e8f0"],
+    ["==", ["get", "health"], "nogap"],     "#ef4444",
+    ["==", ["get", "health"], "has_goals"], "#e2e8f0",
+    ["==", ["get", "health"], "red"],       HEALTH_COLORS.red,
+    ["==", ["get", "health"], "amber"],     HEALTH_COLORS.amber,
+    ["==", ["get", "health"], "green"],     HEALTH_COLORS.green,
+    base,
+  ] as maplibregl.ExpressionSpecification;
+}
+
+function settlementLineColorExpr(base: string): maplibregl.ExpressionSpecification {
+  return [
+    "case",
+    ["==", ["get", "health"], "checklist"], ["coalesce", ["get", "checklistColor"], "#e2e8f0"],
+    ["==", ["get", "health"], "nogap"],     "#ef4444",
+    ["==", ["get", "health"], "red"],       HEALTH_COLORS.red,
+    ["==", ["get", "health"], "amber"],     HEALTH_COLORS.amber,
+    ["==", ["get", "health"], "green"],     HEALTH_COLORS.green,
+    base,
+  ] as maplibregl.ExpressionSpecification;
+}
 
 const STATIC_CENTRE_KEYS: LayerKey[] = ["resource_centres"];
 
@@ -365,8 +400,9 @@ export default function MapView({
   bbmpSchoolFeatures,
   healthFeatures,
   healthTypes,
-  showHealthClusters = false,
-  healthClusterMap = {},
+  colorBy = "none",
+  healthWorkClusters,
+  highlightClusters = false,
   facilityLayers = [],
   needsMode = false,
   needsHeatmap = null,
@@ -420,6 +456,76 @@ export default function MapView({
   const [showClusters, setShowClusters] = useState(false);
   const showZonesRef = useRef(false);
   const showClustersRef = useRef(false);
+  const colorByRef = useRef(colorBy);
+  const activeClusterRef = useRef(activeCluster);
+  const healthWorkRef = useRef(healthWorkClusters);
+  const highlightClustersRef = useRef(highlightClusters);
+  useEffect(() => { colorByRef.current = colorBy; }, [colorBy]);
+  useEffect(() => { activeClusterRef.current = activeCluster; }, [activeCluster]);
+  useEffect(() => { healthWorkRef.current = healthWorkClusters; }, [healthWorkClusters]);
+  useEffect(() => { highlightClustersRef.current = highlightClusters; }, [highlightClusters]);
+
+  const settlementBase = (lc: LayerConfig) => (colorByRef.current === "partner" ? lc.color : NEUTRAL_SETTLEMENT);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const withHealthWork = (features: any[]) => {
+    const set = healthWorkRef.current;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return features.map((f: any) => ({
+      ...f,
+      properties: { ...f.properties, healthWork: set?.has(normName(f.properties?.cluster)) ? 1 : 0 },
+    }));
+  };
+
+  // ── Cluster paint: the one place that sets cluster fill/line colours ─────
+  // Lens colours (needs / progress RAG) win; otherwise the Colour-by choice
+  // decides; a selected cluster is emphasised and the rest recede.
+  function paintClusters(map: maplibregl.Map) {
+    if (!map.getLayer("clusters-fill")) return;
+    const by = colorByRef.current;
+    const needsOn = needsModeRef.current && !!needsHeatmapRef.current?.hasData;
+    // Match the selection to the boundary feature's own spelling of the name.
+    const activeNorm = normName(activeClusterRef.current);
+    const active = activeNorm
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (clusterFeaturesRef.current.find((f: any) => normName(f.properties?.cluster) === activeNorm)?.properties?.cluster ?? activeClusterRef.current)
+      : null;
+    const isHealth = ["==", ["get", "healthWork"], 1];
+    const base = by === "health"
+      ? ["case", isHealth, HEALTH_WORK_COLOR, NO_HEALTH_WORK_COLOR]
+      : by === "partner" ? ["get", "color"] : NEUTRAL_CLUSTER_LINE;
+    map.setPaintProperty("clusters-fill", "fill-color", [
+      "case",
+      ["==", ["get", "health"], "needs"],  ["coalesce", ["get", "needsColor"], "#f1f5f9"],
+      ["==", ["get", "health"], "red"],     HEALTH_COLORS.red,
+      ["==", ["get", "health"], "amber"],   HEALTH_COLORS.amber,
+      ["==", ["get", "health"], "green"],   HEALTH_COLORS.green,
+      base,
+    ] as maplibregl.ExpressionSpecification);
+    const baseOpacity = [
+      "case",
+      ["==", ["get", "health"], "needs"], 0.72,
+      ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18,
+      by === "health" ? ["case", isHealth, 0.32, 0.08] : 0.06,
+    ];
+    map.setPaintProperty("clusters-fill", "fill-opacity", (active
+      ? ["case", ["==", ["get", "cluster"], active], 0.22, 0.03]
+      : baseOpacity) as maplibregl.ExpressionSpecification);
+    if (map.getLayer("clusters-line")) {
+      map.setPaintProperty("clusters-line", "line-color", (needsOn
+        ? "#94a3b8"
+        : by === "health" ? ["case", isHealth, HEALTH_WORK_COLOR, NO_HEALTH_WORK_COLOR]
+        : by === "partner" ? ["get", "color"] : NEUTRAL_CLUSTER_LINE) as maplibregl.ExpressionSpecification);
+      map.setPaintProperty("clusters-line", "line-opacity", needsOn ? 0.45 : 1.0);
+    }
+  }
+
+  function applyClusterVisibility(map: maplibregl.Map) {
+    const on = showClustersRef.current || highlightClustersRef.current || colorByRef.current === "health";
+    ["clusters-fill", "clusters-line", "clusters-label"].forEach((id) => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+    });
+  }
 
   const facilityLayersRef = useRef(facilityLayers);
   useEffect(() => { facilityLayersRef.current = facilityLayers; }, [facilityLayers]);
@@ -775,17 +881,7 @@ export default function MapView({
                 type: "fill",
                 source: srcId,
                 paint: {
-                  "fill-color": [
-                    "case",
-                    ["==", ["get", "health"], "needs"],     ["coalesce", ["get", "needsColor"], "#f1f5f9"],
-                    ["==", ["get", "health"], "checklist"], ["coalesce", ["get", "checklistColor"], "#e2e8f0"],
-                    ["==", ["get", "health"], "nogap"],     "#ef4444",
-                    ["==", ["get", "health"], "has_goals"], "#e2e8f0",
-                    ["==", ["get", "health"], "red"],       HEALTH_COLORS.red,
-                    ["==", ["get", "health"], "amber"],     HEALTH_COLORS.amber,
-                    ["==", ["get", "health"], "green"],     HEALTH_COLORS.green,
-                    layerConfig.color,
-                  ],
+                  "fill-color": settlementFillColorExpr(settlementBase(layerConfig)),
                   "fill-opacity": [
                     "case",
                     ["==", ["get", "health"], "needs"],     0.78,
@@ -805,15 +901,7 @@ export default function MapView({
                 type: "line",
                 source: srcId,
                 paint: {
-                  "line-color": [
-                    "case",
-                    ["==", ["get", "health"], "checklist"], ["coalesce", ["get", "checklistColor"], "#e2e8f0"],
-                    ["==", ["get", "health"], "nogap"],     "#ef4444",
-                    ["==", ["get", "health"], "red"],       HEALTH_COLORS.red,
-                    ["==", ["get", "health"], "amber"],     HEALTH_COLORS.amber,
-                    ["==", ["get", "health"], "green"],     HEALTH_COLORS.green,
-                    layerConfig.color,
-                  ],
+                  "line-color": settlementLineColorExpr(settlementBase(layerConfig)),
                   "line-width": 2,
                   "line-opacity": 0.9,
                 },
@@ -1169,10 +1257,10 @@ export default function MapView({
       // ── Cluster boundaries ───────────────────────────────────────────────
       fetch("/api/map/geojson/clusters").then((r) => r.json()).then((gj) => {
         if (mapRef.current !== map) return; // map was cleaned up
-        clusterFeaturesRef.current = gj.features ?? [];
+        clusterFeaturesRef.current = withHealthWork(gj.features ?? []);
         try {
           if (map.getSource("clusters-source")) return; // already added
-          map.addSource("clusters-source", { type: "geojson", data: gj });
+          map.addSource("clusters-source", { type: "geojson", data: { type: "FeatureCollection", features: clusterFeaturesRef.current } });
           map.addLayer({
             id: "clusters-fill",
             type: "fill",
@@ -1235,6 +1323,8 @@ export default function MapView({
             onClusterSelectRef.current(e.features[0].properties?.cluster ?? null);
           });
           // cursor managed by the global mousemove handler
+          paintClusters(map);
+          applyClusterVisibility(map);
           // Re-apply the active filter — see the zones-source block above.
           if (mapFilterRef.current) applyFilterHighlight(map, mapFilterRef.current, visibleLayersRef.current);
         } catch (err) {
@@ -1383,7 +1473,7 @@ export default function MapView({
       if (!map.getLayer(fillId) || !map.getLayer(lineId)) return;
       if (!visible.has(layerConfig.key)) return;
 
-      const hasFilter = filter && (filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0);
+      const hasFilter = filter && (filter.matchNothing || filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0);
       if (!hasFilter) {
         map.setPaintProperty(fillId, "fill-opacity", 0.25);
         map.setPaintProperty(lineId, "line-width", 2);
@@ -1415,7 +1505,7 @@ export default function MapView({
     // underscores from the partner geojson files). Both forms must
     // match. We do that by expanding the membership set to include
     // every normalised + underscore + space variant we can derive.
-    const hasFilter2 = filter && (filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0);
+    const hasFilter2 = filter && (filter.matchNothing || filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0);
     const hideOthers = !!(hasFilter2 && filter?.hideNonMatching);
 
     const expand = (s: string): string[] => {
@@ -1433,7 +1523,9 @@ export default function MapView({
     // is unambiguous in maplibre v5 and avoids the historical confusion
     // between legacy ["in", "prop", val…] and modern ["in", val, arr].
     const buildExpr = (prop: "cluster" | "zone", values: string[]): maplibregl.FilterSpecification | null => {
-      if (!hideOthers || values.length === 0) return null;
+      if (!hideOthers) return null;
+      if (filter?.matchNothing) return ["==", ["get", prop], "\u0000none"] as maplibregl.FilterSpecification;
+      if (values.length === 0) return null;
       if (values.length === 1) return ["==", ["get", prop], values[0]] as maplibregl.FilterSpecification;
       const clauses: unknown[] = [
         "any",
@@ -1628,15 +1720,7 @@ export default function MapView({
         const restored = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: undefined, needsColor: undefined } }));
         src.setData({ type: "FeatureCollection", features: restored });
         if (map.getLayer(lineId)) {
-          map.setPaintProperty(lineId, "line-color", [
-            "case",
-            ["==", ["get", "health"], "checklist"], ["coalesce", ["get", "checklistColor"], "#e2e8f0"],
-            ["==", ["get", "health"], "nogap"],     "#ef4444",
-            ["==", ["get", "health"], "red"],       HEALTH_COLORS.red,
-            ["==", ["get", "health"], "amber"],     HEALTH_COLORS.amber,
-            ["==", ["get", "health"], "green"],     HEALTH_COLORS.green,
-            layerConfig.color,
-          ]);
+          map.setPaintProperty(lineId, "line-color", settlementLineColorExpr(settlementBase(layerConfig)));
           map.setPaintProperty(lineId, "line-opacity", 0.9);
         }
         return;
@@ -1705,11 +1789,8 @@ export default function MapView({
     // Cluster boundaries
     const clusterSrc = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
     if (clusterSrc && clusterFeaturesRef.current.length > 0) {
-      // Always neutralize cluster borders when needs mode is active; restore when off
-      if (map.getLayer("clusters-line")) {
-        map.setPaintProperty("clusters-line", "line-color", active ? DIM_LINE : ["get", "color"]);
-        map.setPaintProperty("clusters-line", "line-opacity", active ? 0.45 : 1.0);
-      }
+      // Cluster borders go neutral while needs mode is active (paintClusters reads needs state)
+      paintClusters(map);
 
       if (!active || needsLevel !== "cluster") {
         clusterSrc.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
@@ -1876,59 +1957,37 @@ export default function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [healthFeatures, visibleLayers, healthTypes]);
 
-  // ── Health cluster overlay ────────────────────────────────────────────────
+  // ── Health-work flag on cluster features ──────────────────────────────────
+  // Baked into clusterFeaturesRef so every later setData (progress, needs,
+  // selection) keeps it. While a lens owns the source data, only the ref is
+  // updated; the lens re-reads it on its next repaint.
   useEffect(() => {
     const map = mapRef.current;
-    const src = map?.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
-    if (!src || !clusterFeaturesRef.current.length) return;
-
-    // Ensure cluster layer is visible when overlay is on
-    if (showHealthClusters && map?.getLayer("clusters-fill")) {
-      map.setLayoutProperty("clusters-fill", "visibility", "visible");
-      map.setLayoutProperty("clusters-line", "visibility", "visible");
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const enriched = clusterFeaturesRef.current.map((f: any) => {
-      const key = f.properties?.cluster ?? "";
-      const isHealth = showHealthClusters && (healthClusterMap[key] ?? healthClusterMap[key.replace(/_/g, " ")] ?? false);
-      return { ...f, properties: { ...f.properties, healthOverlay: isHealth ? "health" : "" } };
-    });
-
-    if (showHealthClusters) {
-      src.setData({ type: "FeatureCollection", features: enriched });
-      if (map?.getLayer("clusters-fill")) {
-        map?.setPaintProperty("clusters-fill", "fill-color", [
-          "case", ["==", ["get", "healthOverlay"], "health"], "#f43f5e", ["get", "color"],
-        ]);
-        map?.setPaintProperty("clusters-fill", "fill-opacity", [
-          "case", ["==", ["get", "healthOverlay"], "health"], 0.22, 0.06,
-        ]);
-      }
-    } else {
-      // Don't reset data or paint when needs mode is active — needs effect owns these
-      if (!needsModeRef.current) {
-        src.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
-        if (map?.getLayer("clusters-fill")) {
-          map?.setPaintProperty("clusters-fill", "fill-color", [
-            "case",
-            ["==", ["get", "health"], "needs"],  ["coalesce", ["get", "needsColor"], "#f1f5f9"],
-            ["==", ["get", "health"], "red"],     HEALTH_COLORS.red,
-            ["==", ["get", "health"], "amber"],   HEALTH_COLORS.amber,
-            ["==", ["get", "health"], "green"],   HEALTH_COLORS.green,
-            ["get", "color"],
-          ]);
-          map?.setPaintProperty("clusters-fill", "fill-opacity", [
-            "case",
-            ["==", ["get", "health"], "needs"],  0.72,
-            ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18,
-            0.09,
-          ]);
-        }
-      }
+    if (!map || !clusterFeaturesRef.current.length) return;
+    clusterFeaturesRef.current = withHealthWork(clusterFeaturesRef.current);
+    const lensActive = needsModeRef.current || (progressMode && !!progressHealthRef.current);
+    if (!lensActive) {
+      (map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined)
+        ?.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showHealthClusters, healthClusterMap]);
+  }, [healthWorkClusters]);
+
+  // ── Colour-by: repaint settlements and clusters ───────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    LAYERS.filter((l) => l.file && l.type === "polygon").forEach((lc) => {
+      if (map.getLayer(`${lc.key}-fill`)) map.setPaintProperty(`${lc.key}-fill`, "fill-color", settlementFillColorExpr(settlementBase(lc)));
+      // Needs mode owns settlement borders while active.
+      if (!needsModeRef.current && map.getLayer(`${lc.key}-line`)) {
+        map.setPaintProperty(`${lc.key}-line`, "line-color", settlementLineColorExpr(settlementBase(lc)));
+      }
+    });
+    paintClusters(map);
+    applyClusterVisibility(map);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colorBy]);
 
   // ── Zone flyTo ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1972,13 +2031,14 @@ export default function MapView({
   // ── Cluster flyTo ─────────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !activeCluster) return;
+    if (!map) return;
+    if (!activeCluster) { paintClusters(map); return; }
     try {
       let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
       Object.values(settlementFeaturesRef.current).forEach((features) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         features?.forEach((f: any) => {
-          if (f.properties?.cluster !== activeCluster) return;
+          if (normName(f.properties?.cluster) !== normName(activeCluster)) return;
           getPolygonEnvelope(f).forEach(([lng, lat]) => {
             minLng = Math.min(minLng, lng); minLat = Math.min(minLat, lat);
             maxLng = Math.max(maxLng, lng); maxLat = Math.max(maxLat, lat);
@@ -1989,21 +2049,7 @@ export default function MapView({
         map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 800, padding: 60 });
       }
 
-      const src = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
-      if (src && clusterFeaturesRef.current.length > 0 && !needsModeRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const enriched = clusterFeaturesRef.current.map((f: any) => ({
-          ...f, properties: { ...f.properties, active: f.properties?.cluster === activeCluster ? 1 : 0 },
-        }));
-        src.setData({ type: "FeatureCollection", features: enriched });
-        if (map.getLayer("clusters-fill")) {
-          map.setPaintProperty("clusters-fill", "fill-opacity", [
-            "case",
-            ["==", ["get", "active"], 1], 0.22,
-            activeCluster ? 0.03 : ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09],
-          ]);
-        }
-      }
+      paintClusters(map);
     } catch (err) {
       console.error("[MapView] activeCluster effect error:", err);
     }
@@ -2022,11 +2068,9 @@ export default function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const vis = showClusters ? "visible" : "none";
-    ["clusters-fill", "clusters-line", "clusters-label"].forEach((id) => {
-      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
-    });
-  }, [showClusters]);
+    applyClusterVisibility(map);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showClusters, highlightClusters]);
 
   // ── Re-fetch zone/cluster boundaries when Geography settings change ───────
   useEffect(() => {
@@ -2044,9 +2088,9 @@ export default function MapView({
         }).catch(() => {});
         fetch("/api/map/geojson/clusters").then(r => r.json()).then(gj => {
           if (mapRef.current !== map) return;
-          clusterFeaturesRef.current = gj.features ?? [];
+          clusterFeaturesRef.current = withHealthWork(gj.features ?? []);
           (map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined)
-            ?.setData({ type: "FeatureCollection", features: gj.features ?? [] });
+            ?.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
         }).catch(() => {});
       };
     } catch { /* BroadcastChannel unsupported */ }

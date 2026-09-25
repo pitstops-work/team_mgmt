@@ -1,12 +1,13 @@
 import { LAYERS } from "./layers";
 import type { GeoData } from "./useGeoData";
+import { normName } from "./clusterQuery";
 
 export interface MapFilter {
   partnerKeys: Set<string>;          // settlement layer keys to highlight
   zones: Set<string>;                // zone names to highlight
   clusters: Set<string>;             // cluster keys to highlight
   centrePartnerLabels: Set<string>;  // centre partner labels to show
-  source: "zone" | "cluster" | "settlement" | "partner" | "centre" | "mine";
+  source: "zone" | "cluster" | "settlement" | "partner" | "centre" | "mine" | "query";
   label: string;                     // human-readable description of active filter
   /** When true, hide non-matching settlements/centres entirely (opacity 0)
    *  instead of dimming them. Default for every filter source — selecting
@@ -14,6 +15,9 @@ export interface MapFilter {
    *  the map should make the rest disappear so the chosen scope is
    *  readable. */
   hideNonMatching?: boolean;
+  /** The panel's filters matched no cluster: hide everything rather than
+   *  treating the empty sets as "no constraint". */
+  matchNothing?: boolean;
 }
 
 type ComputeParams = {
@@ -75,8 +79,9 @@ export function computeMapFilter(
 
     case "cluster": {
       const cluster = params.cluster!;
-      const s = allSettlements.filter(x => x.cluster === cluster);
-      const zone = s[0]?.zone || allCentres.find(c => c.cluster === cluster)?.zone || "";
+      const key = normName(cluster);
+      const s = allSettlements.filter(x => normName(x.cluster) === key);
+      const zone = s[0]?.zone || allCentres.find(c => normName(c.cluster) === key)?.zone || "";
       return {
         source,
         label: `Cluster: ${cluster.replace(/_/g, " ")}`,
@@ -84,7 +89,7 @@ export function computeMapFilter(
         zones: zone ? new Set([zone]) : new Set(),
         clusters: new Set([cluster]),
         centrePartnerLabels: new Set(
-          allCentres.filter(c => c.cluster === cluster).map(c => c.partner).filter(Boolean)
+          allCentres.filter(c => normName(c.cluster) === key).map(c => c.partner).filter(Boolean)
         ),
         hideNonMatching: true,
       };
@@ -138,12 +143,13 @@ export function computeMapFilter(
       };
     }
 
-    // "mine" filters are built externally (MapDashboard composes the cluster
+    // "mine" and "query" filters are built externally (MapDashboard composes the cluster
     // and zone sets from the user's goals via /api/map/my-goal-scope), so
     // this branch is never reached. Defined for completeness so the switch
     // is exhaustive.
     case "mine":
-      return emptyFilter("mine", "Mine");
+    case "query":
+      return emptyFilter(source, source === "mine" ? "Mine" : "Filters");
   }
 }
 
@@ -158,6 +164,23 @@ function emptyFilter(source: MapFilter["source"], label: string): MapFilter {
   };
 }
 
+// Zone / cluster names differ in spelling between the DB and the partner
+// geojson ("JJR Nagar" vs "JJR_Nagar"), so membership is checked on the
+// normalised form. Cached per Set so a filter pass over thousands of
+// features normalises each filter set once.
+const normCache = new WeakMap<Set<string>, Set<string>>();
+function normSet(s: Set<string>): Set<string> {
+  let n = normCache.get(s);
+  if (!n) {
+    n = new Set(Array.from(s, normName));
+    normCache.set(s, n);
+  }
+  return n;
+}
+function inSet(s: Set<string>, value: string): boolean {
+  return s.size === 0 || normSet(s).has(normName(value));
+}
+
 /** Returns true if a settlement feature matches the active filter */
 export function settlementMatchesFilter(
   filter: MapFilter,
@@ -165,10 +188,9 @@ export function settlementMatchesFilter(
   zone: string,
   cluster: string
 ): boolean {
+  if (filter.matchNothing) return false;
   const partnerMatch = filter.partnerKeys.size === 0 || filter.partnerKeys.has(partnerKey);
-  const zoneMatch = filter.zones.size === 0 || filter.zones.has(zone);
-  const clusterMatch = filter.clusters.size === 0 || filter.clusters.has(cluster);
-  return partnerMatch && zoneMatch && clusterMatch;
+  return partnerMatch && inSet(filter.zones, zone) && inSet(filter.clusters, cluster);
 }
 
 /** Returns true if a centre feature matches the active filter */
@@ -178,8 +200,7 @@ export function centreMatchesFilter(
   zone: string,
   cluster: string
 ): boolean {
+  if (filter.matchNothing) return false;
   const partnerMatch = filter.centrePartnerLabels.size === 0 || filter.centrePartnerLabels.has(partner);
-  const zoneMatch = filter.zones.size === 0 || filter.zones.has(zone);
-  const clusterMatch = filter.clusters.size === 0 || filter.clusters.has(cluster);
-  return partnerMatch && zoneMatch && clusterMatch;
+  return partnerMatch && inSet(filter.zones, zone) && inSet(filter.clusters, cluster);
 }

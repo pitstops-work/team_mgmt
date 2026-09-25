@@ -322,7 +322,7 @@ Backed by `/api/needs/*`. Page: `/needs`, `/needs/settlement/[id]`.
 
 ### 30. MapData (read-only feeds beyond row 12)
 
-Catalog umbrella for the broader read-only map endpoints. Backed by `/api/map/cluster-activities`, `/cluster-needs`, `/cluster-pitstops`, `/geo-goals`, `/geojson/{clusters,zones,settlements,layer-features}`, `/health-centres`, `/health-clusters`, `/needs-heatmap`, `/progress-health`, `/my-goal-scope`, `/schools`, `/settlement-needs`, `/zone-needs`, `/api/clusters/summary`, `/api/zones/summary`, `/api/geography/*`.
+Catalog umbrella for the broader read-only map endpoints. Backed by `/api/map/cluster-activities`, `/cluster-needs`, `/cluster-pitstops`, `/geo-goals`, `/geojson/{clusters,zones,settlements,layer-features}`, `/health-centres`, `/cluster-facets`, `/needs-heatmap`, `/progress-health`, `/my-goal-scope`, `/schools`, `/settlement-needs`, `/zone-needs`, `/api/clusters/summary`, `/api/zones/summary`, `/api/geography/*`.
 
 | Action | super-admin | admin | member | viewer |
 |---|---|---|---|---|
