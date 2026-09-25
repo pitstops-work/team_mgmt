@@ -6,7 +6,7 @@ import { ClipboardList, Users } from "lucide-react";
 import type { GeoData } from "@/lib/useGeoData";
 import type { SettlementFeature } from "./MapView";
 import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
-import { SheetHandle, sheetMobileClass, useSheetMinimised } from "./MobileSheet";
+import { SheetHandle, sheetMobileClass, sheetDesktopClass, MinimiseButton, DesktopSheetTab, useSheetMinimised } from "./MobileSheet";
 import TemplatePickerModal from "@/components/TemplatePickerModal";
 import type { GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
 
@@ -175,12 +175,11 @@ export default function SettlementSidebar({ feature, geoData, onClose, currentUs
   // Mobile: bottom sheet that slides up from just above the bottom control bar
   // Desktop: right-side panel that slides in from the right
   const mobileClass = sheetMobileClass(isOpen, minimised);
-  const desktopClass = isOpen
-    ? "sm:translate-x-0"
-    : "sm:translate-x-full";
+  const desktopClass = sheetDesktopClass(isOpen, minimised);
 
   return (
     <>
+      <DesktopSheetTab show={isOpen && minimised} label={feature?.name ?? ""} onExpand={() => setMinimised(false)} />
       {/* Mobile backdrop */}
       {isMobile && isOpen && !minimised && (
         <div
@@ -257,6 +256,7 @@ export default function SettlementSidebar({ feature, geoData, onClose, currentUs
                     Directions
                   </a>
                 )}
+                <MinimiseButton onClick={() => setMinimised(true)} />
                 <button
                   onClick={onClose}
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors text-lg leading-none"

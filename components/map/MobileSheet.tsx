@@ -38,3 +38,43 @@ export function SheetHandle({ minimised, onToggle }: { minimised: boolean; onTog
     </button>
   );
 }
+
+// ── Desktop ────────────────────────────────────────────────────────────────
+// On desktop the sheet is a right-hand column. Minimising slides it off the
+// map and leaves a tab at the right edge that brings it back.
+
+/** Desktop transform for the right-hand panel. */
+export function sheetDesktopClass(isOpen: boolean, minimised: boolean): string {
+  return isOpen && !minimised ? "sm:translate-x-0" : "sm:translate-x-full";
+}
+
+/** Header button (desktop only) that slides the panel off the map. */
+export function MinimiseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Hide panel to see the map"
+      aria-label="Hide panel to see the map"
+      className="hidden sm:flex w-7 h-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors text-base leading-none"
+    >
+      »
+    </button>
+  );
+}
+
+/** Tab at the map's right edge (desktop only) while the panel is minimised. */
+export function DesktopSheetTab({ show, label, onExpand }: { show: boolean; label: string; onExpand: () => void }) {
+  if (!show) return null;
+  return (
+    <button
+      type="button"
+      onClick={onExpand}
+      title="Show details"
+      className="hidden sm:flex absolute right-3 top-14 z-30 max-w-[16rem] items-center gap-1.5 px-3 h-8 rounded-lg border border-slate-200 shadow bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+    >
+      <span aria-hidden>◀</span>
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}

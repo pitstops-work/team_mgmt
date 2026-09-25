@@ -5,21 +5,9 @@ import Link from "next/link";
 import { BarChart2 } from "lucide-react";
 import type { GeoData } from "@/lib/useGeoData";
 import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
-import { SheetHandle, sheetMobileClass, useSheetMinimised } from "./MobileSheet";
+import { SheetHandle, sheetMobileClass, sheetDesktopClass, MinimiseButton, DesktopSheetTab, useSheetMinimised } from "./MobileSheet";
 import TemplatePickerModal from "@/components/TemplatePickerModal";
 import type { GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 639px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-  return isMobile;
-}
 
 interface GoalWithPitstops {
   id: string;
@@ -70,11 +58,10 @@ export default function ZoneClusterSidebar({
   const [activeTab, setActiveTab] = useState<"goals" | "needs">("goals");
   const [goalPrefill, setGoalPrefill] = useState<GoalPrefill | null>(null);
   const prevKey = useRef<string | null>(null);
-  const isMobile = useIsMobile();
 
   const isOpen = !!(type && name);
-  // On a phone the sheet opens minimised so the selected cluster stays visible.
-  const [minimised, setMinimised] = useSheetMinimised(isOpen ? `${type}:${name}` : null, isMobile);
+  // Opens minimised so the selected cluster stays visible on the map.
+  const [minimised, setMinimised] = useSheetMinimised(isOpen ? `${type}:${name}` : null, true);
 
   useEffect(() => {
     const key = type && name ? `${type}:${name}` : null;
@@ -137,7 +124,7 @@ export default function ZoneClusterSidebar({
   };
 
   const mobileClass = sheetMobileClass(isOpen, minimised);
-  const desktopClass = isOpen ? "sm:translate-x-0" : "sm:translate-x-full";
+  const desktopClass = sheetDesktopClass(isOpen, minimised);
 
   // Use display field from index if available (handles en-dashes, &, etc.); else normalise underscores
   const displayName = (name && type === "cluster" ? clusterIndex[name]?.display : undefined)
@@ -147,6 +134,7 @@ export default function ZoneClusterSidebar({
 
   return (
     <>
+    <DesktopSheetTab show={isOpen && minimised} label={displayName} onExpand={() => setMinimised(false)} />
     <div
       className={[
         "bg-white shadow-2xl z-40 flex flex-col transition-transform duration-300",
@@ -186,6 +174,7 @@ export default function ZoneClusterSidebar({
                     Coverage
                   </Link>
                 )}
+                <MinimiseButton onClick={() => setMinimised(true)} />
                 <button
                   onClick={onClose}
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors text-lg"

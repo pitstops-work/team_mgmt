@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ClipboardList, ExternalLink } from "lucide-react";
 import type { CentreFeature } from "./MapView";
-import { SheetHandle, sheetMobileClass, useSheetMinimised } from "./MobileSheet";
+import { SheetHandle, sheetMobileClass, sheetDesktopClass, MinimiseButton, DesktopSheetTab, useSheetMinimised } from "./MobileSheet";
 
 const CENTRE_COLORS: Record<string, string> = {
   children_centres: "#f97316",
@@ -49,9 +49,11 @@ export default function CentreSidebar({ feature, onClose }: Props) {
 
   const [minimised, setMinimised] = useSheetMinimised(isOpen ? `${feature?.layerKey}:${feature?.name}` : null);
   const mobileClass = sheetMobileClass(isOpen, minimised);
-  const desktopClass = isOpen ? "sm:translate-x-0" : "sm:translate-x-full";
+  const desktopClass = sheetDesktopClass(isOpen, minimised);
 
   return (
+    <>
+    <DesktopSheetTab show={isOpen && minimised} label={feature?.name ?? ""} onExpand={() => setMinimised(false)} />
     <div
       className={[
         "bg-white shadow-2xl z-40 flex flex-col transition-transform duration-300",
@@ -78,12 +80,15 @@ export default function CentreSidebar({ feature, onClose }: Props) {
                 </div>
                 <h2 className="text-sm font-bold text-slate-800 leading-tight">{feature.name}</h2>
               </div>
-              <button
-                onClick={onClose}
-                className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors text-lg"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <MinimiseButton onClick={() => setMinimised(true)} />
+                <button
+                  onClick={onClose}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors text-lg"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             {/* Location tags */}
@@ -159,5 +164,6 @@ export default function CentreSidebar({ feature, onClose }: Props) {
         </>
       )}
     </div>
+    </>
   );
 }
