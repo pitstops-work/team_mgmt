@@ -1,21 +1,29 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
-import { getFieldSession } from "@/lib/field/access";
+import { resolveFieldView, fieldHref } from "@/lib/field/viewAs";
+import { PreviewBanner } from "../../operations/_shared/PreviewBanner";
 import { getUserClusters } from "@/lib/operations/clusters";
 import { loadInterventions, type InterventionRow } from "@/lib/field/queries";
 
 export const dynamic = "force-dynamic";
 
 // Screen 2 — one cluster: its interventions split into Live and Setting up.
-export default async function ClusterPage({ params }: { params: Promise<{ clusterId: string }> }) {
-  const sess = await getFieldSession();
-  if (!sess) redirect("/operations");
+export default async function ClusterPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ clusterId: string }>;
+  searchParams: Promise<{ asUser?: string }>;
+}) {
+  const { asUser } = await searchParams;
+  const view = await resolveFieldView(asUser);
+  if (!view) redirect("/operations");
   const { clusterId } = await params;
 
   const [clusters, rows] = await Promise.all([
-    getUserClusters([sess.userId]),
-    loadInterventions(sess.userId, clusterId),
+    getUserClusters([view.userId]),
+    loadInterventions(view.userId, clusterId),
   ]);
   const cluster = clusters.find((c) => c.id === clusterId);
   if (!cluster) notFound();
@@ -23,24 +31,27 @@ export default async function ClusterPage({ params }: { params: Promise<{ cluste
   const live = rows.filter((r) => r.phase === "live");
   const settingUp = rows.filter((r) => r.phase === "setting_up");
   const done = rows.filter((r) => r.phase === "done");
+  // Carry the preview down so the intervention screen stays in the same person's shoes.
+  const q = view.viewingAs ? `?asUser=${encodeURIComponent(view.userId)}` : "";
 
   return (
     <div className="max-w-2xl mx-auto px-5 py-6 space-y-6">
+      {view.viewingAs && <PreviewBanner name={view.viewingAs.name} exitHref={`/field/${clusterId}`} />}
       <div>
-        <Link href="/field" className="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700">
+        <Link href={fieldHref("/field", view)} className="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700">
           <ChevronLeft size={16} /> Clusters
         </Link>
         <h1 className="mt-2 text-lg font-semibold text-stone-900">{cluster.name}</h1>
       </div>
 
-      <Section title="Live" subtitle="Regular visits on a cadence" rows={live} empty="No live interventions here." />
-      <Section title="Setting up" subtitle="Steps to complete before go-live" rows={settingUp} empty="Nothing being set up here." />
-      {done.length > 0 && <Section title="Done" subtitle="" rows={done} empty="" muted />}
+      <Section title="Live" subtitle="Regular visits on a cadence" rows={live} empty="No live interventions here." q={q} />
+      <Section title="Setting up" subtitle="Steps to complete before go-live" rows={settingUp} empty="Nothing being set up here." q={q} />
+      {done.length > 0 && <Section title="Done" subtitle="" rows={done} empty="" muted q={q} />}
     </div>
   );
 }
 
-function Section({ title, subtitle, rows, empty, muted }: { title: string; subtitle: string; rows: InterventionRow[]; empty: string; muted?: boolean }) {
+function Section({ title, subtitle, rows, empty, muted, q }: { title: string; subtitle: string; rows: InterventionRow[]; empty: string; muted?: boolean; q: string }) {
   return (
     <section className="space-y-2">
       <div className="flex items-baseline justify-between">
@@ -54,7 +65,7 @@ function Section({ title, subtitle, rows, empty, muted }: { title: string; subti
         <ul className="space-y-2">
           {rows.map((r) => (
             <li key={r.id}>
-              <Row row={r} muted={muted} />
+              <Row row={r} muted={muted} q={q} />
             </li>
           ))}
         </ul>
@@ -63,10 +74,10 @@ function Section({ title, subtitle, rows, empty, muted }: { title: string; subti
   );
 }
 
-function Row({ row, muted }: { row: InterventionRow; muted?: boolean }) {
+function Row({ row, muted, q }: { row: InterventionRow; muted?: boolean; q: string }) {
   return (
     <Link
-      href={`/field/intervention/${row.id}`}
+      href={`/field/intervention/${row.id}${q}`}
       className={`group flex items-center gap-3 rounded-xl border p-3.5 transition hover:shadow-sm ${
         muted ? "border-stone-100 bg-stone-50" : "border-stone-200 bg-white hover:border-stone-300"
       }`}

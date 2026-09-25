@@ -1,29 +1,56 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, MapPin, Database } from "lucide-react";
-import { getFieldSession, requireFieldAdmin } from "@/lib/field/access";
+import { requireFieldAdmin } from "@/lib/field/access";
+import { resolveFieldView, fieldHref } from "@/lib/field/viewAs";
+import { loadViewAsCandidates } from "@/lib/operations/viewAs";
 import { loadClusterSummaries } from "@/lib/field/queries";
+import { PreviewBanner } from "../operations/_shared/PreviewBanner";
+import { ViewAsPicker } from "../operations/_shared/ViewAsPicker";
 
 export const dynamic = "force-dynamic";
 
 // Screen 1 — the RP's clusters. Tap one to see what's there (live + setting up).
-export default async function FieldHomePage() {
-  const sess = await getFieldSession();
-  if (!sess) redirect("/operations");
-  const [clusters, isAdmin] = await Promise.all([loadClusterSummaries(sess.userId), requireFieldAdmin()]);
+export default async function FieldHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ asUser?: string }>;
+}) {
+  const { asUser } = await searchParams;
+  const view = await resolveFieldView(asUser);
+  if (!view) redirect("/operations");
+  const preview = view.viewingAs;
+
+  const [clusters, isAdmin, candidates] = await Promise.all([
+    loadClusterSummaries(view.userId),
+    requireFieldAdmin(),
+    view.isAdmin && !preview ? loadViewAsCandidates() : Promise.resolve([]),
+  ]);
 
   return (
     <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
+      {preview && <PreviewBanner name={preview.name} exitHref="/field" />}
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-stone-900">Your clusters</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Pick a cluster to see what needs doing.</p>
+          <h1 className="text-lg font-semibold text-stone-900">
+            {preview ? `${preview.name ?? "User"}'s clusters` : "Your clusters"}
+          </h1>
+          <p className="text-sm text-stone-500 mt-0.5">
+            {preview
+              ? `Exactly what ${preview.designation ?? "they"} sees here — read-only.`
+              : "Pick a cluster to see what needs doing."}
+          </p>
         </div>
-        {isAdmin && (
-          <Link href="/field/backend" className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50">
-            <Database size={13} /> Backend
-          </Link>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {view.isAdmin && !preview && candidates.length > 0 && (
+            <ViewAsPicker candidates={candidates} basePath="/field" />
+          )}
+          {isAdmin && !preview && (
+            <Link href="/field/backend" className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50">
+              <Database size={13} /> Backend
+            </Link>
+          )}
+        </div>
       </header>
 
       {clusters.length === 0 ? (
@@ -35,7 +62,7 @@ export default async function FieldHomePage() {
           {clusters.map((c) => (
             <li key={c.id}>
               <Link
-                href={`/field/${c.id}`}
+                href={fieldHref(`/field/${c.id}`, view)}
                 className="group flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 hover:shadow-sm"
               >
                 <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-500">

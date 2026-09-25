@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LayoutGrid, ChevronLeft, ChevronRight, Clock } from "lucide-react";
-import { getFieldOversightScope } from "@/lib/field/access";
+import { resolveFieldOversightView, fieldHref } from "@/lib/field/viewAs";
+import { loadViewAsCandidates } from "@/lib/operations/viewAs";
+import { PreviewBanner } from "../../operations/_shared/PreviewBanner";
+import { ViewAsPicker } from "../../operations/_shared/ViewAsPicker";
 import { getUserClusters } from "@/lib/operations/clusters";
 import { loadFieldFacts, rollupFacts, byZone, factsForCluster, deriveFieldClusterStatus, type FieldClusterStatus } from "@/lib/field/rollup";
 
@@ -19,12 +22,22 @@ export const dynamic = "force-dynamic";
  * have to learn two visual languages. The one column the legacy card cannot
  * show is worst days-stuck, which is the whole point of computeSetupFront.
  */
-export default async function FieldOversightPage() {
+export default async function FieldOversightPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ asUser?: string }>;
+}) {
+  const { asUser } = await searchParams;
   // Supervisor-scoped: an RP is bounced to their own /field home.
-  const scope = await getFieldOversightScope();
-  if (!scope) redirect("/field");
+  const view = await resolveFieldOversightView(asUser);
+  if (!view) redirect("/field");
+  const preview = view.viewingAs;
+  if (!preview && !view.targetIsSupervisor) redirect("/field");
 
-  const clusters = await getUserClusters(scope.visibleIds);
+  const [clusters, candidates] = await Promise.all([
+    getUserClusters(view.visibleIds),
+    view.isAdmin && !preview ? loadViewAsCandidates() : Promise.resolve([]),
+  ]);
   const facts = await loadFieldFacts({ clusterIds: clusters.map((c) => c.id) });
 
   // Group clusters by zone for the page structure, but compute each cluster's
@@ -63,6 +76,9 @@ export default async function FieldOversightPage() {
     byZoneLabel.get(c.zoneLabel)!.push(c);
   }
 
+  // Carry the preview down into the per-cluster drill-down.
+  const q = preview ? `?asUser=${encodeURIComponent(view.userId)}` : "";
+
   const totals = {
     interventions: facts.length,
     live: facts.filter((f) => f.phase === "live").length,
@@ -74,19 +90,37 @@ export default async function FieldOversightPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-5 py-6 sm:px-8">
-      <header>
-        <Link href="/field" className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
-          <ChevronLeft className="h-3.5 w-3.5" /> Field
-        </Link>
-        <div className="mt-1 flex items-center gap-2">
-          <LayoutGrid className="h-4 w-4 shrink-0 text-sky-600" />
-          <h1 className="text-lg font-semibold text-stone-900">Cluster dashboard</h1>
-        </div>
-        <p className="mt-0.5 text-xs text-stone-500">
-          {totals.interventions} interventions · {totals.live} live · {totals.settingUp} setting up ·{" "}
-          <span className={totals.attention > 0 ? "font-medium text-amber-700" : ""}>{totals.attention} need attention</span>
-          {totals.worstStuck > 0 && <> · worst stuck {totals.worstStuck}d</>}
+      {preview && <PreviewBanner name={preview.name} exitHref="/field/oversight" />}
+
+      {/* A previewed RP would be bounced to /field. Say so rather than bouncing
+          the admin who asked the question — that reads as a broken link. */}
+      {preview && !view.targetIsSupervisor && (
+        <p className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
+          {preview.name ?? "This user"}{preview.designation ? ` (${preview.designation})` : ""} is not a supervisor — they
+          never see this dashboard. Opening /field/oversight redirects them to their own{" "}
+          <Link href={fieldHref("/field", view)} className="underline">field home</Link>. Below is what the scope would
+          hold if they did.
         </p>
+      )}
+
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link href={fieldHref("/field", view)} className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
+            <ChevronLeft className="h-3.5 w-3.5" /> Field
+          </Link>
+          <div className="mt-1 flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4 shrink-0 text-sky-600" />
+            <h1 className="text-lg font-semibold text-stone-900">Cluster dashboard</h1>
+          </div>
+          <p className="mt-0.5 text-xs text-stone-500">
+            {totals.interventions} interventions · {totals.live} live · {totals.settingUp} setting up ·{" "}
+            <span className={totals.attention > 0 ? "font-medium text-amber-700" : ""}>{totals.attention} need attention</span>
+            {totals.worstStuck > 0 && <> · worst stuck {totals.worstStuck}d</>}
+          </p>
+        </div>
+        {view.isAdmin && !preview && candidates.length > 0 && (
+          <ViewAsPicker candidates={candidates} basePath="/field/oversight" />
+        )}
       </header>
 
       {clusterCards.length === 0 ? (
@@ -103,7 +137,7 @@ export default async function FieldOversightPage() {
                 {z && <span className="text-[11px] font-normal normal-case tracking-normal text-stone-400">{z.interventions} interventions</span>}
               </h2>
               <div className="grid gap-2 sm:grid-cols-2">
-                {cards.map((c) => <ClusterCard key={c.id} c={c} />)}
+                {cards.map((c) => <ClusterCard key={c.id} c={c} q={q} />)}
               </div>
             </section>
           );
@@ -125,11 +159,11 @@ const STATUS_STYLE: Record<FieldClusterStatus, { dot: string; ring: string; labe
   healthy: { dot: "bg-emerald-500", ring: "border-emerald-200", label: "On track" },
 };
 
-function ClusterCard({ c }: { c: Card }) {
+function ClusterCard({ c, q }: { c: Card; q: string }) {
   const s = STATUS_STYLE[c.status];
   const cadencePct = c.cadenceRequired > 0 ? Math.round((c.cadenceDone / c.cadenceRequired) * 100) : null;
   return (
-    <Link href={`/field/oversight/${c.id}`} className={`group block rounded-xl border bg-white p-4 transition-all hover:shadow-sm ${s.ring}`}>
+    <Link href={`/field/oversight/${c.id}${q}`} className={`group block rounded-xl border bg-white p-4 transition-all hover:shadow-sm ${s.ring}`}>
       <div className="flex items-center gap-2">
         <span className={`h-2 w-2 shrink-0 rounded-full ${s.dot}`} />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-800">{c.name}</span>

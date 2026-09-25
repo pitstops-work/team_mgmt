@@ -7,11 +7,12 @@ import { Eye, Search, X } from "lucide-react";
 type Candidate = { id: string; name: string | null; designation: string | null };
 
 /**
- * Admin-only "View as" control on the Operations home. Opens a searchable list
- * of users; picking one navigates to /operations?asUser=<id> for a read-only
- * preview of that person's centres + driver.
+ * Admin-only "View as" control. Opens a searchable list of users; picking one
+ * navigates to `<basePath>?asUser=<id>` for a read-only preview of that
+ * person's surface. `basePath` defaults to the Operations home; /field and
+ * /field/oversight pass their own so the same control serves all three.
  */
-export function ViewAsPicker({ candidates }: { candidates: Candidate[] }) {
+export function ViewAsPicker({ candidates, basePath = "/operations" }: { candidates: Candidate[]; basePath?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -63,7 +64,7 @@ export function ViewAsPicker({ candidates }: { candidates: Candidate[] }) {
               filtered.map((c) => (
                 <button
                   key={c.id}
-                  onClick={() => { setOpen(false); router.push(`/operations?asUser=${encodeURIComponent(c.id)}`); }}
+                  onClick={() => { setOpen(false); router.push(`${basePath}?asUser=${encodeURIComponent(c.id)}`); }}
                   className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-stone-50"
                 >
                   <span className="text-sm text-stone-700 truncate">{c.name ?? "(no name)"}</span>

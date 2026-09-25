@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft, Check, Lock, Circle, ClipboardList, MapPin, CalendarCheck,
-  Plus, X, ClipboardCheck,
+  Plus, X, ClipboardCheck, Eye,
 } from "lucide-react";
 import { CaregiverPracticeCapture } from "@/components/caregiver/CaregiverPracticeCapture";
 import { checklistGate } from "@/lib/field/stepGate";
@@ -29,13 +29,27 @@ type Data = {
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "";
 
-export function InterventionDetail({ data }: { data: Data }) {
+export function InterventionDetail({
+  data,
+  previewOf = null,
+  readOnly = false,
+}: {
+  data: Data;
+  /** Name of the user being previewed, when an admin is in "View as". */
+  previewOf?: string | null;
+  /** Read-only preview: every action is disabled and no write can be issued. */
+  readOnly?: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  // One switch feeds every action button in this tree — the child views already
+  // thread `busy` into each `disabled`.
+  const locked = busy || readOnly;
   const [formStep, setFormStep] = useState<{ kind: "setup" | "visit"; step: SetupStep | VisitStep } | null>(null);
   const [caregiverStepId, setCaregiverStepId] = useState<string | null>(null);
 
   async function post(url: string, body: unknown) {
+    if (readOnly) return;
     setBusy(true);
     try {
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -57,6 +71,11 @@ export function InterventionDetail({ data }: { data: Data }) {
 
   return (
     <div className="max-w-2xl mx-auto px-5 py-6 space-y-6">
+      {readOnly && (
+        <div className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+          <Eye size={14} /> Viewing as {previewOf ?? "user"} · read-only preview
+        </div>
+      )}
       <div>
         <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700">
           <ChevronLeft size={16} /> Back
@@ -76,17 +95,17 @@ export function InterventionDetail({ data }: { data: Data }) {
         </div>
       </div>
 
-      {data.phase === "setting_up" && <SetupView data={data} onOpenForm={(s) => setFormStep({ kind: "setup", step: s })} onComplete={(s) => post(`/api/field/step/${s.id}`, { action: s.status === "Done" ? "reopen" : "complete" })} busy={busy} />}
+      {data.phase === "setting_up" && <SetupView data={data} onOpenForm={(s) => setFormStep({ kind: "setup", step: s })} onComplete={(s) => post(`/api/field/step/${s.id}`, { action: s.status === "Done" ? "reopen" : "complete" })} busy={locked} />}
       {data.phase === "live" && (
         <LiveView
           data={data}
           post={post}
           onOpenForm={(s) => (s.formKind === "caregiver_practices" ? setCaregiverStepId(s.id) : setFormStep({ kind: "visit", step: s }))}
-          busy={busy}
+          busy={locked}
         />
       )}
 
-      <FollowUpsPanel goalId={data.id} followups={data.followups} post={post} busy={busy} />
+      <FollowUpsPanel goalId={data.id} followups={data.followups} post={post} busy={locked} />
 
       {caregiverStepId && data.openVisit && (
         <CaregiverPracticeCapture

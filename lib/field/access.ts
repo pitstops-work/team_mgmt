@@ -8,15 +8,11 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isAdminUser } from "@/lib/roleGuard";
 
-export type FieldSession = { userId: string; email: string | null };
-
-export async function getFieldSession(): Promise<FieldSession | null> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return null;
-  if (!fieldEnabledForSession(session)) return null;
-  return { userId, email: session.user.email ?? null };
-}
+// The per-request "who is this page loading for" helpers live in
+// lib/field/viewAs.ts — `resolveFieldView` (RP surface) and
+// `resolveFieldOversightView` (manager surface). They wrap the gate below and
+// additionally honour an admin's `?asUser=` preview, so there is exactly one
+// copy of the scoping rules. This file keeps the gate itself.
 
 /**
  * Gate the /field backend console. Allowed for admins/super-admins (as before)
@@ -100,44 +96,6 @@ export async function requireCaregiverCatalogWrite(): Promise<string | null> {
   if (await can(ctx, "caregiver_practice", "update")) return userId;
   return null;
 }
-
-/**
- * Who may see the /field manager views.
- *
- * Deliberately NOT a new RBAC permission. A `field.oversee` grant would mean a
- * prod grant migration (see scripts/add-field-manage-grant.ts for the pattern)
- * for a surface that is still behind FIELD_SURFACE_ENABLED and has no users
- * yet. Composed from what already exists instead:
- *
- *   - the /field gate itself, and
- *   - being a supervisor — the same predicate /operations/oversight/dashboard
- *     uses (anyone whose visibility set reaches past themselves), or holding
- *     field.manage, since a programme lead running the backend should be able
- *     to read the dashboard for it.
- *
- * Returns the ids whose clusters are in scope: a ZL sees their reports', a
- * Leader sees everything below them. getUserClusters already takes a list, so
- * widening from the RP's self-scope is free.
- */
-export async function getFieldOversightScope(): Promise<{ userId: string; visibleIds: string[] } | null> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return null;
-  if (!fieldEnabledForSession(session)) return null;
-
-  const { buildRbacContext, can } = await import("@/lib/rbac");
-  const ctx = await buildRbacContext(session);
-  if (!ctx) return null;
-
-  const { getVisibleUserIds } = await import("@/lib/visibilityScope");
-  const visibleIds = await getVisibleUserIds(ctx);
-  const isAdmin = isAdminUser(session);
-  const isSupervisor = visibleIds.length > 1 || isAdmin;
-  if (!isSupervisor && !(await can(ctx, "field", "manage"))) return null;
-
-  return { userId, visibleIds: visibleIds.length ? visibleIds : [userId] };
-}
-
 
 /**
  * The /field domains a user is scoped to, or null for "no restriction".

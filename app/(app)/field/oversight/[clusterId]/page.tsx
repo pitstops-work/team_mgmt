@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
-import { getFieldOversightScope } from "@/lib/field/access";
+import { resolveFieldOversightView, fieldHref } from "@/lib/field/viewAs";
+import { PreviewBanner } from "../../../operations/_shared/PreviewBanner";
 import { getUserClusters } from "@/lib/operations/clusters";
 import { loadFieldFacts, factsForCluster, rollupFacts, byPhase, type FieldFact } from "@/lib/field/rollup";
 import { ymKey } from "@/lib/operations/month";
@@ -23,13 +24,21 @@ export const dynamic = "force-dynamic";
  * larger because the old spine has a dependency graph and workstreams; a flat
  * ordered step list per goal needs much less machinery.
  */
-export default async function FieldClusterOversightPage({ params }: { params: Promise<{ clusterId: string }> }) {
+export default async function FieldClusterOversightPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ clusterId: string }>;
+  searchParams: Promise<{ asUser?: string }>;
+}) {
+  const { asUser } = await searchParams;
   // Supervisor-scoped: an RP is bounced to their own /field home.
-  const scope = await getFieldOversightScope();
-  if (!scope) redirect("/field");
+  const view = await resolveFieldOversightView(asUser);
+  if (!view) redirect("/field");
+  if (!view.viewingAs && !view.targetIsSupervisor) redirect("/field");
   const { clusterId } = await params;
 
-  const clusters = await getUserClusters(scope.visibleIds);
+  const clusters = await getUserClusters(view.visibleIds);
   const cluster = clusters.find((c) => c.id === clusterId);
   if (!cluster) notFound();
 
@@ -49,11 +58,14 @@ export default async function FieldClusterOversightPage({ params }: { params: Pr
   const now = new Date();
   for (let i = 5; i >= 0; i--) months.push(ymKey(new Date(now.getFullYear(), now.getMonth() - i, 1)));
   const liveFacts = facts.filter((f) => f.phase === "live");
+  // Carry the preview into the intervention screen (read-only there).
+  const q = view.viewingAs ? `?asUser=${encodeURIComponent(view.userId)}` : "";
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-5 py-6 sm:px-8">
+      {view.viewingAs && <PreviewBanner name={view.viewingAs.name} exitHref={`/field/oversight/${clusterId}`} />}
       <header>
-        <Link href="/field/oversight" className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
+        <Link href={fieldHref("/field/oversight", view)} className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
           <ChevronLeft className="h-3.5 w-3.5" /> Cluster dashboard
         </Link>
         <h1 className="mt-1 text-lg font-semibold text-stone-900">{cluster.name}</h1>
@@ -86,7 +98,7 @@ export default async function FieldClusterOversightPage({ params }: { params: Pr
           <section className="space-y-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400">Most stuck first</h2>
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
-              {stuck.map((f) => <StuckRow key={f.goalId} f={f} />)}
+              {stuck.map((f) => <StuckRow key={f.goalId} f={f} q={q} />)}
             </div>
           </section>
 
@@ -138,10 +150,10 @@ export default async function FieldClusterOversightPage({ params }: { params: Pr
   );
 }
 
-function StuckRow({ f }: { f: FieldFact }) {
+function StuckRow({ f, q }: { f: FieldFact; q: string }) {
   return (
     <Link
-      href={`/field/intervention/${f.goalId}`}
+      href={`/field/intervention/${f.goalId}${q}`}
       className="group flex items-center gap-3 border-b border-stone-50 px-4 py-3 last:border-0 hover:bg-stone-50"
     >
       <span className="min-w-0 flex-1">
