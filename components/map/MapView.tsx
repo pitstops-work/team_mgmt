@@ -132,6 +132,13 @@ function settlementLineColorExpr(base: string): maplibregl.ExpressionSpecificati
 
 const STATIC_CENTRE_KEYS: LayerKey[] = ["resource_centres"];
 
+// On phones the bottom of the map is covered by the control bar and a
+// minimised detail sheet, so a fitted cluster/zone keeps clear of it.
+function fitPadding(p: number): maplibregl.PaddingOptions {
+  const phone = typeof window !== "undefined" && window.innerWidth < 640;
+  return { top: p, left: p, right: p, bottom: phone ? p + 170 : p };
+}
+
 function polygonCentroid(feature: { geometry: { type: string; coordinates: number[][][] | number[][][][] } }): [number, number] {
   try {
     const ring = feature.geometry.type === "MultiPolygon"
@@ -2001,7 +2008,7 @@ export default function MapView({
           const pts = getPolygonEnvelope(zf as Parameters<typeof getPolygonEnvelope>[0]);
           if (pts.length) {
             const lngs = pts.map(p => p[0]), lats = pts.map(p => p[1]);
-            map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { duration: 800, padding: 40 });
+            map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { duration: 800, padding: fitPadding(40) });
           }
         }
       } else if (!activeZone && !activeCluster) {
@@ -2046,7 +2053,7 @@ export default function MapView({
         });
       });
       if (isFinite(minLng)) {
-        map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 800, padding: 60 });
+        map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 800, padding: fitPadding(60) });
       }
 
       paintClusters(map);

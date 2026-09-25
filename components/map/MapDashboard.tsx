@@ -543,7 +543,11 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           mineClusters={mineClusters}
           loading={facets === null}
           activeCluster={activeCluster}
-          onClusterSelect={handleClusterSelect}
+          onClusterSelect={(c) => {
+            // On a phone the panel covers the map; get it out of the way.
+            if (c && window.innerWidth < 640) setSidebarOpen(false);
+            handleClusterSelect(c);
+          }}
           selectionLabel={selectionFilter?.label ?? null}
           onClearSelection={clearSelection}
           partnerLayers={cityPartnerLayers}

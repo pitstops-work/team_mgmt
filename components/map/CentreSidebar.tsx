@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ClipboardList, ExternalLink } from "lucide-react";
 import type { CentreFeature } from "./MapView";
+import { SheetHandle, sheetMobileClass, useSheetMinimised } from "./MobileSheet";
 
 const CENTRE_COLORS: Record<string, string> = {
   children_centres: "#f97316",
@@ -46,7 +47,8 @@ export default function CentreSidebar({ feature, onClose }: Props) {
   const color = feature ? (CENTRE_COLORS[feature.layerKey] ?? feature.layerColor) : "#6366f1";
   const emoji = feature ? (CENTRE_EMOJIS[feature.layerKey] ?? "🏠") : "🏠";
 
-  const mobileClass = isOpen ? "translate-y-0" : "translate-y-full";
+  const [minimised, setMinimised] = useSheetMinimised(isOpen ? `${feature?.layerKey}:${feature?.name}` : null);
+  const mobileClass = sheetMobileClass(isOpen, minimised);
   const desktopClass = isOpen ? "sm:translate-x-0" : "sm:translate-x-full";
 
   return (
@@ -59,10 +61,7 @@ export default function CentreSidebar({ feature, onClose }: Props) {
         mobileClass, desktopClass,
       ].join(" ")}
     >
-      {/* Mobile drag handle */}
-      <div className="sm:hidden flex-shrink-0 flex justify-center pt-2 pb-1">
-        <div className="w-10 h-1 rounded-full bg-slate-300" />
-      </div>
+      {isOpen && <SheetHandle minimised={minimised} onToggle={() => setMinimised(m => !m)} />}
 
       {feature && (
         <>

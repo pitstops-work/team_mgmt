@@ -6,6 +6,7 @@ import { ClipboardList, Users } from "lucide-react";
 import type { GeoData } from "@/lib/useGeoData";
 import type { SettlementFeature } from "./MapView";
 import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
+import { SheetHandle, sheetMobileClass, useSheetMinimised } from "./MobileSheet";
 import TemplatePickerModal from "@/components/TemplatePickerModal";
 import type { GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
 
@@ -164,6 +165,7 @@ export default function SettlementSidebar({ feature, geoData, onClose, currentUs
   });
 
   const isOpen = !!feature;
+  const [minimised, setMinimised] = useSheetMinimised(feature ? `${feature.layerKey}:${feature.name}` : null);
 
   const STATUS_COLORS: Record<string, string> = {
     Active: "#10b981", Upcoming: "#6366f1", InProgress: "#f59e0b",
@@ -172,9 +174,7 @@ export default function SettlementSidebar({ feature, geoData, onClose, currentUs
 
   // Mobile: bottom sheet that slides up from just above the bottom control bar
   // Desktop: right-side panel that slides in from the right
-  const mobileClass = isOpen
-    ? "translate-y-0"
-    : "translate-y-full";
+  const mobileClass = sheetMobileClass(isOpen, minimised);
   const desktopClass = isOpen
     ? "sm:translate-x-0"
     : "sm:translate-x-full";
@@ -182,7 +182,7 @@ export default function SettlementSidebar({ feature, geoData, onClose, currentUs
   return (
     <>
       {/* Mobile backdrop */}
-      {isMobile && isOpen && (
+      {isMobile && isOpen && !minimised && (
         <div
           className="sm:hidden fixed inset-0 z-30 bg-black/40"
           onClick={onClose}
@@ -201,10 +201,7 @@ export default function SettlementSidebar({ feature, geoData, onClose, currentUs
           desktopClass,
         ].join(" ")}
       >
-      {/* Mobile drag handle */}
-      <div className="sm:hidden flex-shrink-0 flex justify-center pt-2 pb-1">
-        <div className="w-10 h-1 rounded-full bg-slate-300" />
-      </div>
+      {isOpen && <SheetHandle minimised={minimised} onToggle={() => setMinimised(m => !m)} />}
 
       {feature && (
         <>

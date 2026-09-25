@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BarChart2 } from "lucide-react";
 import type { GeoData } from "@/lib/useGeoData";
 import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
+import { SheetHandle, sheetMobileClass, useSheetMinimised } from "./MobileSheet";
 import TemplatePickerModal from "@/components/TemplatePickerModal";
 import type { GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
 
@@ -72,6 +73,8 @@ export default function ZoneClusterSidebar({
   const isMobile = useIsMobile();
 
   const isOpen = !!(type && name);
+  // On a phone the sheet opens minimised so the selected cluster stays visible.
+  const [minimised, setMinimised] = useSheetMinimised(isOpen ? `${type}:${name}` : null, isMobile);
 
   useEffect(() => {
     const key = type && name ? `${type}:${name}` : null;
@@ -133,7 +136,7 @@ export default function ZoneClusterSidebar({
     });
   };
 
-  const mobileClass = isOpen ? "translate-y-0" : "translate-y-full";
+  const mobileClass = sheetMobileClass(isOpen, minimised);
   const desktopClass = isOpen ? "sm:translate-x-0" : "sm:translate-x-full";
 
   // Use display field from index if available (handles en-dashes, &, etc.); else normalise underscores
@@ -154,10 +157,7 @@ export default function ZoneClusterSidebar({
         mobileClass, desktopClass,
       ].join(" ")}
     >
-      {/* Mobile drag handle */}
-      <div className="sm:hidden flex-shrink-0 flex justify-center pt-2 pb-1">
-        <div className="w-10 h-1 rounded-full bg-slate-300" />
-      </div>
+      {isOpen && <SheetHandle minimised={minimised} onToggle={() => setMinimised(m => !m)} />}
 
       {isOpen && (
         <>
