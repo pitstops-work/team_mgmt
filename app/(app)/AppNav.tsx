@@ -113,7 +113,7 @@ export default function AppNav({
     : SETUP_NAV.filter(item => UNIVERSAL_HREFS.has(item.href));
 
   // ── Operations nav items ───────────────────────────────────────────────────
-  const operationsNav = [
+  const operationsNav: Array<{ href: string; icon: React.ReactNode; label: string; external?: boolean }> = [
     ...(fieldEnabled ? [{ href: "/field", icon: <Compass className="w-3.5 h-3.5" />, label: fieldReplacesOps ? "Field" : "Field (beta)" }] : []),
     // Sits next to the legacy Oversight entry on purpose — same audience, and
     // during the transition a supervisor needs both: /operations/oversight for
@@ -234,25 +234,15 @@ export default function AppNav({
           <>
             {/* The primary slot: /field for a pilot user, /operations for everyone
                 else. Five slots is already the comfortable maximum at this width,
-                so this is a swap rather than an addition.
-                An admin keeps both surfaces, and the sidebar is how they switch —
-                but there is no sidebar here, so a phone gave an admin standing on
-                /field no way back to it: every tap landed on /operations, and
-                comparing the two surfaces by accident reads as "mobile and desktop
-                disagree". The slot follows where you actually are. */}
+                so this is a swap rather than an addition. An admin holds both
+                surfaces, so the slot follows where they actually are — the More
+                sheet below is how they get to the other one. */}
             {fieldReplacesOps || inField ? (
               <MobileLink href="/field" label="Field" active={inField}>
                 <Compass className="w-5 h-5" />
               </MobileLink>
             ) : (
               <MobileLink href="/operations" label="Operations" active={pathname === "/operations" || pathname.startsWith("/operations/")}>
-                <LayoutGrid className="w-5 h-5" />
-              </MobileLink>
-            )}
-            {/* …and, once there, a way back out. A pilot user has no /operations
-                to return to, so they keep the original five slots. */}
-            {!fieldReplacesOps && inField && (
-              <MobileLink href="/operations" label="Operations" active={false}>
                 <LayoutGrid className="w-5 h-5" />
               </MobileLink>
             )}
@@ -272,13 +262,17 @@ export default function AppNav({
                 )}
               </div>
             </MobileLink>
-            {/* Six slots do not fit; in the field world the Operations link above
-                is the more useful of the two. /portal is still one tap from there. */}
-            {!(!fieldReplacesOps && inField) && (
-              <MobileLink href="/portal" label="Switch" active={false}>
-                <LayoutGrid className="w-5 h-5" />
-              </MobileLink>
-            )}
+            {/* The operations world had five fixed slots and no menu, so
+                everything outside them — /field, /field/oversight, the visit
+                calendar, threads — was unreachable on a phone. Same sheet the
+                setup world has had all along. /portal moves inside it. */}
+            <button
+              onClick={() => setShowMore(true)}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${showMore ? "text-sky-600" : "text-stone-400"}`}
+            >
+              <MoreHorizontal className="w-5 h-5" />
+              More
+            </button>
           </>
         ) : (
           <>
@@ -316,7 +310,7 @@ export default function AppNav({
       </nav>
 
       {/* ── Setup mobile "More" drawer ───────────────────────────────────────── */}
-      {showMore && !isOperations && (
+      {showMore && (
         <div className="sm:hidden fixed inset-0 z-[60]" onClick={() => setShowMore(false)}>
           <div className="absolute inset-0 bg-black/30" />
           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
@@ -325,13 +319,24 @@ export default function AppNav({
               <button onClick={() => setShowMore(false)} className="p-1 text-stone-400"><X className="w-5 h-5" /></button>
             </div>
             <div className="overflow-y-auto px-3 py-2 pb-8 space-y-0.5">
-              {setupNav.map(({ href, icon, label, external }) => {
+              {(isOperations ? operationsNav : setupNav).map(({ href, icon, label, external }) => {
                 const cn = `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                   pathname.startsWith(href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"
                 }`;
                 const inner = (
                   <>
-                    <span className="text-stone-400">{icon}</span>
+                    {href === "/notifications" ? (
+                      <span className="relative text-stone-400">
+                        <Bell className="w-3.5 h-3.5" />
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 flex items-center justify-center bg-sky-500 text-white text-[9px] font-bold rounded-full px-0.5">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-stone-400">{icon}</span>
+                    )}
                     {label}
                   </>
                 );
@@ -347,12 +352,12 @@ export default function AppNav({
               })}
               <div className="h-px bg-stone-100 my-2" />
               <Link
-                href="/portal"
+                href={switchHref}
                 onClick={() => setShowMore(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-stone-400 hover:bg-stone-50"
               >
                 <LayoutGrid className="w-5 h-5" />
-                Operations
+                {switchLabel}
               </Link>
               <div className="px-1 mt-2">
                 <PWAInstallButton />
