@@ -76,6 +76,7 @@ export default function AppNav({
   if (pathname === "/portal") return null;
 
   const isOperations = OPERATIONS_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"));
+  const inField = pathname === "/field" || pathname.startsWith("/field/");
   const settingsHref = isViewer ? "/settings/language" : "/settings";
 
   // ── Setup nav items ────────────────────────────────────────────────────────
@@ -233,13 +234,25 @@ export default function AppNav({
           <>
             {/* The primary slot: /field for a pilot user, /operations for everyone
                 else. Five slots is already the comfortable maximum at this width,
-                so this is a swap rather than an addition. */}
-            {fieldReplacesOps ? (
-              <MobileLink href="/field" label="Field" active={pathname === "/field" || pathname.startsWith("/field/")}>
+                so this is a swap rather than an addition.
+                An admin keeps both surfaces, and the sidebar is how they switch —
+                but there is no sidebar here, so a phone gave an admin standing on
+                /field no way back to it: every tap landed on /operations, and
+                comparing the two surfaces by accident reads as "mobile and desktop
+                disagree". The slot follows where you actually are. */}
+            {fieldReplacesOps || inField ? (
+              <MobileLink href="/field" label="Field" active={inField}>
                 <Compass className="w-5 h-5" />
               </MobileLink>
             ) : (
               <MobileLink href="/operations" label="Operations" active={pathname === "/operations" || pathname.startsWith("/operations/")}>
+                <LayoutGrid className="w-5 h-5" />
+              </MobileLink>
+            )}
+            {/* …and, once there, a way back out. A pilot user has no /operations
+                to return to, so they keep the original five slots. */}
+            {!fieldReplacesOps && inField && (
+              <MobileLink href="/operations" label="Operations" active={false}>
                 <LayoutGrid className="w-5 h-5" />
               </MobileLink>
             )}
@@ -259,9 +272,13 @@ export default function AppNav({
                 )}
               </div>
             </MobileLink>
-            <MobileLink href="/portal" label="Switch" active={false}>
-              <LayoutGrid className="w-5 h-5" />
-            </MobileLink>
+            {/* Six slots do not fit; in the field world the Operations link above
+                is the more useful of the two. /portal is still one tap from there. */}
+            {!(!fieldReplacesOps && inField) && (
+              <MobileLink href="/portal" label="Switch" active={false}>
+                <LayoutGrid className="w-5 h-5" />
+              </MobileLink>
+            )}
           </>
         ) : (
           <>
