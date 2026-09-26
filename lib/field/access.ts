@@ -67,9 +67,9 @@ export async function assertFieldGoalAccess(userId: string, goalId: string): Pro
 }
 
 /** Domains that have been onboarded onto /field (have a FieldDomainConfig row). */
-export async function activeFieldDomains(): Promise<Map<string, { label: string; unit: string; cadenceCount: number | null; cadencePeriod: string | null; overallSlaDays: number | null }>> {
+export async function activeFieldDomains(): Promise<Map<string, { label: string; unit: string; cadenceCount: number | null; cadencePeriod: string | null; overallSlaDays: number | null; hasLivePhase: boolean }>> {
   const rows = await prisma.fieldDomainConfig.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } });
-  return new Map(rows.map((r) => [r.domain, { label: r.label, unit: r.unit, cadenceCount: r.cadenceCount, cadencePeriod: r.cadencePeriod, overallSlaDays: r.overallSlaDays }]));
+  return new Map(rows.map((r) => [r.domain, { label: r.label, unit: r.unit, cadenceCount: r.cadenceCount, cadencePeriod: r.cadencePeriod, overallSlaDays: r.overallSlaDays, hasLivePhase: r.hasLivePhase }]));
 }
 
 /**

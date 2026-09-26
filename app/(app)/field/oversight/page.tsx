@@ -1,12 +1,15 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { LayoutGrid, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { LayoutGrid, ChevronLeft, ChevronRight, Clock, Unlink } from "lucide-react";
 import { resolveFieldOversightView, fieldHref } from "@/lib/field/viewAs";
 import { loadViewAsCandidates } from "@/lib/operations/viewAs";
 import { PreviewBanner } from "../../operations/_shared/PreviewBanner";
 import { ViewAsPicker } from "../../operations/_shared/ViewAsPicker";
 import { getUserClusters } from "@/lib/operations/clusters";
-import { loadFieldFacts, rollupFacts, byZone, factsForCluster, deriveFieldClusterStatus, type FieldClusterStatus } from "@/lib/field/rollup";
+import {
+  loadFieldFacts, loadClusterZones, factsForCluster, factsForClusters, summarizeFacts,
+  type FieldClusterStatus, type Rollup,
+} from "@/lib/field/rollup";
 
 export const dynamic = "force-dynamic";
 
@@ -38,43 +41,37 @@ export default async function FieldOversightPage({
     getUserClusters(view.visibleIds),
     view.isAdmin && !preview ? loadViewAsCandidates() : Promise.resolve([]),
   ]);
-  const facts = await loadFieldFacts({ clusterIds: clusters.map((c) => c.id) });
+  const clusterIds = clusters.map((c) => c.id);
+  const [facts, zoneOf] = await Promise.all([loadFieldFacts({ clusterIds }), loadClusterZones(clusterIds)]);
 
-  // Group clusters by zone for the page structure, but compute each cluster's
-  // numbers from membership — an intervention can belong to two clusters.
-  const zoneRollups = rollupFacts(facts, byZone);
+  // Each cluster's numbers come from membership — an intervention can belong
+  // to two clusters. Its zone comes from Cluster.zoneId, so an empty cluster
+  // still sits under the zone it belongs to.
   const clusterCards = clusters
-    .map((c) => {
-      const rows = factsForCluster(facts, c.id);
-      const base = {
-        overdueSetup: rows.reduce((n, f) => n + f.overdueSetup, 0),
-        cadenceDone: rows.reduce((n, f) => n + f.cadenceDone, 0),
-        cadenceRequired: rows.reduce((n, f) => n + f.cadenceRequired, 0),
-        overdueFollowups: rows.reduce((n, f) => n + f.overdueFollowups, 0),
-      };
-      return {
-        id: c.id,
-        name: c.name,
-        zoneLabel: rows[0]?.zoneId ? (rows[0].cityName ? `${rows[0].zoneName} · ${rows[0].cityName}` : rows[0].zoneName ?? "—") : "Unzoned",
-        interventions: rows.length,
-        live: rows.filter((f) => f.phase === "live").length,
-        settingUp: rows.filter((f) => f.phase === "setting_up").length,
-        attention: rows.filter((f) => f.needsAttention).length,
-        openFollowups: rows.reduce((n, f) => n + f.openFollowups, 0),
-        maxDaysStuck: rows.reduce((n, f) => Math.max(n, f.front?.daysStuck ?? 0), 0),
-        ...base,
-        status: deriveFieldClusterStatus(base),
-      };
-    })
+    .map((c) => ({
+      ...summarizeFacts(factsForCluster(facts, c.id), c.id, c.name),
+      zoneId: zoneOf.get(c.id)?.zoneId ?? null,
+      zoneLabel: zoneOf.get(c.id)?.zoneLabel ?? "Unzoned",
+    }))
     // An assigned cluster holding nothing is a signal for a manager, unlike on
     // the RP home where it is just noise — so these are NOT filtered out.
-    .sort((a, b) => a.zoneLabel.localeCompare(b.zoneLabel) || a.name.localeCompare(b.name));
+    .sort((a, b) => a.zoneLabel.localeCompare(b.zoneLabel) || a.label.localeCompare(b.label));
 
-  const byZoneLabel = new Map<string, typeof clusterCards>();
+  // Zone header: interventions counted once per zone by membership (so the
+  // cluster cards can add up to more), status the worst of its clusters.
+  const zones = new Map<string, { label: string; cards: typeof clusterCards }>();
   for (const c of clusterCards) {
-    if (!byZoneLabel.has(c.zoneLabel)) byZoneLabel.set(c.zoneLabel, []);
-    byZoneLabel.get(c.zoneLabel)!.push(c);
+    const k = c.zoneId ?? "__none";
+    if (!zones.has(k)) zones.set(k, { label: c.zoneLabel, cards: [] });
+    zones.get(k)!.cards.push(c);
   }
+  const zoneSections = [...zones.entries()].map(([key, { label, cards }]) => ({
+    key,
+    label,
+    cards,
+    interventions: factsForClusters(facts, cards.map((c) => c.key)).length,
+    status: worstStatus(cards.map((c) => c.status)),
+  }));
 
   // Carry the preview down into the per-cluster drill-down.
   const q = preview ? `?asUser=${encodeURIComponent(view.userId)}` : "";
@@ -84,6 +81,7 @@ export default async function FieldOversightPage({
     live: facts.filter((f) => f.phase === "live").length,
     settingUp: facts.filter((f) => f.phase === "setting_up").length,
     attention: facts.filter((f) => f.needsAttention).length,
+    brokenChains: facts.filter((f) => f.chainGaps.length > 0).length,
     overdueSetup: facts.reduce((n, f) => n + f.overdueSetup, 0),
     worstStuck: facts.reduce((n, f) => Math.max(n, f.front?.daysStuck ?? 0), 0),
   };
@@ -115,6 +113,7 @@ export default async function FieldOversightPage({
           <p className="mt-0.5 text-xs text-stone-500">
             {totals.interventions} interventions · {totals.live} live · {totals.settingUp} setting up ·{" "}
             <span className={totals.attention > 0 ? "font-medium text-amber-700" : ""}>{totals.attention} need attention</span>
+            {totals.brokenChains > 0 && <> · <span className="font-medium text-red-700">{totals.brokenChains} broken chain{totals.brokenChains > 1 ? "s" : ""}</span></>}
             {totals.worstStuck > 0 && <> · worst stuck {totals.worstStuck}d</>}
           </p>
         </div>
@@ -128,30 +127,28 @@ export default async function FieldOversightPage({
           No clusters assigned to you yet.
         </p>
       ) : (
-        [...byZoneLabel.entries()].map(([zone, cards]) => {
-          const z = zoneRollups.find((r) => r.label === zone);
-          return (
-            <section key={zone} className="space-y-2">
-              <h2 className="flex items-baseline gap-2 text-xs font-semibold uppercase tracking-wider text-stone-400">
-                {zone}
-                {z && <span className="text-[11px] font-normal normal-case tracking-normal text-stone-400">{z.interventions} interventions</span>}
-              </h2>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {cards.map((c) => <ClusterCard key={c.id} c={c} q={q} />)}
-              </div>
-            </section>
-          );
-        })
+        zoneSections.map((z) => (
+          <section key={z.key} className="space-y-2">
+            <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone-400">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_STYLE[z.status].dot}`} title={STATUS_STYLE[z.status].label} />
+              {z.label}
+              <span className="text-[11px] font-normal normal-case tracking-normal text-stone-400">
+                {z.interventions} interventions · {STATUS_STYLE[z.status].label}
+              </span>
+            </h2>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {z.cards.map((c) => <ClusterCard key={c.key} c={c} q={q} />)}
+            </div>
+          </section>
+        ))
       )}
     </div>
   );
 }
 
-type Card = {
-  id: string; name: string; interventions: number; live: number; settingUp: number;
-  attention: number; overdueSetup: number; cadenceDone: number; cadenceRequired: number;
-  openFollowups: number; maxDaysStuck: number; status: FieldClusterStatus;
-};
+const STATUS_RANK: Record<FieldClusterStatus, number> = { healthy: 0, attention: 1, critical: 2 };
+const worstStatus = (ss: FieldClusterStatus[]): FieldClusterStatus =>
+  ss.reduce<FieldClusterStatus>((w, s) => (STATUS_RANK[s] > STATUS_RANK[w] ? s : w), "healthy");
 
 const STATUS_STYLE: Record<FieldClusterStatus, { dot: string; ring: string; label: string }> = {
   critical: { dot: "bg-red-500", ring: "border-red-200", label: "Needs attention" },
@@ -159,14 +156,14 @@ const STATUS_STYLE: Record<FieldClusterStatus, { dot: string; ring: string; labe
   healthy: { dot: "bg-emerald-500", ring: "border-emerald-200", label: "On track" },
 };
 
-function ClusterCard({ c, q }: { c: Card; q: string }) {
+function ClusterCard({ c, q }: { c: Rollup; q: string }) {
   const s = STATUS_STYLE[c.status];
   const cadencePct = c.cadenceRequired > 0 ? Math.round((c.cadenceDone / c.cadenceRequired) * 100) : null;
   return (
-    <Link href={`/field/oversight/${c.id}${q}`} className={`group block rounded-xl border bg-white p-4 transition-all hover:shadow-sm ${s.ring}`}>
+    <Link href={`/field/oversight/${c.key}${q}`} className={`group block rounded-xl border bg-white p-4 transition-all hover:shadow-sm ${s.ring}`}>
       <div className="flex items-center gap-2">
         <span className={`h-2 w-2 shrink-0 rounded-full ${s.dot}`} />
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-800">{c.name}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-800">{c.label}</span>
         <span className="text-[10px] font-medium text-stone-400">{s.label}</span>
         <ChevronRight className="h-4 w-4 shrink-0 text-stone-300 group-hover:text-stone-400" />
       </div>
@@ -185,6 +182,13 @@ function ClusterCard({ c, q }: { c: Card; q: string }) {
               <Chip tone="violet"><Clock className="mr-0.5 inline h-2.5 w-2.5" />stuck {c.maxDaysStuck}d</Chip>
             )}
           </div>
+
+          {/* Interventions missing a link in Need → Plan → Guideline → RP → Status. */}
+          {c.brokenChains > 0 && (
+            <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-red-700">
+              <Unlink className="h-3 w-3" /> {c.brokenChains} broken chain{c.brokenChains > 1 ? "s" : ""}
+            </p>
+          )}
 
           {cadencePct != null && (
             <div className="mt-2.5">

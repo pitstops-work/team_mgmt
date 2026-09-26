@@ -196,3 +196,92 @@ export async function loadFieldBackend(): Promise<DomainBackend[]> {
     },
   }));
 }
+
+export type NeedCoverageRow = {
+  clusterId: string;
+  clusterName: string;
+  domain: string;
+  domainLabel: string;
+  /** Sum of the latest addressable-need count across the cluster's settlements. */
+  need: number;
+  /** Field-native interventions resolving to this cluster, by membership. */
+  interventions: number;
+  gap: number;
+};
+
+// The addressable columns the SettlementProfile snapshot carries. A
+// NeedsFormulaConfig.addressableColumn outside this set has no snapshot to read.
+const PROFILE_ADDRESSABLE = ["addressableCreches", "addressableToilets", "addressableWaterATMs"] as const;
+type ProfileAddressable = (typeof PROFILE_ADDRESSABLE)[number];
+
+/**
+ * Need vs interventions — the Need → Plan link, per cluster and domain.
+ *
+ * Read-only, and deliberately here rather than on /field/oversight: the need
+ * figures belong to the Needs module (NeedsFormulaConfig + the latest
+ * assessment snapshot in SettlementProfile) and /field reads them as-is. It
+ * reports a gap; it never creates an intervention to close one.
+ *
+ * Only domains whose formula names an addressable column are covered — today
+ * Creche, CommunityToilet and WaterATM. An intervention counts in every cluster
+ * it resolves to, the same membership rule as the manager views.
+ */
+export async function loadNeedCoverage(): Promise<NeedCoverageRow[]> {
+  const domains = await activeFieldDomains();
+  if (domains.size === 0) return [];
+  const formulas = await prisma.needsFormulaConfig.findMany({
+    where: { domain: { in: [...domains.keys()] }, addressableColumn: { in: [...PROFILE_ADDRESSABLE] } },
+    select: { domain: true, addressableColumn: true },
+  });
+  if (!formulas.length) return [];
+  const columnOf = new Map(formulas.map((f) => [f.domain, f.addressableColumn as ProfileAddressable]));
+  const covered = [...columnOf.keys()];
+
+  const [profiles, goals] = await Promise.all([
+    prisma.settlementProfile.findMany({
+      where: { settlement: { deletedAt: null } },
+      select: {
+        addressableCreches: true, addressableToilets: true, addressableWaterATMs: true,
+        settlement: { select: { cluster: { select: { id: true, name: true, deletedAt: true } } } },
+      },
+    }),
+    prisma.goal.findMany({
+      where: { deletedAt: null, fieldAnchorAt: { not: null }, needsDomain: { in: covered } },
+      select: {
+        needsDomain: true,
+        needsCluster: { select: { id: true, name: true } },
+        needsSettlement: { select: { cluster: { select: { id: true, name: true } } } },
+        linkedFacility: { select: { cluster: { select: { id: true, name: true } } } },
+      },
+    }),
+  ]);
+
+  const rows = new Map<string, NeedCoverageRow>();
+  const row = (clusterId: string, clusterName: string, domain: string) => {
+    const k = `${clusterId}|${domain}`;
+    let r = rows.get(k);
+    if (!r) {
+      r = { clusterId, clusterName, domain, domainLabel: domains.get(domain)?.label ?? domain, need: 0, interventions: 0, gap: 0 };
+      rows.set(k, r);
+    }
+    return r;
+  };
+
+  for (const p of profiles) {
+    const c = p.settlement.cluster;
+    if (c.deletedAt) continue;
+    for (const [domain, col] of columnOf) {
+      const n = p[col];
+      if (n) row(c.id, c.name, domain).need += n;
+    }
+  }
+  for (const g of goals) {
+    const cs = new Map<string, string>();
+    for (const c of [g.needsCluster, g.needsSettlement?.cluster, g.linkedFacility?.cluster]) if (c) cs.set(c.id, c.name);
+    for (const [id, name] of cs) row(id, name, g.needsDomain!).interventions++;
+  }
+
+  return [...rows.values()]
+    .map((r) => ({ ...r, gap: Math.max(0, r.need - r.interventions) }))
+    .sort((a, b) => b.gap - a.gap || a.clusterName.localeCompare(b.clusterName) || a.domainLabel.localeCompare(b.domainLabel));
+}

@@ -7,7 +7,7 @@
  * follows and the reason its lenses reconcile; the alternative (a query per
  * view) is how dashboards start contradicting each other.
  *
- * The query count is CONSTANT — six, regardless of how many clusters are in
+ * The query count is CONSTANT — seven, regardless of how many clusters are in
  * scope. The RP-facing loadClusterSummaries used to run three queries per
  * cluster in a Promise.all, which is fine for one RP's two clusters and not
  * fine for a leader looking at thirty.
@@ -36,6 +36,44 @@ export type SetupFront = {
   /** Steps waiting on an unfinished predecessor. */
   blockedCount: number;
 };
+
+/**
+ * A missing link in the Need → Plan → Guideline → RP → Status chain.
+ *
+ *   no_guideline  the intervention has no setup steps and no visit recipe, so
+ *                 there is nothing to do and nothing to measure. It otherwise
+ *                 reads as "Setting up · 0/0".
+ *   no_cadence    live, in a domain that has a live phase, but no visit
+ *                 frequency on the intervention or its domain. Required visits
+ *                 is then 0, which otherwise reads as healthy.
+ *   uncovered     no RP's patch (cluster assignment × domain scope) covers any
+ *                 cluster this intervention resolves to. Responsibility is the
+ *                 patch, not Goal.ownerId — a colleague covering the cluster is
+ *                 the model — so a lone owner mismatch is not a gap.
+ *
+ * Reported only. Nothing here repairs a chain; that stays an operator decision.
+ */
+export type ChainGap = "no_guideline" | "no_cadence" | "uncovered";
+
+export const CHAIN_GAP_LABEL: Record<ChainGap, string> = {
+  no_guideline: "No guideline",
+  no_cadence: "No visit schedule",
+  uncovered: "No RP covering",
+};
+
+/** Pure: which links are missing. `covered` holds "cluster|domain" pairs some
+ *  RP's patch covers, and "cluster|*" where an RP there is unrestricted. */
+export function deriveChainGaps(f: {
+  setupTotal: number; hasVisitRecipe: boolean; phase: FieldPhase; hasLivePhase: boolean;
+  cadenceCount: number | null; clusterIds: string[]; domain: string; covered: Set<string>;
+}): ChainGap[] {
+  const gaps: ChainGap[] = [];
+  if (f.setupTotal === 0 && !f.hasVisitRecipe) gaps.push("no_guideline");
+  if (f.phase === "live" && f.hasLivePhase && !f.cadenceCount) gaps.push("no_cadence");
+  // No cluster at all is not "uncovered": unplaced work is not /field's to show.
+  if (f.clusterIds.length > 0 && !f.clusterIds.some((c) => f.covered.has(`${c}|*`) || f.covered.has(`${c}|${f.domain}`))) gaps.push("uncovered");
+  return gaps;
+}
 
 export type FieldFact = {
   goalId: string;
@@ -81,6 +119,9 @@ export type FieldFact = {
   oldestFollowupDays: number;
 
   needsAttention: boolean;
+  /** Missing links in the chain. Deliberately NOT folded into needsAttention,
+   *  which stays the same predicate as the RP list. */
+  chainGaps: ChainGap[];
 };
 
 /**
@@ -166,7 +207,7 @@ export type FactScope = {
   monthsBack?: number;
 };
 
-/** Load every fact the manager views need, in a fixed six queries. */
+/** Load every fact the manager views need, in a fixed seven queries. */
 export async function loadFieldFacts(scope: FactScope = {}): Promise<FieldFact[]> {
   const now = scope.now ?? new Date();
   const monthsBack = scope.monthsBack ?? 6;
@@ -201,8 +242,10 @@ export async function loadFieldFacts(scope: FactScope = {}): Promise<FieldFact[]
   if (!goals.length) return [];
   const goalIds = goals.map((g) => g.id);
 
-  // 3-6: everything else keyed on those ids
-  const [setupSteps, visitRecipe, visits, followups] = await Promise.all([
+  const goalClusterIds = [...new Set(goals.flatMap((g) => [g.needsCluster?.id, g.needsSettlement?.cluster?.id, g.linkedFacility?.cluster?.id]).filter((x): x is string => !!x))];
+
+  // 3-7: everything else keyed on those ids
+  const [setupSteps, visitRecipe, visits, followups, rpPatches] = await Promise.all([
     prisma.fieldStep.findMany({
       where: { goalId: { in: goalIds }, kind: "Setup", deletedAt: null },
       select: { goalId: true, stepKey: true, title: true, order: true, status: true, dueDate: true, blockedByKey: true, startedAt: true, completedAt: true, startSlaDays: true, phaseTag: true },
@@ -216,7 +259,25 @@ export async function loadFieldFacts(scope: FactScope = {}): Promise<FieldFact[]
       where: { goalId: { in: goalIds }, status: "open" },
       select: { goalId: true, dueDate: true, createdAt: true },
     }),
+    // Every RP whose patch touches these clusters, with their domain scope
+    // (empty = unrestricted, as in getRpDomainScope).
+    goalClusterIds.length
+      ? prisma.user.findMany({
+          where: { rpClusters: { some: { id: { in: goalClusterIds } } } },
+          select: { rpClusters: { where: { id: { in: goalClusterIds } }, select: { id: true } }, rpFieldDomains: { select: { domain: true } } },
+        })
+      : Promise.resolve([]),
   ]);
+
+  // "cluster|domain" pairs some RP covers; "cluster|*" when an RP there is unrestricted.
+  const covered = new Set<string>();
+  for (const u of rpPatches) {
+    const doms = u.rpFieldDomains.map((d) => d.domain);
+    for (const c of u.rpClusters) {
+      if (doms.length === 0) covered.add(`${c.id}|*`);
+      else for (const d of doms) covered.add(`${c.id}|${d}`);
+    }
+  }
 
   const stepsByGoal = new Map<string, typeof setupSteps>();
   for (const s of setupSteps) {
@@ -277,6 +338,13 @@ export async function loadFieldFacts(scope: FactScope = {}): Promise<FieldFact[]
     const cadenceDone = va?.thisMonth ?? 0;
     const behind = phase === "live" && cadenceDone < cadenceRequired;
 
+    const chainGaps = deriveChainGaps({
+      setupTotal, hasVisitRecipe, phase,
+      hasLivePhase: cfg?.hasLivePhase ?? true,
+      cadenceCount: cadence?.count ?? null,
+      clusterIds, domain: g.needsDomain ?? "", covered,
+    });
+
     const fu = fuAgg.get(g.id);
     const openFollowups = fu?.open ?? 0;
     const overdueFollowups = fu?.overdue ?? 0;
@@ -316,6 +384,7 @@ export async function loadFieldFacts(scope: FactScope = {}): Promise<FieldFact[]
 
       // Same predicate as the RP list, so "needs attention" means one thing.
       needsAttention: overdueSetup > 0 || overallOverdue || behind || openFollowups > 0,
+      chainGaps,
     };
   });
 }
@@ -328,6 +397,8 @@ export type Rollup = {
   settingUp: number;
   done: number;
   attention: number;
+  /** Interventions with at least one missing link in the chain. */
+  brokenChains: number;
   overdueSetup: number;
   cadenceDone: number;
   cadenceRequired: number;
@@ -355,29 +426,35 @@ export function rollupFacts(
   }
 
   return [...groups.entries()]
-    .map(([key, { label, rows }]): Rollup => {
-      const sum = (pick: (f: FieldFact) => number) => rows.reduce((n, f) => n + pick(f), 0);
-      const base = {
-        overdueSetup: sum((f) => f.overdueSetup),
-        cadenceDone: sum((f) => f.cadenceDone),
-        cadenceRequired: sum((f) => f.cadenceRequired),
-        overdueFollowups: sum((f) => f.overdueFollowups),
-      };
-      return {
-        key,
-        label,
-        interventions: rows.length,
-        live: rows.filter((f) => f.phase === "live").length,
-        settingUp: rows.filter((f) => f.phase === "setting_up").length,
-        done: rows.filter((f) => f.phase === "done").length,
-        attention: rows.filter((f) => f.needsAttention).length,
-        ...base,
-        openFollowups: sum((f) => f.openFollowups),
-        maxDaysStuck: rows.reduce((n, f) => Math.max(n, f.front?.daysStuck ?? 0), 0),
-        status: deriveFieldClusterStatus(base),
-      };
-    })
+    .map(([key, { label, rows }]) => summarizeFacts(rows, key, label))
     .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** One group's numbers. rollupFacts is this over each keyFn bucket; call it
+ *  directly for a membership group (factsForCluster / factsForClusters), which
+ *  a single-key keyFn cannot express. An empty row set is a valid group. */
+export function summarizeFacts(rows: FieldFact[], key: string, label: string): Rollup {
+  const sum = (pick: (f: FieldFact) => number) => rows.reduce((n, f) => n + pick(f), 0);
+  const base = {
+    overdueSetup: sum((f) => f.overdueSetup),
+    cadenceDone: sum((f) => f.cadenceDone),
+    cadenceRequired: sum((f) => f.cadenceRequired),
+    overdueFollowups: sum((f) => f.overdueFollowups),
+  };
+  return {
+    key,
+    label,
+    interventions: rows.length,
+    live: rows.filter((f) => f.phase === "live").length,
+    settingUp: rows.filter((f) => f.phase === "setting_up").length,
+    done: rows.filter((f) => f.phase === "done").length,
+    attention: rows.filter((f) => f.needsAttention).length,
+    brokenChains: rows.filter((f) => f.chainGaps.length > 0).length,
+    ...base,
+    openFollowups: sum((f) => f.openFollowups),
+    maxDaysStuck: rows.reduce((n, f) => Math.max(n, f.front?.daysStuck ?? 0), 0),
+    status: deriveFieldClusterStatus(base),
+  };
 }
 
 /** Lenses. Each is just a grouping choice over the same facts. */
@@ -389,6 +466,33 @@ export const byCluster = (f: FieldFact) => (f.clusterId ? { key: f.clusterId, la
 /** Facts that resolve to this cluster by ANY of the three paths — the same
  *  membership test goalInClusterFilter applies in SQL. */
 export const factsForCluster = (facts: FieldFact[], clusterId: string) => facts.filter((f) => f.clusterIds.includes(clusterId));
+
+/** Facts that resolve to ANY of these clusters, each counted once — the zone
+ *  lens by membership. Pass the zone's clusters (from loadClusterZones), since
+ *  FieldFact.zoneId is only the primary cluster's zone. A goal spanning two
+ *  clusters in one zone counts once here and once on each cluster card, so
+ *  cluster cards can legitimately sum to more than their zone. */
+export const factsForClusters = (facts: FieldFact[], clusterIds: string[]) => {
+  const set = new Set(clusterIds);
+  return facts.filter((f) => f.clusterIds.some((c) => set.has(c)));
+};
+
+export const zoneLabel = (z: { name: string; city: { name: string } | null } | null) =>
+  z ? (z.city ? `${z.name} · ${z.city.name}` : z.name) : "Unzoned";
+
+/** Each cluster's zone, from Cluster.zoneId — NOT from whichever intervention
+ *  happens to sit in it, which left empty clusters "Unzoned". */
+export async function loadClusterZones(clusterIds: string[]): Promise<Map<string, { zoneId: string | null; zoneLabel: string }>> {
+  if (!clusterIds.length) return new Map();
+  const rows = await prisma.cluster.findMany({
+    where: { id: { in: clusterIds } },
+    select: { id: true, zoneId: true, zone: { select: { name: true, city: { select: { name: true } } } } },
+  });
+  return new Map(rows.map((c) => [c.id, { zoneId: c.zoneId, zoneLabel: zoneLabel(c.zone) }]));
+}
+
+/** Groups on the PRIMARY cluster's zone. For zone totals by membership, use
+ *  factsForClusters with the zone's clusters. */
 export const byZone = (f: FieldFact) =>
   f.zoneId ? { key: f.zoneId, label: f.cityName ? `${f.zoneName} · ${f.cityName}` : f.zoneName ?? "—" } : { key: "__none", label: "No zone" };
 export const byOwner = (f: FieldFact) => ({ key: f.ownerId, label: f.ownerName });

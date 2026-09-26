@@ -33,6 +33,10 @@ export async function createIntervention(opts: {
     const s = await prisma.settlement.findUnique({ where: { id: settlementId }, select: { clusterId: true } });
     clusterId = s?.clusterId ?? null;
   }
+  // A cluster implies its zone (Cluster.zoneId is required).
+  const zoneId = clusterId
+    ? (await prisma.cluster.findUnique({ where: { id: clusterId }, select: { zoneId: true } }))?.zoneId ?? null
+    : null;
 
   const [setupTmpls, visitTmpls] = await Promise.all([
     prisma.setupStepTemplate.findMany({ where: { domain: opts.domain, isActive: true }, orderBy: { order: "asc" } }),
@@ -53,6 +57,7 @@ export async function createIntervention(opts: {
       cadencePeriod: cfg.cadencePeriod,
       needsSettlementId: settlementId,
       needsClusterId: clusterId,
+      needsZoneId: zoneId,
       linkedFacilityId: opts.facilityId ?? null,
     },
     select: { id: true },

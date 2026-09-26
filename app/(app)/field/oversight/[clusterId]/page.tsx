@@ -1,10 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, Unlink } from "lucide-react";
 import { resolveFieldOversightView, fieldHref } from "@/lib/field/viewAs";
 import { PreviewBanner } from "../../../operations/_shared/PreviewBanner";
 import { getUserClusters } from "@/lib/operations/clusters";
-import { loadFieldFacts, factsForCluster, rollupFacts, byPhase, type FieldFact } from "@/lib/field/rollup";
+import { loadFieldFacts, factsForCluster, rollupFacts, byPhase, CHAIN_GAP_LABEL, type FieldFact } from "@/lib/field/rollup";
 import { ymKey } from "@/lib/operations/month";
 
 export const dynamic = "force-dynamic";
@@ -45,13 +45,16 @@ export default async function FieldClusterOversightPage({
   const allFacts = await loadFieldFacts({ clusterIds: [clusterId] });
   const facts = factsForCluster(allFacts, clusterId);
 
+  // A broken chain goes first: nothing below it can be judged until it is fixed.
   const stuck = [...facts].sort(
     (a, b) =>
+      b.chainGaps.length - a.chainGaps.length ||
       (b.front?.daysStuck ?? -1) - (a.front?.daysStuck ?? -1) ||
       Number(b.needsAttention) - Number(a.needsAttention) ||
       a.locationName.localeCompare(b.locationName),
   );
   const phases = rollupFacts(facts, byPhase);
+  const brokenChains = facts.filter((f) => f.chainGaps.length > 0).length;
 
   // Six months of closed visits, oldest first.
   const months: string[] = [];
@@ -71,6 +74,7 @@ export default async function FieldClusterOversightPage({
         <h1 className="mt-1 text-lg font-semibold text-stone-900">{cluster.name}</h1>
         <p className="mt-0.5 text-xs text-stone-500">
           {facts.length} interventions · {facts.filter((f) => f.needsAttention).length} need attention
+          {brokenChains > 0 && <> · <span className="font-medium text-red-700">{brokenChains} broken chain{brokenChains > 1 ? "s" : ""}</span></>}
         </p>
       </header>
 
@@ -157,12 +161,17 @@ function StuckRow({ f, q }: { f: FieldFact; q: string }) {
       className="group flex items-center gap-3 border-b border-stone-50 px-4 py-3 last:border-0 hover:bg-stone-50"
     >
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="truncate text-sm font-medium text-stone-900">{f.locationName}</span>
           <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-500">{f.domainLabel}</span>
           {f.phase === "setting_up" && f.phaseLabel && (
             <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">{f.phaseLabel}</span>
           )}
+          {f.chainGaps.map((g) => (
+            <span key={g} className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+              <Unlink className="h-2.5 w-2.5" /> {CHAIN_GAP_LABEL[g]}
+            </span>
+          ))}
         </span>
         {/* What it is actually sitting on — the question a manager is asking. */}
         {f.front ? (
@@ -192,7 +201,7 @@ function StuckRow({ f, q }: { f: FieldFact; q: string }) {
           <span className="block text-[10px] text-stone-400">on this step</span>
         </span>
       )}
-      {f.needsAttention && <AlertTriangle size={15} className="shrink-0 text-amber-500" />}
+      {(f.needsAttention || f.chainGaps.length > 0) && <AlertTriangle size={15} className="shrink-0 text-amber-500" />}
       <ChevronRight size={17} className="shrink-0 text-stone-300 group-hover:text-stone-400" />
     </Link>
   );
