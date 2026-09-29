@@ -5,7 +5,10 @@
 
 export interface ScoutCandidate {
   id: string; // kebab-case short id, unique within the doc
-  code: string; // jersey/application code, digits preferred (e.g. "0394")
+  // The application reference off the CV, verbatim and whole — real pools carry
+  // a prefix ("APPRF-2493"), so this is NOT digits-only. Stored intact; the
+  // renderer strips the prefix for the jersey badge, which prints it as a label.
+  code: string;
   name: string;
   pos: string; // football-position metaphor for the profile
   meta: string; // "~5 yrs · Chennai · MA Social Work, Loyola"
@@ -51,7 +54,12 @@ function cleanCandidate(c: ScoutCandidate, i: number): ScoutCandidate {
   });
   return {
     id,
-    code: String(c.code || i + 1).replace(/[^a-zA-Z0-9]/g, "").slice(0, 6) || String(i + 1),
+    // Keep the hyphen and the whole reference. Dropping the separator and
+    // capping at 6 turned every "APPRF-2493" into "APPRF2", so every card on
+    // every desk showed the same badge and none of them showed the candidate's
+    // real number. Cap generously — long enough for any real reference, short
+    // enough that a junk value can't blow up the layout.
+    code: String(c.code || i + 1).replace(/[^a-zA-Z0-9-]/g, "").slice(0, 24) || String(i + 1),
     name: inline(c.name || "Unknown"),
     pos: inline(c.pos || ""),
     meta: inline(c.meta || ""),
@@ -571,10 +579,18 @@ function radarSVG(attrs){
 }
 
 function renderCards(){
-  document.getElementById('cards').innerHTML = C.map((c,i)=>\`
-  <article class="card" id="card-\${c.id}" data-code="\${c.code}" style="animation-delay:\${i*0.09}s">
+  document.getElementById('cards').innerHTML = C.map((c,i)=>{
+  /* The badge prints "APPRF" as its own label, so the number line drops a
+     repeated prefix — but nothing else. Leading zeros are part of the
+     reference ("APPRF-0856") and stay; stripping them showed "856" for a
+     candidate whose CV says 0856. jsz shrinks the type so a longer reference
+     still fits the 62px badge instead of spilling out of it. */
+  const jn=String(c.code||'').replace(/^APPRF[-_ ]?/i,'')||String(i+1);
+  const jsz=jn.length>6?'12px':jn.length>5?'14px':jn.length>4?'17px':'20px';
+  return \`
+  <article class="card" id="card-\${c.id}" data-code="\${jn}" style="animation-delay:\${i*0.09}s">
     <div class="chead">
-      <div class="jersey"><small>APPRF</small><span>\${c.code.replace(/^0+/,'')}</span></div>
+      <div class="jersey"><small>APPRF</small><span style="font-size:\${jsz}">\${jn}</span></div>
       <div class="cwho">
         <div class="cname">\${c.name}</div>
         <div class="cpos">\${c.pos}</div>
@@ -618,7 +634,7 @@ function renderCards(){
         <div id="ts-\${c.id}"></div>
       </div>
     </div>
-  </article>\`).join('');
+  </article>\`;}).join('');
 }
 
 function renderTable(flashId){
