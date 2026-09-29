@@ -185,7 +185,7 @@ const OUTPUT_SCHEMA = `Output schema (exact shape):
   "candidates": [
     {
       "id": string,          // kebab-case short id from the name
-      "code": string,        // application/reference number from the CV if present, else "01".."NN"
+      "code": string,        // the application reference, VERBATIM and whole, from the CV header line or an "application ref:" note ("APPRF-0768" stays "APPRF-0768" — never shorten it, drop the prefix or strip leading zeros). Only if no reference is given anywhere: "01".."NN".
       "name": string,
       "pos": string,         // profile in a phrase (football-position metaphor if theme=football; a plain profile line otherwise)
       "meta": string,        // "~5 yrs · City · Highest qualification, Institution"
@@ -314,7 +314,7 @@ const APPEND_OUTPUT_SCHEMA = `Output schema (exact shape — only new candidates
   "candidates": [
     {
       "id": string,          // kebab-case short id from the name; MUST be unique from every existing-candidate id supplied above
-      "code": string,        // application/reference number from the CV if present, else the next number after the existing pool
+      "code": string,        // the application reference, VERBATIM and whole, from the CV header line or an "application ref:" note ("APPRF-0768" stays "APPRF-0768" — never shorten it, drop the prefix or strip leading zeros). Only if no reference is given anywhere: the next number after the existing pool. Never renumber a person who has one — it is how the applicant system knows them.
       "name": string,
       "pos": string,         // profile phrase (football-position metaphor if theme=football; plain profile line otherwise)
       "meta": string,        // "~5 yrs · City · Highest qualification, Institution"

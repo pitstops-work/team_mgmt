@@ -15,7 +15,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { put } from "@vercel/blob";
 import prisma from "@/lib/prisma";
 import { renderScoutingDoc, type ScoutDocData } from "@/lib/recruitment/renderDoc";
-import { itemIds } from "@/lib/recruitment/scoutingDayOps";
+import { itemIds, type AppendItem } from "@/lib/recruitment/scoutingDayOps";
 import {
   buildSystemPrompt,
   jobSnapshotFromRow,
@@ -50,7 +50,7 @@ export async function createDeskForCity(opts: {
   titleBase: string;
   matchday: Date | null;
   batchId: string | null;
-  items: { name: string; text: string }[];
+  items: AppendItem[];
   session: SessionLike;
 }): Promise<CreateDeskResult> {
   const { job, location, titleBase, matchday, batchId, items, session } = opts;
@@ -72,7 +72,7 @@ export async function createDeskForCity(opts: {
   };
   const blocks: Anthropic.ContentBlockParam[] = items.map((it, i) => ({
     type: "text",
-    text: `=== CV ${i + 1} of ${items.length}: ${it.name} ===\n${it.text}`,
+    text: `=== CV ${i + 1} of ${items.length}: ${it.name}${it.code ? ` (application ref: ${it.code})` : ""} ===\n${it.text}`,
   }));
 
   const client = new Anthropic();
@@ -101,10 +101,12 @@ export async function createDeskForCity(opts: {
   data.selector = session?.user?.name || "The Selector";
 
   // Same cvIndex → cvText pairing the generate route does, so the new desk's
-  // candidates can themselves be re-scouted or moved on later.
+  // candidates can themselves be re-scouted or moved on later. The caller's
+  // application reference is stamped on the same pairing — see AppendItem.
   data.candidates = data.candidates.map((c) => {
     const idx = typeof c.cvIndex === "number" ? c.cvIndex : 0;
-    return { ...c, cvIndex: idx || undefined, cvText: idx >= 1 && idx <= items.length ? items[idx - 1].text : "" };
+    const known = idx >= 1 && idx <= items.length ? items[idx - 1] : null;
+    return { ...c, code: known?.code || c.code, cvIndex: idx || undefined, cvText: known?.text ?? "" };
   });
 
   const base =

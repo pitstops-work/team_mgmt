@@ -25,6 +25,20 @@ import {
 
 export type CvRef = { url: string; name: string };
 
+const CODE = /APPRF[-_ ]?(\d{3,6})/i;
+
+/**
+ * The APPRF code a CV's filename carries, normalised, or null.
+ *
+ * Lives here, beside CvRef, rather than in batchRunner — batchRunner imports
+ * this module, so the dedupe and the scouting paths cannot both reach it from
+ * there without a cycle. batchRunner re-exports it for its existing callers.
+ */
+export function cvCode(name: string): string | null {
+  const m = name.match(CODE);
+  return m ? `APPRF-${m[1]}` : null;
+}
+
 type SessionLike = { user?: { id?: string; name?: string | null } | null } | null;
 
 async function extractAll(cvs: CvRef[]): Promise<{
@@ -119,7 +133,10 @@ export async function appendCandidates(
 
   const res = await appendExtracted(
     slug,
-    cvs.map((cv, i) => ({ name: cv.name, text: extractedTexts[i] ?? "" })),
+    // The reference is in the filename, so read it here rather than leaving the
+    // model to spot it in a header line — this is the same value the temp-area
+    // survey and the on-desk dedupe match on, and it has to agree with them.
+    cvs.map((cv, i) => ({ name: cv.name, text: extractedTexts[i] ?? "", code: cvCode(cv.name) ?? undefined })),
     userBlocks,
   );
   if (!res.ok) return res;
@@ -128,6 +145,18 @@ export async function appendCandidates(
   if (!opts.keepCvs) await Promise.allSettled(cvs.map((cv) => del(cv.url)));
   return { ok: true, slug, mode: "append", addedCount: res.addedIds.length, totalCount: res.totalCount };
 }
+
+/**
+ * One person to scout onto a desk from text we already hold.
+ *
+ * `code` is the application reference, and it is only ever known to the CALLER:
+ * on the upload path it sits in the CV's filename, and on a move it is already
+ * on the candidate row. The CV body itself usually doesn't contain it. Passing
+ * it means the destination desk keeps the reference the applicant system knows
+ * them by; leaving it out is what let a moved candidate be renumbered into a
+ * reference belonging to somebody else (see the stamp in appendExtracted).
+ */
+export type AppendItem = { name: string; text: string; code?: string };
 
 /**
  * Append candidates whose CV text we ALREADY have, with no blob to read.
@@ -148,7 +177,7 @@ export type AppendOutcome =
 
 export async function appendExtracted(
   slug: string,
-  items: { name: string; text: string }[],
+  items: AppendItem[],
   userBlocksIn?: Anthropic.ContentBlockParam[],
 ): Promise<AppendOutcome> {
   if (items.length === 0) return { ok: false, status: 400, error: "Nothing to append" };
@@ -157,7 +186,7 @@ export async function appendExtracted(
     userBlocksIn ??
     items.map((it, i) => ({
       type: "text",
-      text: `=== NEW CV ${i + 1} of ${items.length}: ${it.name} ===\n${it.text || "(no CV text stored — see prior scout notes above)"}`,
+      text: `=== NEW CV ${i + 1} of ${items.length}: ${it.name}${it.code ? ` (application ref: ${it.code})` : ""} ===\n${it.text || "(no CV text stored — see prior scout notes above)"}`,
     }));
 
   const day = await prisma.recruitmentScoutingDay.findUnique({ where: { slug } });
@@ -209,7 +238,12 @@ export async function appendExtracted(
     return { ok: false, status: 502, error: "Model returned no new candidates — try again" };
   }
 
-  // Dedupe ids against existing + within batch; attach cvText via cvIndex.
+  // Dedupe ids against existing + within batch; attach cvText via cvIndex, and
+  // stamp the caller's application reference over whatever the model returned.
+  // The reference is identity, not a judgement: the prompt's fallback ("else
+  // the next number after the existing pool") is fine for a genuinely
+  // reference-less CV, but on a move it renumbered people who already had one —
+  // so where the caller knows the reference, the caller wins.
   const seenIds = new Set(existingIds);
   const addedCandidates: ScoutCandidate[] = parsed.candidates.map((c) => {
     let id = c.id;
@@ -217,7 +251,8 @@ export async function appendExtracted(
     seenIds.add(id);
     const idx = typeof c.cvIndex === "number" ? c.cvIndex : 0;
     const cvText = idx >= 1 && idx <= extractedTexts.length ? extractedTexts[idx - 1] : "";
-    return { ...c, id, cvIndex: idx || undefined, cvText };
+    const code = (idx >= 1 && idx <= items.length ? items[idx - 1].code : null) || c.code;
+    return { ...c, id, code, cvIndex: idx || undefined, cvText };
   });
 
   const merged: ScoutDocData = { ...existing, candidates: [...existing.candidates, ...addedCandidates] };
@@ -324,9 +359,12 @@ export async function regenerateScoutingDay(
   }
   data.selector = session?.user?.name || existing.selector || "The Selector";
 
-  // Enforce id preservation via name match, and attach cvText.
-  // - Existing candidates: pull their prior id + their prior cvText forward.
-  // - New candidates: attach cvText via cvIndex from the new CV batch.
+  // Enforce id preservation via name match, and attach cvText + the reference.
+  // - Existing candidates: pull their prior id, code and cvText forward.
+  // - New candidates: attach cvText via cvIndex from the new CV batch, and read
+  //   the reference off that CV's filename.
+  // A regenerate rewrites every judgement on the desk; it must not also rewrite
+  // who these people are.
   const existingByName = new Map(
     existing.candidates.map((c) => [c.name.trim().toLowerCase(), c]),
   );
@@ -340,14 +378,16 @@ export async function regenerateScoutingDay(
     // pair the new CV via cvIndex.
     let cvText = prior?.cvText ?? "";
     let cvIndex = prior?.cvIndex;
+    let code = prior?.code || c.code;
     if (!prior) {
       const idx = typeof c.cvIndex === "number" ? c.cvIndex : 0;
       if (idx >= 1 && idx <= extractedTexts.length) {
         cvText = extractedTexts[idx - 1];
         cvIndex = idx;
+        code = (idx <= cvs.length ? cvCode(cvs[idx - 1].name) : null) || c.code;
       }
     }
-    return { ...c, id, cvIndex, cvText };
+    return { ...c, id, code, cvIndex, cvText };
   });
 
   await persist(slug, data);

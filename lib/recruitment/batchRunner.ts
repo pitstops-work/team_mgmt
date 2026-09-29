@@ -41,7 +41,9 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { del } from "@vercel/blob";
 import prisma from "@/lib/prisma";
 import { generateDesk } from "@/lib/recruitment/generateDesk";
-import { appendCandidates, type CvRef } from "@/lib/recruitment/scoutingDayOps";
+import { appendCandidates, cvCode, type CvRef } from "@/lib/recruitment/scoutingDayOps";
+// Re-exported for orphanCvs, which surveys the temp area on the same code.
+export { cvCode };
 import type { RecruitmentBatchRun } from "@/app/generated/prisma/client";
 
 type SessionLike = { user?: { id?: string; name?: string | null } | null } | null;
@@ -232,13 +234,6 @@ export async function findStaleRuns(limit = 3): Promise<string[]> {
 
 // ── One chunk ────────────────────────────────────────────────────────────────
 
-const CODE = /APPRF[-_ ]?(\d{3,6})/i;
-
-/** The APPRF code a CV's filename carries, normalised, or null. */
-export function cvCode(name: string): string | null {
-  const m = name.match(CODE);
-  return m ? `APPRF-${m[1]}` : null;
-}
 
 /** Candidate codes already on a desk — pulled in SQL so no cvText is loaded. */
 async function codesOnDesk(slug: string): Promise<Set<string>> {

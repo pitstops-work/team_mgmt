@@ -19,6 +19,7 @@ import { del, get, list, put } from "@vercel/blob";
 import prisma from "@/lib/prisma";
 import { extractCv, UnsupportedCvError } from "@/lib/recruitment/extractCv";
 import { renderScoutingDoc, type ScoutDocData } from "@/lib/recruitment/renderDoc";
+import { cvCode } from "@/lib/recruitment/scoutingDayOps";
 import {
   buildSystemPrompt,
   jobSnapshotFromRow,
@@ -244,10 +245,16 @@ export async function generateDesk(input: {
   // Kept in snapshotJson only — cleanCandidate in renderDoc.ts drops it before
   // HTML rendering. Falls back to empty string if the LLM omitted cvIndex or
   // pointed out of range; regenerate degrades to scout prose in that case.
+  // The application reference comes off the FILENAME, server-side, for the same
+  // reason: it is identity, it has to agree with the temp-area survey and the
+  // on-desk dedupe, and the model only ever saw it in a header line it was free
+  // to mis-transcribe. It falls back to the model's read for a CV whose name
+  // carries no reference.
   data.candidates = data.candidates.map((c) => {
     const idx = typeof c.cvIndex === "number" ? c.cvIndex : 0;
     const cvText = idx >= 1 && idx <= extractedTexts.length ? extractedTexts[idx - 1] : "";
-    return { ...c, cvIndex: idx || undefined, cvText };
+    const fromName = idx >= 1 && idx <= cvs.length ? cvCode(cvs[idx - 1].name) : null;
+    return { ...c, code: fromName ?? c.code, cvIndex: idx || undefined, cvText };
   });
 
   // 3. Render + persist. Blob = render cache; DB row = source of truth.

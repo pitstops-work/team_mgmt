@@ -165,7 +165,12 @@ export async function moveCandidates(
       orderBy: { createdAt: "desc" },
     }));
 
-  const items = candidates.map((c) => ({ name: c.name, text: evidenceFor(c) }));
+  // The application reference travels WITH the person. It is not something the
+  // destination re-scout can work out: the reference lives in the CV filename,
+  // and the blob is long deleted by the time anyone is moved — so without this
+  // the destination model fell back to "next number after the existing pool"
+  // and handed the arrival a reference that belongs to a different applicant.
+  const items = candidates.map((c) => ({ name: c.name, text: evidenceFor(c), code: c.code }));
   let toSlug: string;
   let byItem: (string | null)[];
   let createdDesk = false;
