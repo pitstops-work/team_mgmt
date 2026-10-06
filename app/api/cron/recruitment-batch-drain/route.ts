@@ -77,6 +77,14 @@ export async function GET(req: NextRequest) {
   }
   const origin = selfOrigin(req.url);
   const stale = await findStaleRuns();
-  for (const id of stale) await kickDrain(id, origin);
-  return Response.json({ ok: true, resumed: stale });
+  // Report what was actually ACCEPTED, not what we tried. The sweep used to
+  // return every stale id as "resumed" whether or not the kick landed, so two
+  // days of refused self-calls looked exactly like two days of healthy ones.
+  const resumed: string[] = [];
+  const refused: string[] = [];
+  for (const id of stale) ((await kickDrain(id, origin)) ? resumed : refused).push(id);
+  if (refused.length) {
+    console.error(`[recruitment-batch] sweep could not kick ${refused.join(", ")} via ${origin}`);
+  }
+  return Response.json({ ok: refused.length === 0, origin, resumed, refused });
 }

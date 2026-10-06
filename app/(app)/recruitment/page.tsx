@@ -204,7 +204,9 @@ export default async function RecruitmentPage() {
       {openRuns.length > 0 && (
         <div className="mb-6 space-y-2">
           {openRuns.map((r) => {
-            const failed = r.status === "failed";
+            // Same rule as the batch page: a run nobody is working reads as
+            // stopped, not as busy, so the row leads somewhere worth clicking.
+            const failed = r.status === "failed" || r.stalled;
             return (
               <Link
                 key={r.id}

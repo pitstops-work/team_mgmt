@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Loader2, RotateCw, SkipForward } from "lucide-react";
 
+/** Mirrors `RunProgress` in lib/recruitment/batchRunner.ts — keep the two in step. */
 export type RunProgress = {
   id: string;
   status: string;
@@ -12,6 +13,8 @@ export type RunProgress = {
   totalCvs: number;
   doneCvs: number;
   currentLabel: string | null;
+  /** Running, but no worker holds it — see the server type for why this exists. */
+  stalled: boolean;
   desks: { key: string; label: string; slug: string | null; done: number; total: number; dupes?: number }[];
 };
 
@@ -72,23 +75,27 @@ export default function BatchProgress({ initial }: { initial: RunProgress }) {
 
   const pct = run.totalCvs === 0 ? 0 : Math.round((run.doneCvs / run.totalCvs) * 100);
   const failed = run.status === "failed";
+  // A run nobody is working is stuck whether or not it is labelled failed, and
+  // it needs the same way out. Showing the spinner alone here is what left a
+  // run sitting at 32/97 for two days with nothing to press.
+  const stuck = failed || run.stalled;
 
   return (
     <div
-      className={`rounded-xl border p-4 mb-5 ${failed ? "border-rose-200 bg-rose-50/60" : "border-sky-200 bg-sky-50/60"}`}
+      className={`rounded-xl border p-4 mb-5 ${stuck ? "border-rose-200 bg-rose-50/60" : "border-sky-200 bg-sky-50/60"}`}
     >
       <div className="flex items-start gap-2">
-        {failed ? (
+        {stuck ? (
           <AlertTriangle className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
         ) : (
           <Loader2 className="w-4 h-4 text-sky-600 mt-0.5 shrink-0 animate-spin" />
         )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-stone-800">
-            {failed ? "The run stopped part-way" : `Scouting ${run.currentLabel ?? "…"}`}
+            {stuck ? "The run stopped part-way" : `Scouting ${run.currentLabel ?? "…"}`}
           </p>
           <p className="text-[11px] text-stone-500 mt-0.5 leading-relaxed">
-            {failed
+            {stuck
               ? "Everything already built is safe below, and the CVs that haven't been read yet are still held. Carrying on picks up exactly where it stopped — nothing is scouted twice."
               : "This runs on the server. You can close this tab, come back to this link, or hand it to someone else — the run carries on either way."}
           </p>
@@ -100,7 +107,7 @@ export default function BatchProgress({ initial }: { initial: RunProgress }) {
 
       <div className="mt-3 h-1.5 rounded-full bg-white/80 overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${failed ? "bg-rose-400" : "bg-sky-500"}`}
+          className={`h-full rounded-full transition-all duration-500 ${stuck ? "bg-rose-400" : "bg-sky-500"}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -130,10 +137,18 @@ export default function BatchProgress({ initial }: { initial: RunProgress }) {
       </div>
 
       {run.error && (
-        <p className={`mt-3 text-[11px] leading-relaxed ${failed ? "text-rose-700" : "text-amber-700"}`}>{run.error}</p>
+        <p className={`mt-3 text-[11px] leading-relaxed ${stuck ? "text-rose-700" : "text-amber-700"}`}>{run.error}</p>
       )}
 
-      {failed && (
+      {/* A stalled run has no `error` of its own to explain itself — it was never
+          claimed long enough to record one — so say what happened. */}
+      {!failed && run.stalled && !run.error && (
+        <p className="mt-3 text-[11px] leading-relaxed text-rose-700">
+          No worker has picked this up for a while. Carrying on starts it again from the last finished chunk.
+        </p>
+      )}
+
+      {stuck && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             onClick={() => resume(false)}

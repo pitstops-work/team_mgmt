@@ -106,6 +106,14 @@ export type RunProgress = {
   doneCvs: number;
   /** The desk currently being worked, if any. */
   currentLabel: string | null;
+  /**
+   * Running, but nobody is working it — its chain broke and no sweep has
+   * picked it up. Surfaced so the page can offer a way out: a run in this
+   * state used to render an ordinary spinner with nothing to press, because
+   * only `failed` unlocked the recovery buttons and a run that is never
+   * claimed never spends its attempts to GET to failed.
+   */
+  stalled: boolean;
   desks: { key: string; label: string; slug: string | null; done: number; total: number; dupes: number }[];
 };
 
@@ -126,6 +134,7 @@ export function describeRun(run: RecruitmentBatchRun): RunProgress {
     totalCvs: plan.desks.reduce((n, d) => n + d.cvs.length, 0),
     doneCvs: plan.desks.reduce((n, d) => n + d.done, 0),
     currentLabel: run.status === "running" ? next?.label ?? null : null,
+    stalled: isStale(run),
     desks: plan.desks.map((d) => ({
       key: d.key,
       label: d.label,
@@ -507,28 +516,77 @@ export function drainTokenValid(runId: string, given: string | null): boolean {
  * Deliberately not a recursive call in-process: each chunk gets its own full
  * 300s, and a chunk that dies takes only itself down. The request resolves in
  * milliseconds because the drain endpoint answers before doing the work.
+ *
+ * Returns whether the next worker was actually accepted. A kick that is
+ * REFUSED is not the same as one that throws, and treating them alike is what
+ * let a run sit at 32/97 for two days: Deployment Protection answered the
+ * cron's self-call with 401 before the function ran, fetch resolved normally,
+ * the catch never fired, and the sweep reported success every five minutes.
  */
-export async function kickDrain(runId: string, origin: string): Promise<void> {
+export async function kickDrain(runId: string, origin: string): Promise<boolean> {
+  const url = `${origin}/api/cron/recruitment-batch-drain`;
   try {
-    await fetch(`${origin}/api/cron/recruitment-batch-drain`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${drainToken(runId)}` },
-      body: JSON.stringify({ runId }),
-    });
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${drainToken(runId)}`,
+    };
+    // Set on a Vercel project with Deployment Protection, this is how an
+    // automated request gets past it. Harmless when absent.
+    const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    if (bypass) headers["x-vercel-protection-bypass"] = bypass;
+
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify({ runId }) });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(
+        `[recruitment-batch] kick REFUSED for ${runId}: ${res.status} from ${url} — ${body.slice(0, 200)}`,
+      );
+      return false;
+    }
+    return true;
   } catch (e) {
-    // The cron sweep is the backstop — a failed kick delays the run, it does
-    // not lose it.
-    console.error(`[recruitment-batch] kick failed for ${runId}:`, e instanceof Error ? e.message : e);
+    console.error(`[recruitment-batch] kick failed for ${runId} at ${url}:`, e instanceof Error ? e.message : e);
+    return false;
   }
 }
 
-/** Absolute origin for a self-call, which fetch needs and a relative path won't give. */
+/** An env value that may carry a stray newline — NEXTAUTH_URL on this project does. */
+function cleanOrigin(v: string | undefined): string | null {
+  const t = (v ?? "").trim().replace(/\\n$/, "").replace(/\/+$/, "").trim();
+  if (!t) return null;
+  try {
+    return new URL(t.includes("://") ? t : `https://${t}`).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Absolute origin for a self-call, which fetch needs and a relative path won't give.
+ *
+ * In production this must be the PUBLIC origin, not whatever host the current
+ * request arrived on. A Vercel cron invokes the deployment URL
+ * (`<project>-<hash>.vercel.app`), and that URL sits behind Deployment
+ * Protection — so a self-call derived from it is refused before it reaches the
+ * route, while the same call to the project's own domain goes straight
+ * through. Preferring the request's own origin is what silently broke the
+ * cron backstop.
+ *
+ * Preview and local keep using the request origin: there is no public domain
+ * to prefer, and a preview deployment must never kick production's runner.
+ */
 export function selfOrigin(reqUrl: string): string {
+  if (process.env.VERCEL_ENV === "production") {
+    const configured = cleanOrigin(process.env.NEXTAUTH_URL) ?? cleanOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+    if (configured) return configured;
+  }
   try {
     return new URL(reqUrl).origin;
   } catch {
-    return process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : `https://${process.env.VERCEL_URL}`;
+    return (
+      cleanOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL) ??
+      cleanOrigin(process.env.VERCEL_URL) ??
+      "http://localhost:3000"
+    );
   }
 }
