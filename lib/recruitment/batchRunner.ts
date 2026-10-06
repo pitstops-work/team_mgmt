@@ -59,8 +59,31 @@ type SessionLike = { user?: { id?: string; name?: string | null } | null } | nul
  */
 export const DESK_CHUNK = 8;
 
-/** Consecutive failures of the SAME chunk before the run parks itself. */
-const MAX_ATTEMPTS = 3;
+/**
+ * Consecutive failures of the SAME chunk before the run parks itself.
+ *
+ * Sized so the halving in `chunkForAttempt` can reach a single CV and still
+ * get one clean try at it: 8 → 4 → 2 → 1 is four attempts, and the fifth
+ * claim parks. Retrying an oversized chunk unchanged was the old behaviour,
+ * and it ended by asking the recruiter to skip all eight CVs when only one of
+ * them was the problem.
+ */
+const MAX_ATTEMPTS = 4;
+
+/**
+ * How many CVs this attempt should take on.
+ *
+ * A chunk that cannot finish inside the 300s ceiling will not finish on a
+ * second identical try either — the only variable the server controls is how
+ * much it bites off. So each consecutive failure halves it, and the CV that is
+ * genuinely too heavy to read is isolated instead of taking its neighbours
+ * down with it. `attempts` is reset on every commit, so this is always
+ * "failures of the chunk in front of us", never a tally for the whole run.
+ */
+export function chunkForAttempt(chunkSize: number, attempts: number): number {
+  const n = Math.max(1, attempts);
+  return Math.max(1, Math.ceil(chunkSize / 2 ** (n - 1)));
+}
 
 /**
  * How long a drain's claim on a run is honoured.
@@ -265,8 +288,13 @@ function currentChunkLabel(run: RecruitmentBatchRun): string {
   const plan = readPlan(run);
   const desk = plan.desks.find((d) => d.done < d.cvs.length);
   if (!desk) return run.title;
-  const end = Math.min(desk.done + plan.chunkSize, desk.cvs.length);
-  return `${desk.label}, CVs ${desk.done + 1}–${end}`;
+  // The EFFECTIVE size, so a run that has halved its way down to one CV names
+  // that one CV instead of the eight it started with.
+  const take = chunkForAttempt(plan.chunkSize, run.attempts);
+  const end = Math.min(desk.done + take, desk.cvs.length);
+  return end === desk.done + 1
+    ? `${desk.label}, CV ${end}`
+    : `${desk.label}, CVs ${desk.done + 1}–${end}`;
 }
 
 type ChunkOutcome =
@@ -279,7 +307,10 @@ async function runOneChunk(run: RecruitmentBatchRun, session: SessionLike): Prom
   const desk = plan.desks.find((d) => d.done < d.cvs.length);
   if (!desk) return { kind: "finished" };
 
-  const chunk = desk.cvs.slice(desk.done, desk.done + plan.chunkSize);
+  // Shrinks with each consecutive failure of this same chunk — see
+  // chunkForAttempt. A first attempt is always the full plan.chunkSize.
+  const take = chunkForAttempt(plan.chunkSize, run.attempts);
+  const chunk = desk.cvs.slice(desk.done, desk.done + take);
 
   // A person already on the desk is not scouted again. The temp area holds a
   // copy of a pool for every time it was uploaded, and the recovery survey
@@ -397,10 +428,14 @@ export async function drainOneChunk(
   if (run.attempts > MAX_ATTEMPTS) {
     // Every attempt so far was killed before it could report — the chunk
     // outlives the function ceiling. Park it so the recruiter can skip it.
+    // By now the chunk has been halved down to a single CV (chunkForAttempt),
+    // so this names one file rather than a batch of eight — and skipping takes
+    // only that one with it.
     await park(
       run,
-      `${stuck}: never finished inside the server's 5-minute limit, ${MAX_ATTEMPTS} times running. ` +
-        `One of these CVs is probably too heavy to read (a long scan, say) — skip them to carry on.`,
+      `${stuck}: never finished inside the server's 5-minute limit, ${MAX_ATTEMPTS} times running, ` +
+        `down to one CV at a time. That CV is too heavy to read (a long scan, most likely) — ` +
+        `skip it to carry on with the rest.`,
       false,
     );
     return { claimed: true, more: false, retrying: false };
@@ -466,7 +501,11 @@ export async function resumeBatchRun(runId: string, skipStuck: boolean): Promise
   if (skipStuck) {
     const desk = plan.desks.find((d) => d.done < d.cvs.length);
     if (desk) {
-      skipped = Math.min(plan.chunkSize, desk.cvs.length - desk.done);
+      // Drop only what the LAST attempt actually bit off. A run that parked
+      // after halving down to one CV must not throw away a full chunk of
+      // eight, seven of which were never the problem.
+      const lastTake = chunkForAttempt(plan.chunkSize, run.attempts);
+      skipped = Math.min(lastTake, desk.cvs.length - desk.done);
       // Drop them from the plan rather than marking them done: `done` already
       // points at the next unprocessed CV, so removing the stuck slice leaves
       // it pointing at the one after, and keeps done/total honest in the UI.

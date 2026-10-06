@@ -65,7 +65,9 @@ export default function BatchProgress({ initial }: { initial: RunProgress }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ skipStuck }),
       });
-      if (res.ok) setRun((r) => ({ ...r, status: "running", error: null }));
+      // Clear `stalled` too, or the panel stays in its stopped state until the
+      // next poll comes back — the run is being restarted right now.
+      if (res.ok) setRun((r) => ({ ...r, status: "running", error: null, stalled: false }));
     } finally {
       setResuming(false);
     }
@@ -160,7 +162,9 @@ export default function BatchProgress({ initial }: { initial: RunProgress }) {
           </button>
           {/*
             The one failure carrying on cannot fix: a CV the extractor can't
-            read. Without this the whole run is held hostage by one file.
+            read. Without this the whole run is held hostage by one file. The
+            runner halves its chunk on each failure, so by the time it parks
+            this usually drops a single CV, not eight.
           */}
           <button
             onClick={() => resume(true)}
@@ -168,7 +172,7 @@ export default function BatchProgress({ initial }: { initial: RunProgress }) {
             className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-rose-300 hover:text-rose-700 disabled:opacity-50"
           >
             <SkipForward className="w-3.5 h-3.5" />
-            Skip the CVs it&apos;s stuck on
+            Skip what it&apos;s stuck on
           </button>
         </div>
       )}
