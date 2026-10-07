@@ -23,6 +23,7 @@ import { cvCode } from "@/lib/recruitment/scoutingDayOps";
 import {
   buildSystemPrompt,
   jobSnapshotFromRow,
+  jobSnapshotNoCity,
   jobSnapshotUnplaced,
   SCOUT_MAX_TOKENS,
   type JobSnapshot,
@@ -123,16 +124,40 @@ export async function generateDesk(input: {
   locationId: string | null;
   /** Desk for the CVs triage could not place. No city context goes into the prompt. */
   unplaced: boolean;
+  /**
+   * The ROLE has no city — remote, national, a central team. Distinct from
+   * `unplaced`: that one means the city is not known YET and asks the model to
+   * hint at one, this one means there is no city to find. Requires a JD.
+   */
+  notCitySpecific: boolean;
   batchId: string | null;
   cvs: CvRef[];
   session: SessionLike;
 }): Promise<GenerateDeskResult> {
-  const { title, date, context, jobId, locationId, unplaced, batchId, cvs, session } = input;
+  const { title, date, context, jobId, locationId, unplaced, notCitySpecific, batchId, cvs, session } = input;
   if (!title || cvs.length === 0) {
     return { ok: false, status: 400, error: "Title and at least one CV are required" };
   }
   const bad = invalidCvRef(cvs);
   if (bad) return { ok: false, status: 400, error: bad };
+
+  if (notCitySpecific && unplaced) {
+    return {
+      ok: false,
+      status: 400,
+      error: "A desk is either for a role with no city or for candidates not yet placed in one — not both.",
+    };
+  }
+  if (notCitySpecific && !jobId) {
+    // The whole premise is "judge on the role". With no JD there is no role to
+    // judge against, only free text — so this is a refusal, not a fallback.
+    return {
+      ok: false,
+      status: 400,
+      error:
+        "A desk for a role with no city still needs a JD — the scout judges on the role, and without one there is nothing to judge against. Only the location is optional.",
+    };
+  }
 
   // Resolve the JD snapshot — either a saved JD, or a minimal fallback derived
   // from the request body. Snapshot is frozen into RecruitmentScoutingDay.jobSnapshotJson
@@ -141,6 +166,10 @@ export async function generateDesk(input: {
   // Which city this day runs in. A JD can span several; the prompt takes
   // exactly one (see lib/recruitment/locations.ts). Null for JD-less runs.
   let dayLocationId: string | null = null;
+  // Persisted from this local rather than straight from the request, so a
+  // notCitySpecific with no jobId can never reach the DB even if the guard
+  // above is later moved.
+  let dayNotCitySpecific = false;
   if (jobId) {
     const job = await prisma.recruitmentJob.findUnique({
       where: { id: jobId },
@@ -149,7 +178,14 @@ export async function generateDesk(input: {
     if (!job) return { ok: false, status: 404, error: "Selected JD not found" };
     if (job.archivedAt) return { ok: false, status: 400, error: "Selected JD is archived" };
 
-    if (unplaced) {
+    if (notCitySpecific) {
+      // No city to resolve: that is the point. resolveDayLocation is skipped
+      // entirely — it exists to stop a multi-city JD silently borrowing the
+      // wrong city's context, and here there is no city to borrow.
+      // dayLocationId stays null; the prompt is told the role has no location.
+      snapshot = jobSnapshotNoCity(job);
+      dayNotCitySpecific = true;
+    } else if (unplaced) {
       // No city to resolve — that is the point of this desk. locationId stays
       // null, and the prompt is told the location is unknown rather than
       // inheriting the primary city's language and reference orgs.
@@ -274,6 +310,7 @@ export async function generateDesk(input: {
       slug,
       jobId,
       locationId: dayLocationId,
+      notCitySpecific: dayNotCitySpecific,
       batchId,
       matchday: date ? new Date(date) : null,
       title,

@@ -107,7 +107,10 @@ async function loadDesk(slug: string) {
 }
 
 /** A batch run still appending to this desk would race every write here. */
-async function busyWithBatch(slug: string): Promise<boolean> {
+/** True while a batch run is still appending CVs to this desk. Exported so the
+ *  conversion endpoint can refuse mid-run: a chunked append racing a
+ *  jobSnapshotJson rewrite would judge some chunks against the old city. */
+export async function busyWithBatch(slug: string): Promise<boolean> {
   const live = await prisma.recruitmentBatchRun.findMany({ where: { status: "running" }, select: { planJson: true } });
   return live.some((r) => readPlan(r).desks.some((d) => d.slug === slug));
 }
@@ -116,6 +119,17 @@ export async function planRehome(slug: string): Promise<RehomePlan> {
   const day = await loadDesk(slug);
   if (!day || !day.snapshotJson) return { ok: false, status: 404, error: "That desk doesn't exist." };
   if (!day.job) return { ok: false, status: 400, error: "This desk isn't linked to a JD, so it has no cities to move to." };
+  // "Sort this whole desk into cities" IS the nag a no-city desk exists to
+  // remove — in its strongest, bulk form. Someone who turns out to suit a city
+  // post is moved individually from the desk instead.
+  if (day.notCitySpecific) {
+    return {
+      ok: false,
+      status: 400,
+      error:
+        "This desk is for a role with no city, so there is nothing to sort by home state. If one of these people suits a city post, move them individually from the desk.",
+    };
+  }
   if (await busyWithBatch(slug)) {
     return { ok: false, status: 409, error: "A scouting run is still adding CVs to this desk. Wait for it to finish, then come back." };
   }
@@ -252,6 +266,17 @@ export async function queueRehome(
 ): Promise<{ ok: true; queued: number } | { ok: false; status: number; error: string }> {
   const day = await loadDesk(slug);
   if (!day || !day.snapshotJson || !day.job) return { ok: false, status: 404, error: "That desk doesn't exist." };
+  // "Sort this whole desk into cities" IS the nag a no-city desk exists to
+  // remove — in its strongest, bulk form. Someone who turns out to suit a city
+  // post is moved individually from the desk instead.
+  if (day.notCitySpecific) {
+    return {
+      ok: false,
+      status: 400,
+      error:
+        "This desk is for a role with no city, so there is nothing to sort by home state. If one of these people suits a city post, move them individually from the desk.",
+    };
+  }
   if (await busyWithBatch(slug)) return { ok: false, status: 409, error: "A scouting run is still adding CVs to this desk." };
   const snap = day.snapshotJson as unknown as RehomeSnapshot;
   if (snap.candidates.some((c) => c.rehomeTo)) return { ok: false, status: 409, error: "Moves are already under way on this desk." };

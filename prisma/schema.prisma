@@ -5151,6 +5151,23 @@ model RecruitmentScoutingDay {
   /// predate multi-location, and their city lives in jobSnapshotJson.location.
   locationId      String?
   location        RecruitmentLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  /// This desk's role genuinely has NO location — remote, national, or a
+  /// central team. Distinct from the "unplaced" desk, where the city is simply
+  /// not known yet: unplaced asks the recruiter to work out where each person
+  /// belongs, this one must never ask at all. `locationId` is null for both,
+  /// which is why this is a flag rather than something inferred from absence.
+  /// The prompt side of the same fact is the NO_CITY sentinel frozen into
+  /// jobSnapshotJson.location.city (lib/recruitment/systemPrompt.ts): this
+  /// column is for queries and chips, the sentinel is what every later
+  /// re-scout reads. Write both or neither.
+  /// A JD is still required — only the location is optional.
+  notCitySpecific Boolean              @default(false)
+  /// Set when an EXISTING desk's location was changed after it was scouted.
+  /// The candidate write-ups were judged against the old location and are NOT
+  /// rewritten by the change, so the desk page carries a standing warning
+  /// until someone re-scouts. Null = never changed, or changed with a re-scout
+  /// in the same operation.
+  locationChangedAt DateTime?
   /// Groups the desks produced by ONE multi-city run: a single posting drew
   /// CVs for several cities, triage split them per city, and each city got its
   /// own desk (generation is single-city — see lib/recruitment/locations.ts).

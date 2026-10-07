@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Briefcase, Loader2, MapPin, Trash2 } from "lucide-react";
+import { Briefcase, Globe, Loader2, MapPin, Trash2 } from "lucide-react";
 
 export type DocCardEntry = {
   slug: string;
@@ -12,6 +12,8 @@ export type DocCardEntry = {
   jobTitle: string | null;
   jobSlug: string | null;
   city: string | null;
+  /** The role has no city at all — distinct from "city unknown". */
+  noCity: boolean;
   isLegacy: boolean;
   isCommitted: boolean;
 };
@@ -73,6 +75,17 @@ export default function DocCard({
               <span className="text-stone-300">·</span>
               <span className="inline-flex items-center gap-0.5">
                 <MapPin className="w-3 h-3" /> {entry.city}
+              </span>
+            </>
+          )}
+          {/* Globe rather than MapPin — a pin would read as a place. And
+              "Not city-specific" rather than "No city", which at a glance is
+              indistinguishable from the unplaced desk. */}
+          {entry.noCity && (
+            <>
+              <span className="text-stone-300">·</span>
+              <span className="inline-flex items-center gap-0.5" title="This role has no location — remote, national, or a central team">
+                <Globe className="w-3 h-3" /> Not city-specific
               </span>
             </>
           )}

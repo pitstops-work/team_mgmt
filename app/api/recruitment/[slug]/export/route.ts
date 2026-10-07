@@ -113,7 +113,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
       name: c.name,
       score: typeof st.score === "number" ? st.score : "",
       verdict: st.verdict ?? "",
-      city: st.city ? cityById.get(st.city) ?? "" : day.location?.city ?? "",
+      // Blank on a no-city desk, not a label: this is a filterable data
+      // column and a sentence in it poisons sorting. The Desk sheet below is
+      // prose, and that is where the distinction belongs.
+      city: day.notCitySpecific ? "" : st.city ? cityById.get(st.city) ?? "" : day.location?.city ?? "",
       pos: c.pos,
       meta: c.meta,
       red: flags.filter(([s]) => s === "r").map(([, t]) => `• ${t}`).join("\n"),
@@ -170,7 +173,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   for (const [k, v] of [
     ["Desk", day.title],
     ["Job description", day.job?.title ?? "—"],
-    ["City", day.location?.city ?? "Unplaced — no city assigned"],
+    [
+      "City",
+      day.notCitySpecific
+        ? "Not city-specific — this role has no location"
+        : day.location?.city ?? "Unplaced — no city assigned",
+    ],
     ["Interview date", day.matchday ? day.matchday.toISOString().slice(0, 10) : "—"],
     ["Candidates", String(data.candidates.length)],
     ["Scored so far", `${scored} of ${data.candidates.length}`],

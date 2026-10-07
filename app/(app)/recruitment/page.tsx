@@ -24,6 +24,8 @@ type DocEntry = {
   jobTitle: string | null;
   jobSlug: string | null;
   city: string | null;
+  /** The role has no city at all — distinct from "city unknown". */
+  noCity: boolean;
   createdAt: number; // unix ms for sorting
   isLegacy: boolean;
   isCommitted: boolean;
@@ -37,6 +39,8 @@ function parseHtmlDoc(slug: string, html: string, createdAt: number, isCommitted
     jobTitle: null,
     jobSlug: null,
     city: null,
+    // A legacy blob doc predates the flag and carries no city either way.
+    noCity: false,
     createdAt,
     isLegacy: true,
     isCommitted,
@@ -57,6 +61,7 @@ export default async function RecruitmentPage() {
       title: true,
       matchday: true,
       createdAt: true,
+      notCitySpecific: true,
       job: { select: { slug: true, title: true, location: { select: { city: true } } } },
       // The city this day actually ran in — a multi-city JD's days differ.
       location: { select: { city: true } },
@@ -71,7 +76,10 @@ export default async function RecruitmentPage() {
     jobSlug: r.job?.slug ?? null,
     // Prefer the day's own city; fall back to the JD's primary for days
     // generated before multi-location (their locationId backfilled to it anyway).
-    city: r.location?.city ?? r.job?.location.city ?? null,
+    // A role with no city must never take that fallback — it would print a
+    // city this desk was explicitly told it does not have.
+    city: r.notCitySpecific ? null : r.location?.city ?? r.job?.location.city ?? null,
+    noCity: r.notCitySpecific,
     createdAt: +r.createdAt,
     isLegacy: false,
     isCommitted: false,

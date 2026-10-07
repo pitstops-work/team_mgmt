@@ -76,16 +76,23 @@ function cleanCandidate(c: ScoutCandidate, i: number): ScoutCandidate {
  * can change after a desk is generated and a frozen copy would go stale. The
  * doc route re-renders on every request (see loadDoc), so this is always live.
  *
- * `deskLocationId` is the desk's own city, pre-selected for each candidate. It
- * is null on an unplaced desk — which is exactly where allocation matters,
- * since working out where these people belong is the point of that desk.
+ * `deskLocationId` is the desk's own city, pre-selected for each candidate.
+ *
+ * It is null on TWO kinds of desk that want opposite UI, which is why
+ * `notCitySpecific` exists alongside it. On an UNPLACED desk null is exactly
+ * where allocation matters — working out where these people belong is the
+ * point of that desk, so every card shows the picker and a "needs a city"
+ * marker. On a NOT-CITY-SPECIFIC desk the role has no location at all, so
+ * nothing is missing and nothing needs allocating: no picker and no marker,
+ * just a quiet way in for the occasional person who does suit a city post.
  */
 export function renderScoutingDoc(
   slug: string,
   d: ScoutDocData,
-  opts: { cities?: { id: string; city: string }[]; deskLocationId?: string | null } = {},
+  opts: { cities?: { id: string; city: string }[]; deskLocationId?: string | null; notCitySpecific?: boolean } = {},
 ): string {
   const cities = opts.cities ?? [];
+  const notCitySpecific = opts.notCitySpecific ?? false;
   const deskLocationId = opts.deskLocationId ?? null;
   const axes = (d.axes?.length === 6 ? d.axes : ["FIELD", "RANGE", "DOCS", "DEPTH", "STABLE", "FIT"]).map((a) =>
     escHtml(String(a).toUpperCase().slice(0, 8)),
@@ -322,6 +329,10 @@ textarea::placeholder{color:rgba(157,184,170,.7)}
 }
 .alloc select:focus{outline:2px solid var(--sky); border-color:transparent}
 .alloc .unset{color:var(--gold)}
+/* The quiet way into allocation on a no-city desk. Dim and dotted on purpose:
+   gold is the "needs a city" nag colour and must not be borrowed here. */
+.alloc .allocOpen{background:none; border:0; padding:0; font:inherit; font-size:11px; color:var(--dim); cursor:pointer; text-decoration:underline; text-decoration-style:dotted; opacity:.65}
+.alloc .allocOpen:hover{color:var(--sky); opacity:1}
 
 /* ============ INTERVIEW TRANSCRIPT ============ */
 .tw{margin-top:12px; border-top:1px dashed rgba(244,239,223,.14); padding-top:11px}
@@ -421,6 +432,12 @@ const AXES = ${js(axes)};
 const C = ${js(candidates)};
 const CITIES = ${js(cities)};
 const DESK_LOCATION_ID = ${js(deskLocationId)};
+const NOT_CITY_SPECIFIC = ${js(notCitySpecific)};
+/* Which cards have had their city picker revealed. Deliberately NOT in S:
+   S is overwritten wholesale by the 15-second server merge, and a picker the
+   recruiter just opened must not snap shut under them. Per-viewer and
+   per-session by design — this is a disclosure state, not shared data. */
+const ALLOC_OPEN = {};
 
 /* ================= STATE =================
    Team-shared. Server is source of truth (RecruitmentScoutState, keyed by
@@ -444,8 +461,10 @@ const POLL_MS=15000;
 const TYPING_QUIET_MS=3000;
 
 let S={}; C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null,city:DESK_LOCATION_ID});
-// city defaults to this desk's own — null on an unplaced desk, which is
-// what surfaces the "needs a city" marker on every candidate there.
+// city defaults to this desk's own. Null means one of two things: an UNPLACED
+// desk, where it surfaces the "needs a city" marker on every candidate; or a
+// NOT-CITY-SPECIFIC one, where the role has no city and renderAlloc shows the
+// quiet "Move to a city…" link instead of any marker at all.
 let serverVersion=0;
 let lastEditAt=0;
 let pendingSave=false;
@@ -684,14 +703,27 @@ function renderAlloc(id, busyMsg){
   if(!CITIES.length){ host.innerHTML=''; return; }
   const cur = (S[id] && S[id].city) || '';
   const unset = !cur;
+
+  /* On a NOT-CITY-SPECIFIC desk the role has no location, so nothing is
+     missing and nobody needs allocating: no picker and no marker by default.
+     But a central-team applicant can still turn out to suit a city post, and
+     with no control at all they would be stranded on this desk — so there is
+     a quiet way in rather than no way in. */
+  if(NOT_CITY_SPECIFIC && unset && !busyMsg && !ALLOC_OPEN[id]){
+    host.innerHTML = '<button type="button" class="allocOpen" data-ao="'+esc(id)+'">Move to a city\u2026</button>';
+    return;
+  }
+
+  const blank = NOT_CITY_SPECIFIC ? '\u2014 stay on this desk \u2014' : '\u2014 not allocated \u2014';
   host.innerHTML =
     '<label for="ac-'+esc(id)+'">City</label>'
     + '<select id="ac-'+esc(id)+'" data-ac="'+esc(id)+'"'+(busyMsg?' disabled':'')+'>'
-    + '<option value="">— not allocated —</option>'
+    + '<option value="">'+blank+'</option>'
     + CITIES.map(c=>'<option value="'+esc(c.id)+'"'+(c.id===cur?' selected':'')+'>'+esc(c.city)+'</option>').join('')
     + '</select>'
+    /* "needs a city" is a nag, and on a no-city desk nobody needs one. */
     + (busyMsg ? '<span class="unset">'+esc(busyMsg)+'</span>'
-               : unset ? '<span class="unset">needs a city</span>' : '');
+               : (unset && !NOT_CITY_SPECIFIC) ? '<span class="unset">needs a city</span>' : '');
 }
 
 /* Picking another city MOVES the candidate to that city's desk, re-scouted
@@ -849,9 +881,16 @@ function wire(){
     // here wipes everyone's scoring, not just this device's.
     if(!confirm('Wipe all scores, verdicts, checkmarks, notes and interview summaries — FOR THE WHOLE TEAM?')) return;
     C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null,city:DESK_LOCATION_ID});
+    for(const k in ALLOC_OPEN) delete ALLOC_OPEN[k];
     writeLS();
     try{ await pushToServer(); }catch(e){ chip('reset saved locally — will sync when online'); }
     renderCards(); renderTable(); syncUI();
+  });
+
+  // --- reveal the city picker on a not-city-specific desk ---
+  document.getElementById('cards').addEventListener('click',e=>{
+    const b=e.target.closest('[data-ao]'); if(!b) return;
+    ALLOC_OPEN[b.dataset.ao]=true; renderAlloc(b.dataset.ao);
   });
 
   // --- city allocation (moves the candidate to that city's desk) ---
@@ -861,6 +900,8 @@ function wire(){
     const to=e.target.value||null;
     if(!to || to===DESK_LOCATION_ID){
       // Clearing, or re-picking this desk's own city: a local flag only.
+      // On a no-city desk, clearing also puts the quiet link back.
+      if(NOT_CITY_SPECIFIC && !to) delete ALLOC_OPEN[id];
       S[id].city = to; renderAlloc(id); renderTable(id); save(id); return;
     }
     moveCandidateTo(id, to, e.target);

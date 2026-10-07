@@ -37,6 +37,10 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
   const [locationIds, setLocationIds] = useState<string[]>(
     jobs[0]?.locations[0]?.id ? [jobs[0].locations[0].id] : [],
   );
+  // The ROLE has no city — remote, national, a central team. Mutually
+  // exclusive with a city pick, and NOT the same as the unplaced desk: see the
+  // checkbox copy below, and NO_CITY in lib/recruitment/systemPrompt.ts.
+  const [notCitySpecific, setNotCitySpecific] = useState(false);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [context, setContext] = useState("");
@@ -69,14 +73,31 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
     setJobId(nextJobId);
     const next = jobs.find((j) => j.id === nextJobId);
     setLocationIds(next?.locations[0]?.id ? [next.locations[0].id] : []);
+    // Never carry "no city" across to a different role.
+    setNotCitySpecific(false);
   };
 
-  const toggleCity = (id: string) =>
+  const toggleCity = (id: string) => {
+    setNotCitySpecific(false);
     setLocationIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  // Ticking "no city" clears the city pick so there is one visible answer to
+  // "where is this for"; unticking restores the JD's primary rather than
+  // leaving the form with nothing selected.
+  const toggleNotCitySpecific = (on: boolean) => {
+    setNotCitySpecific(on);
+    setLocationIds(on ? [] : selectedJob?.locations[0]?.id ? [selectedJob.locations[0].id] : []);
+  };
+
+  // A JD-backed run must say where it is for: a city, or explicitly no city.
+  // Before the checkbox existed, deselecting every chip on a multi-city JD
+  // posted locationId:null and came back as a 400 from resolveDayLocation.
+  const needsCityAnswer = !jobless && !notCitySpecific && locationIds.length === 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || files.length === 0 || busy) return;
+    if (!title.trim() || files.length === 0 || busy || needsCityAnswer) return;
     setError(null);
     try {
       setPhase("uploading");
@@ -134,7 +155,11 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
           // Only send context when there is no JD; a picked JD supplies its own notes.
           context: jobless ? context.trim() : "",
           jobId: jobless ? null : jobId,
-          locationId: jobless ? null : locationIds[0] || null,
+          // A no-city desk still needs a JD — the scout judges on the role, and
+          // without one there is no role to judge against. The server refuses
+          // the combination rather than quietly falling back.
+          notCitySpecific: !jobless && notCitySpecific,
+          locationId: jobless || notCitySpecific ? null : locationIds[0] || null,
           cvs,
         }),
       });
@@ -267,7 +292,32 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         </p>
       </div>
 
-      {jobLocations.length > 1 && (
+      {/*
+        Its own row rather than a chip in the city picker below: that picker
+        only renders for a multi-city JD, and almost every JD here is
+        single-city — so a chip would be unreachable in the common case. It is
+        also honest about the semantics, since this is a property of the ROLE
+        rather than a third kind of place.
+      */}
+      {!jobless && (
+        <label className="flex items-start gap-2 rounded-lg border border-stone-200 px-3 py-2 cursor-pointer hover:border-stone-300">
+          <input
+            type="checkbox"
+            checked={notCitySpecific}
+            disabled={busy}
+            onChange={(e) => toggleNotCitySpecific(e.target.checked)}
+            className="mt-0.5 shrink-0"
+          />
+          <span className="text-[11px] text-stone-600 leading-relaxed">
+            <span className="font-medium text-stone-800">This role has no city</span> — remote, national, or a central
+            team. The scout judges on the role alone: no language, local-organisation or travel assumptions, and nobody
+            will be asked to allocate these candidates to a city. Not the same as an unplaced desk, which is for CVs
+            whose city you haven&apos;t worked out yet.
+          </span>
+        </label>
+      )}
+
+      {jobLocations.length > 1 && !notCitySpecific && (
         <div>
           <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-0.5">Cities for this run</label>
           <div className="flex flex-wrap gap-1.5">
@@ -359,12 +409,15 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={busy || !title.trim() || files.length === 0}
+          disabled={busy || !title.trim() || files.length === 0 || needsCityAnswer}
           className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
           {busy ? progress : "Generate scouting desk"}
         </button>
+        {!busy && needsCityAnswer && (
+          <span className="text-[11px] text-stone-400">Pick a city, or tick &ldquo;This role has no city&rdquo;.</span>
+        )}
         {!busy && (
           <button type="button" onClick={() => setOpen(false)} className="text-sm text-stone-400 hover:text-stone-600">
             Cancel

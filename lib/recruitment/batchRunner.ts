@@ -352,6 +352,11 @@ async function runOneChunk(run: RecruitmentBatchRun, session: SessionLike): Prom
         jobId: run.jobId,
         locationId: desk.locationId,
         unplaced: desk.unplaced,
+        // A batch is a multi-city run by construction: triage splits CVs
+        // BETWEEN cities, so every desk it builds is either a city's desk or
+        // the unplaced pool. "The role has no city" is a single-desk answer
+        // and is never reachable from here.
+        notCitySpecific: false,
         batchId: run.id,
         cvs: fresh,
         session,

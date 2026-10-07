@@ -98,6 +98,51 @@ export function jobSnapshotUnplaced(job: RecruitmentJob): JobSnapshot {
 }
 
 /**
+ * Sentinel city for a desk whose ROLE HAS NO CITY — remote, national, or a
+ * central team. jdBlock keys off this to judge purely on the role.
+ *
+ * NOT the same as UNPLACED_CITY above, and the difference is the whole point.
+ * Unplaced means "we do not know which city yet", so that prompt ASKS the
+ * model to hint at a city and the desk asks the recruiter to allocate each
+ * person. This one means there is no city to know: no language, local-
+ * organisation or travel assumptions, and nothing for anyone to allocate.
+ * Collapsing the two would reintroduce exactly the nagging this removes.
+ *
+ * Plain ASCII and double-underscored, for the same reason as UNPLACED_CITY:
+ * Postgres JSONB rejects a NUL byte in a string, so a control-character
+ * sentinel made the snapshot unstorable and killed the write AFTER the whole
+ * scouting call had run. Never put a control character in this value.
+ */
+export const NO_CITY = "__NO_CITY__";
+
+/** The synthetic location for a role with no location. No local context at all. */
+const NO_CITY_LOCATION: JobSnapshot["location"] = {
+  city: NO_CITY,
+  state: null,
+  country: "",
+  primaryLanguage: null,
+  localReferenceOrgs: [],
+  localRedFlags: [],
+  mobilityDefault: null,
+  notes: "",
+};
+
+/** A snapshot for a role that genuinely has no city. */
+export function jobSnapshotNoCity(job: RecruitmentJob): JobSnapshot {
+  return jobSnapshotFromRow(job, NO_CITY_LOCATION);
+}
+
+/**
+ * Re-point an ALREADY FROZEN snapshot at "no city", keeping every other frozen
+ * JD field as it was. Used when an existing desk is converted: rebuilding from
+ * the live RecruitmentJob row would also drag in every JD edit made since the
+ * desk was scouted, which is the one thing snapshot-on-use exists to prevent.
+ */
+export function snapshotWithNoCity(prior: JobSnapshot): JobSnapshot {
+  return { ...prior, location: { ...NO_CITY_LOCATION } };
+}
+
+/**
  * Build a JobSnapshot from live Prisma rows — used at generation time.
  *
  * `location` is typed as the fields actually read rather than the full
@@ -211,9 +256,47 @@ function themeBlock(theme: "football" | "neutral"): string {
   return theme === "football" ? THEME_FOOTBALL : THEME_NEUTRAL;
 }
 
+/**
+ * The part of the role brief that is the same whatever the desk's location is.
+ * Shared by all three jdBlock branches — a third verbatim copy would drift.
+ * The selector's own notes are NOT here: they come last in every branch, after
+ * whatever location material that branch adds.
+ */
+function roleBodyLines(job: JobSnapshot): string[] {
+  const lines: string[] = [];
+  if (job.salaryBand) lines.push(`Salary band: ${job.salaryBand}`);
+  if (job.dayToDay.trim()) lines.push(`\nWhat the role does day-to-day:\n${job.dayToDay.trim()}`);
+  if (job.mustHaves.length) lines.push(`\nMust-haves:\n${job.mustHaves.map((s) => `- ${s}`).join("\n")}`);
+  if (job.niceToHaves.length) lines.push(`\nNice-to-haves:\n${job.niceToHaves.map((s) => `- ${s}`).join("\n")}`);
+  if (job.hardDisqualifiers.length) {
+    lines.push(`\nHard disqualifiers (instant no):\n${job.hardDisqualifiers.map((s) => `- ${s}`).join("\n")}`);
+  }
+  return lines;
+}
+
 function jdBlock(job: JobSnapshot): string {
   const loc = job.location;
   const locLine = [loc.city, loc.state, loc.country].filter(Boolean).join(", ");
+  const selectorNotes = job.notes.trim() ? [`\nAdditional context from the selector:\n${job.notes.trim()}`] : [];
+
+  // A role that genuinely has NO city — remote, national, a central team.
+  // Nothing about location is missing here and nothing is going to be decided
+  // later, which is what separates this from the UNPLACED branch below: that
+  // one asks the model to hint at a city, this one must not raise location at
+  // all. See NO_CITY.
+  if (loc.city === NO_CITY) {
+    const lines: string[] = [
+      `Role: ${job.title}${job.seniority ? ` (${job.seniority})` : ""}`,
+      `Location: NONE. This role is not tied to a city — it is remote, national, or part of a central team. There is no local context to judge against, and none is missing: there is no city, and no city is going to be decided later.`,
+      `Judge every candidate on the role alone — the evidence in their CV, the depth of their experience, and their fit against the must-haves below.`,
+      `Make NO assumptions about language, local organisations, regional networks, commuting, relocation or willingness to travel, and do not score anyone up or down for where they happen to live. If this role genuinely requires a language or travel, it is written in the role description below — judge against what is written there and nothing else.`,
+      `Do NOT work out, guess or suggest which city anyone belongs to or could be posted to, and do not raise location as a question, a flag or a concern. Nobody on this desk is waiting to be allocated to a city.`,
+      `In the "meta" field, give the candidate's own location ONLY if their CV states it outright, and never infer one. It is biographical: it must not influence the score, the flags or the questions.`,
+      ...roleBodyLines(job),
+      ...selectorNotes,
+    ];
+    return `Role context:\n${lines.join("\n")}`;
+  }
 
   // An "unplaced" pool is the candidates triage could not assign to a city.
   // Their local context is genuinely unknown, so the prompt must say so rather
@@ -225,15 +308,9 @@ function jdBlock(job: JobSnapshot): string {
       `Location: NOT YET DETERMINED. This role is hiring in several cities and these candidates could not be matched to one from their CV.`,
       `Judge them on the role itself — experience, evidence, depth. Do NOT assume any particular city's language, local organisations or travel expectations, and do not penalise a candidate for a location you cannot establish.`,
       `Where a CV does hint at a city or region, say so in the "meta" field — the recruiter is using this desk to work out where each of these people belongs.`,
+      ...roleBodyLines(job),
+      ...selectorNotes,
     ];
-    if (job.salaryBand) lines.push(`Salary band: ${job.salaryBand}`);
-    if (job.dayToDay.trim()) lines.push(`\nWhat the role does day-to-day:\n${job.dayToDay.trim()}`);
-    if (job.mustHaves.length) lines.push(`\nMust-haves:\n${job.mustHaves.map((s) => `- ${s}`).join("\n")}`);
-    if (job.niceToHaves.length) lines.push(`\nNice-to-haves:\n${job.niceToHaves.map((s) => `- ${s}`).join("\n")}`);
-    if (job.hardDisqualifiers.length) {
-      lines.push(`\nHard disqualifiers (instant no):\n${job.hardDisqualifiers.map((s) => `- ${s}`).join("\n")}`);
-    }
-    if (job.notes.trim()) lines.push(`\nAdditional context from the selector:\n${job.notes.trim()}`);
     return `Role context:\n${lines.join("\n")}`;
   }
 
@@ -242,16 +319,12 @@ function jdBlock(job: JobSnapshot): string {
     `Location: ${locLine}${loc.primaryLanguage ? ` · primary language: ${loc.primaryLanguage}` : ""}`,
   ];
   if (loc.mobilityDefault) lines.push(`Mobility expectation: ${loc.mobilityDefault}`);
-  if (job.salaryBand) lines.push(`Salary band: ${job.salaryBand}`);
-  if (job.dayToDay.trim()) lines.push(`\nWhat the role does day-to-day:\n${job.dayToDay.trim()}`);
-  if (job.mustHaves.length) lines.push(`\nMust-haves:\n${job.mustHaves.map((s) => `- ${s}`).join("\n")}`);
-  if (job.niceToHaves.length) lines.push(`\nNice-to-haves:\n${job.niceToHaves.map((s) => `- ${s}`).join("\n")}`);
-  if (job.hardDisqualifiers.length) lines.push(`\nHard disqualifiers (instant no):\n${job.hardDisqualifiers.map((s) => `- ${s}`).join("\n")}`);
+  lines.push(...roleBodyLines(job));
   if (loc.localReferenceOrgs.length) {
     lines.push(`\nLocal reference orgs a serious candidate could plausibly cite:\n${loc.localReferenceOrgs.map((s) => `- ${s}`).join("\n")}`);
   }
   if (loc.notes.trim()) lines.push(`\nLocation context:\n${loc.notes.trim()}`);
-  if (job.notes.trim()) lines.push(`\nAdditional context from the selector:\n${job.notes.trim()}`);
+  lines.push(...selectorNotes);
   return `Role context:\n${lines.join("\n")}`;
 }
 
@@ -260,7 +333,15 @@ function rubricBlock(job: JobSnapshot): string {
   // replace defaults per role (e.g. a startup engineer role that treats
   // org-hopping as a feature, not a red flag).
   const red = [...DEFAULT_RED_FLAGS, ...job.redFlagRules];
-  const yellow = [...DEFAULT_YELLOW_FLAGS, ...job.yellowFlagRules];
+  // "relocation friction" is a location assumption. On a role with no city
+  // there is nothing to relocate to, so offering it as a yellow flag invites
+  // exactly the nag the no-city desk exists to remove. The UNPLACED desk keeps
+  // it — there, where someone ends up IS the open question.
+  const baseYellow =
+    job.location.city === NO_CITY
+      ? DEFAULT_YELLOW_FLAGS.filter((f) => f !== "relocation friction")
+      : DEFAULT_YELLOW_FLAGS;
+  const yellow = [...baseYellow, ...job.yellowFlagRules];
   return [
     "Flag rubric:",
     `- "r" (red / serious): ${red.join("; ")}`,
@@ -276,9 +357,35 @@ function scrutiniseBlock(job: JobSnapshot): string {
 
 function axesRule(job: JobSnapshot): string {
   if (job.lockedAxes.length === 6) {
+    // The JD named its axes explicitly — that instruction wins even if one of
+    // them measures locality. The recruiter asked for it by hand.
     return `Radar axes: use EXACTLY these 6 in this order, UPPERCASE, max 7 chars each — ${job.lockedAxes.map((a) => `"${a}"`).join(", ")}. Score each candidate 0–100 per axis based on CV evidence.`;
   }
+  // The stock example ends in "LOCAL", which on a role with no city invites an
+  // axis scoring people on a locality that does not exist.
+  if (job.location.city === NO_CITY) {
+    return `Radar axes: pick 6 axis labels that best discriminate THIS pool for THIS role. UPPERCASE, max 7 chars each. Example shape (do not copy verbatim): ["FIELD","RANGE","DOCS","DEPTH","STABLE","FIT"]. No axis may measure locality, language fit or willingness to relocate — this role has no city. Score each candidate 0–100 per axis with an honest spread — do not cluster everyone at 60–80.`;
+  }
   return `Radar axes: pick 6 axis labels that best discriminate THIS pool for THIS role. UPPERCASE, max 7 chars each. Example shape (do not copy verbatim): ["FIELD","RANGE","DOCS","DEPTH","STABLE","LOCAL"]. Score each candidate 0–100 per axis with an honest spread — do not cluster everyone at 60–80.`;
+}
+
+/**
+ * Appended AFTER the output schema on a no-city desk.
+ *
+ * Both OUTPUT_SCHEMA and APPEND_OUTPUT_SCHEMA specify `"meta": "~5 yrs · City
+ * · …"`, and both are emitted after jdBlock — so an instruction that lives
+ * only in jdBlock loses to the schema on recency. These have to come last.
+ */
+const NO_CITY_OVERRIDES = `Location overrides — this role has no city. These beat anything above, including the schema notes:
+- "docTitle": the role only, e.g. "<Role> Trials — Scouting Day". No city, no region, and do not invent "(Remote)".
+- "titleB": base it on the role or the team. Never on a city, and never on a guessed place.
+- "meta": the format here is "~5 yrs · Highest qualification, Institution". Include a city only if the CV states one outright; never infer one, and never write "location unclear", "city not stated" or anything similar.
+- Never flag, question or comment on location, relocation, travel willingness or language fit unless the role description above explicitly asks for it.
+- No candidate on this desk is waiting to be assigned to a city. Do not say or imply that anyone needs one.`;
+
+/** The overrides, or nothing — spread into a builder's line list. */
+function noCityOverrides(job: JobSnapshot): string[] {
+  return job.location.city === NO_CITY ? ["", NO_CITY_OVERRIDES] : [];
 }
 
 // ── Public builder ───────────────────────────────────────────────────────────
@@ -299,6 +406,7 @@ export function buildSystemPrompt(job: JobSnapshot): string {
     axesRule(job),
     "",
     OUTPUT_SCHEMA,
+    ...noCityOverrides(job),
   ].join("\n");
 }
 
@@ -363,6 +471,7 @@ export function buildAppendSystemPrompt(
     poolLine,
     "",
     APPEND_OUTPUT_SCHEMA,
+    ...noCityOverrides(job),
   ].join("\n");
 }
 
@@ -394,5 +503,6 @@ export function buildRegenerateSystemPrompt(job: JobSnapshot): string {
     axesRule(job),
     "",
     OUTPUT_SCHEMA,
+    ...noCityOverrides(job),
   ].join("\n");
 }

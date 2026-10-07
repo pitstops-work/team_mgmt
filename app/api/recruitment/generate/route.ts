@@ -30,6 +30,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // single-city JD resolves on its own; a multi-city one requires it.
     locationId: typeof body?.locationId === "string" && body.locationId ? String(body.locationId) : null,
     unplaced: body?.unplaced === true,
+    /** The ROLE has no city at all — different from `unplaced`, see generateDesk. */
+    notCitySpecific: body?.notCitySpecific === true,
     batchId: typeof body?.batchId === "string" && body.batchId ? String(body.batchId).slice(0, 64) : null,
     cvs: Array.isArray(body?.cvs) ? body.cvs : [],
     session,

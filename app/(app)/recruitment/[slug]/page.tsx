@@ -44,6 +44,7 @@ export default async function RecruitmentDocPage({ params }: { params: Promise<{
   if (!(await can(ctx, "recruitment", "read"))) notFound();
   const canAddCvs = await can(ctx, "recruitment", "create");
   const canDelete = await can(ctx, "recruitment", "delete");
+  const canUpdate = await can(ctx, "recruitment", "update");
 
   const { slug } = await params;
   if (!/^[a-z0-9-]+$/.test(slug)) notFound();
@@ -53,7 +54,18 @@ export default async function RecruitmentDocPage({ params }: { params: Promise<{
   // Legacy blob-only + hand-committed docs cannot — no snapshot to extend.
   const day = await prisma.recruitmentScoutingDay.findUnique({
     where: { slug },
-    select: { id: true, title: true, snapshotJson: true, batchId: true },
+    select: {
+      id: true,
+      title: true,
+      snapshotJson: true,
+      batchId: true,
+      jobId: true,
+      locationId: true,
+      notCitySpecific: true,
+      locationChangedAt: true,
+      location: { select: { city: true } },
+      job: { select: { locations: { select: { id: true, city: true }, orderBy: { city: "asc" } }, location: { select: { id: true, city: true } } } },
+    },
   });
 
   // Desks from a multi-city run link back to their siblings — without this a
@@ -63,7 +75,7 @@ export default async function RecruitmentDocPage({ params }: { params: Promise<{
     ? await prisma.recruitmentScoutingDay.findMany({
         where: { batchId: day.batchId, slug: { not: slug } },
         orderBy: { createdAt: "asc" },
-        select: { slug: true, location: { select: { city: true } } },
+        select: { slug: true, notCitySpecific: true, location: { select: { city: true } } },
       })
     : [];
   const committed = await isCommittedDoc(slug);
@@ -104,6 +116,16 @@ export default async function RecruitmentDocPage({ params }: { params: Promise<{
         {!day && !committed && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">legacy</span>
         )}
+        {/* The positive signal. Without it a no-city desk just reads as one
+            that is missing its city. */}
+        {day?.notCitySpecific && (
+          <span
+            className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500 shrink-0"
+            title="This role has no location — remote, national, or a central team"
+          >
+            not city-specific
+          </span>
+        )}
         {siblings.length > 0 && day?.batchId && (
           <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-stone-400 min-w-0">
             <Link href={`/recruitment/batch/${day.batchId}`} className="text-sky-600 hover:underline shrink-0">
@@ -116,7 +138,7 @@ export default async function RecruitmentDocPage({ params }: { params: Promise<{
                 href={`/recruitment/${s.slug}`}
                 className="px-1.5 py-0.5 rounded-full bg-stone-100 hover:bg-sky-50 hover:text-sky-600 truncate"
               >
-                {s.location?.city ?? s.slug}
+                {s.notCitySpecific ? "No city" : s.location?.city ?? s.slug}
               </Link>
             ))}
           </div>
@@ -129,9 +151,33 @@ export default async function RecruitmentDocPage({ params }: { params: Promise<{
             canDelete={canDelete && !committed}
             addDisabledReason={committed ? "Hand-committed doc" : !day ? "Legacy doc — no snapshot to extend" : ""}
             deleteDisabledReason={committed ? "Remove from content/recruitment/ in the repo instead" : ""}
+            notCitySpecific={!!day?.notCitySpecific}
+            cityName={day?.location?.city ?? null}
+            // Fall back to the JD's primary for JDs created before the
+            // multi-location migration backfilled their membership rows.
+            jobCities={day?.job ? (day.job.locations.length > 0 ? day.job.locations : [day.job.location]) : []}
+            canConvert={canUpdate && !!day && !committed && !!day.jobId}
+            convertDisabledReason={
+              committed
+                ? "Hand-committed doc"
+                : !day
+                  ? "Legacy doc — no snapshot to change"
+                  : !day.jobId
+                    ? "Not linked to a JD — a desk with no city still needs one"
+                    : ""
+            }
           />
         </div>
       </header>
+      {/* The desk admits the conversion rather than quietly misrepresenting
+          write-ups that were judged against a location it no longer claims. */}
+      {day?.locationChangedAt && (
+        <p className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-[11px] text-amber-800">
+          This desk&apos;s location changed on{" "}
+          {day.locationChangedAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}. The
+          candidate reports below were written before that and have not been re-scouted.
+        </p>
+      )}
       <iframe src={`/api/recruitment/${slug}?v=${iframeVersion}`} title="Scouting desk" className="block w-full flex-1" />
     </div>
   );
