@@ -1,13 +1,26 @@
 /**
- * The batch runner: a multi-city scouting run, owned by the server.
+ * The batch runner: a scouting run owned by the server rather than the browser.
  *
  * ## Why this exists
  *
- * A multi-city run builds one desk per city, and each desk is built in chunks
- * of CVs — a single Claude call for a 40-CV pool cannot finish inside the
- * 300s function ceiling, which is Vercel's maximum and cannot be raised. An
- * 89-CV run is therefore ~25 minutes of model calls spread over a dozen
- * requests.
+ * A desk is built in chunks of CVs — a single Claude call for a 40-CV pool
+ * cannot finish inside the 300s function ceiling, which is Vercel's maximum
+ * and cannot be raised. An 89-CV run is therefore ~25 minutes of model calls
+ * spread over a dozen requests.
+ *
+ * Chunking is about POOL SIZE, not about cities. Every pool larger than
+ * DESK_CHUNK comes here, whichever screen started it:
+ *
+ *   - a multi-city run, where triage has already split the pile and each city
+ *     gets its own desk (several desks, one plan);
+ *   - an ordinary single-desk run from the upload form (one desk);
+ *   - more CVs added to a desk that already exists (one desk, `slug` preset);
+ *   - the recovery flow finishing a pool a dead run left behind.
+ *
+ * Only a pool that fits in one chunk still goes straight to generateDesk /
+ * appendCandidates, because for those the progress page is pure overhead.
+ * Sending a 50-CV pool down that path is what made it fail every time: one
+ * call, ~40-75k output tokens, killed at 300s with nothing built.
  *
  * That sequence used to be a for-loop in the recruiter's browser, with
  * progress held in a React ref. It had three failure modes, and the 89-CV run
@@ -40,6 +53,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { del } from "@vercel/blob";
 import prisma from "@/lib/prisma";
+import { DESK_CHUNK, chunkForAttempt } from "@/lib/recruitment/chunking";
 import { generateDesk } from "@/lib/recruitment/generateDesk";
 import { appendCandidates, cvCode, type CvRef } from "@/lib/recruitment/scoutingDayOps";
 // Re-exported for orphanCvs, which surveys the temp area on the same code.
@@ -49,15 +63,11 @@ import type { RecruitmentBatchRun } from "@/app/generated/prisma/client";
 type SessionLike = { user?: { id?: string; name?: string | null } | null } | null;
 
 /**
- * CVs per model call when building a desk.
- *
- * Bounded by OUTPUT tokens against the 300s ceiling, not by input size: a
- * rendered candidate costs ~830-1,540 output tokens (measured on real desks)
- * and Opus streams on the order of 50-80 tokens/sec, so eight candidates is
- * roughly 7-12k tokens — comfortably inside 300s once CV extraction is paid
- * for. Raising this is how the Unplaced desk timed out on the first 89-CV run.
+ * Chunk sizing lives in ./chunking, which has no server imports — the upload
+ * form needs DESK_CHUNK to know whether a pool can go straight to a single
+ * generate call. Re-exported so server callers keep reading it from here.
  */
-export const DESK_CHUNK = 8;
+export { DESK_CHUNK, chunkForAttempt };
 
 /**
  * Consecutive failures of the SAME chunk before the run parks itself.
@@ -69,21 +79,6 @@ export const DESK_CHUNK = 8;
  * them was the problem.
  */
 const MAX_ATTEMPTS = 4;
-
-/**
- * How many CVs this attempt should take on.
- *
- * A chunk that cannot finish inside the 300s ceiling will not finish on a
- * second identical try either — the only variable the server controls is how
- * much it bites off. So each consecutive failure halves it, and the CV that is
- * genuinely too heavy to read is isolated instead of taking its neighbours
- * down with it. `attempts` is reset on every commit, so this is always
- * "failures of the chunk in front of us", never a tally for the whole run.
- */
-export function chunkForAttempt(chunkSize: number, attempts: number): number {
-  const n = Math.max(1, attempts);
-  return Math.max(1, Math.ceil(chunkSize / 2 ** (n - 1)));
-}
 
 /**
  * How long a drain's claim on a run is honoured.
@@ -102,6 +97,13 @@ export type BatchDesk = {
   label: string;
   locationId: string | null;
   unplaced: boolean;
+  /**
+   * The ROLE has no city — remote, national, a central team. Distinct from
+   * `unplaced`, which means the city isn't known yet (see generateDesk), and
+   * only reachable on a single-desk run: triage splits CVs BETWEEN cities, so
+   * nothing it produces can be city-less.
+   */
+  notCitySpecific?: boolean;
   /** Set by the first committed chunk; later chunks append to it. */
   slug: string | null;
   /** CVs COMMITTED to the desk. The resume point, and never a guess. */
@@ -344,19 +346,22 @@ async function runOneChunk(run: RecruitmentBatchRun, session: SessionLike): Prom
   const result = desk.slug
     ? await appendCandidates(desk.slug, fresh, session, { keepCvs: true })
     : await generateDesk({
-        // The city is part of the title so the desks are tellable apart in
-        // the listing, where they otherwise sit together.
-        title: `${run.title} — ${desk.label}`,
+        // On a multi-desk run the city is part of the title, so the desks are
+        // tellable apart in the listing where they otherwise sit together. A
+        // lone desk has nothing to be told apart from, and appending its label
+        // would rename it underneath the recruiter — "RP Trials Chennai" is
+        // not improved by becoming "RP Trials Chennai — Chennai".
+        title: plan.desks.length === 1 ? run.title : `${run.title} — ${desk.label}`,
         date: run.matchday ? run.matchday.toISOString().slice(0, 10) : "",
         context: plan.context,
         jobId: run.jobId,
         locationId: desk.locationId,
         unplaced: desk.unplaced,
-        // A batch is a multi-city run by construction: triage splits CVs
-        // BETWEEN cities, so every desk it builds is either a city's desk or
-        // the unplaced pool. "The role has no city" is a single-desk answer
-        // and is never reachable from here.
-        notCitySpecific: false,
+        // Only ever true on a single-desk run. A multi-city plan comes out of
+        // triage, which splits CVs BETWEEN cities, so every desk it builds is
+        // either a city's desk or the unplaced pool — "the role has no city"
+        // is not an answer that split can produce.
+        notCitySpecific: desk.notCitySpecific === true,
         batchId: run.id,
         cvs: fresh,
         session,

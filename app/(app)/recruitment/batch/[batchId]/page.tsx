@@ -10,12 +10,13 @@ import BatchProgress from "../BatchProgress";
 export const dynamic = "force-dynamic";
 
 /**
- * The desks produced by one multi-city run, in one place.
+ * One server-owned scouting run: its progress, and the desks it has produced.
  *
- * A single posting for a multi-location JD draws CVs for every city at once.
- * Triage splits them and each city gets its own desk, because generation is
- * single-city. This is the landing page after such a run — the one link that
- * holds all of them.
+ * Two shapes land here. A multi-city run — one posting for a multi-location JD
+ * draws CVs for every city at once, triage splits them and each city gets its
+ * own desk, because generation is single-city — and a single-desk run whose
+ * pool was too large to scout in one request. Both are chunked by the batch
+ * runner, so both need a link that outlives the tab that started them.
  */
 export default async function RecruitmentBatchPage({
   params,
@@ -56,6 +57,9 @@ export default async function RecruitmentBatchPage({
   }, 0);
   const job = days[0]?.job ?? null;
   const progress = run ? describeRun(run) : null;
+  // From the PLAN while a run is live — it knows about desks that don't exist
+  // yet — and from the rows once there is no plan left to read.
+  const deskCount = progress ? progress.desks.length : days.length;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -65,9 +69,12 @@ export default async function RecruitmentBatchPage({
         </Link>
         <UserSearch className="w-5 h-5 text-sky-500" />
         <h1 className="text-lg font-semibold text-stone-900">
-          {progress && progress.status !== "done"
-            ? `${progress.desks.length} desk${progress.desks.length === 1 ? "" : "s"} from one posting`
-            : `${days.length} desks from one posting`}
+          {/* A lone desk was never "sorted across cities" — it is one pool,
+              built in chunks because of its size. Saying otherwise sends the
+              recruiter looking for the other desks. */}
+          {deskCount === 1
+            ? progress?.title || days[0]?.title || "Scouting run"
+            : `${deskCount} desks from one posting`}
         </h1>
       </div>
       <p className="text-sm text-stone-500 mb-6 leading-relaxed">
@@ -76,10 +83,17 @@ export default async function RecruitmentBatchPage({
             <Link href={`/recruitment/jobs/${job.slug}`} className="text-sky-600 hover:underline">{job.title}</Link>{" "}
           </>
         ) : null}
-        — {totalCandidates} candidate{totalCandidates === 1 ? "" : "s"} sorted across{" "}
-        {progress ? progress.desks.length : days.length}{" "}
-        {(progress ? progress.desks.length : days.length) === 1 ? "city" : "cities"}. Each desk judges its pool against that city&apos;s own
-        language, reference orgs and red flags.
+        — {totalCandidates} candidate{totalCandidates === 1 ? "" : "s"}
+        {deskCount === 1 ? (
+          <>
+            {" "}on one desk, scouted in chunks because the pool is larger than a single scouting call can finish.
+          </>
+        ) : (
+          <>
+            {" "}sorted across {deskCount} cities. Each desk judges its pool against that city&apos;s own language,
+            reference orgs and red flags.
+          </>
+        )}
       </p>
 
       {progress && <BatchProgress initial={progress} />}

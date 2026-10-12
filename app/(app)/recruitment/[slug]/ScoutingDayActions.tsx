@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { Download, FileUp, Loader2, MapPinOff, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { DESK_CHUNK, needsChunking } from "@/lib/recruitment/chunking";
 import { decideMode, describeMode } from "@/lib/recruitment/decideMode";
 import { CV_ACCEPT, cvContentType, validateCvFile } from "@/lib/recruitment/cvFiles";
 
@@ -138,6 +139,7 @@ function AddCvsModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<AddPhase>("idle");
@@ -147,8 +149,19 @@ function AddCvsModal({
 
   // Mirror the server's decision so the recruiter knows what will happen —
   // decideMode() is shared between client and server for exactly this.
-  const previewMode = files.length > 0 ? decideMode(poolSize, files.length) : null;
-  const previewLine = previewMode ? describeMode(previewMode, poolSize, files.length) : null;
+  //
+  // Over DESK_CHUNK the rule doesn't get a say: neither mode fits in one
+  // request at that size, so the server appends it in chunks (see the add-cvs
+  // route). Say so rather than promising a re-scout that cannot happen.
+  const chunked = needsChunking(files.length);
+  const previewMode = files.length === 0 || chunked ? null : decideMode(poolSize, files.length);
+  const previewLine = chunked
+    ? `Adding ${files.length} CVs to a pool of ${poolSize} → more than one scouting call can finish, so the server ` +
+      `builds it in chunks of ${DESK_CHUNK} and scores them on this desk's existing axes. You'll get a progress ` +
+      `link you can close.`
+    : previewMode
+      ? describeMode(previewMode, poolSize, files.length)
+      : null;
 
   const submit = async () => {
     if (busy || files.length === 0) return;
@@ -173,9 +186,13 @@ function AddCvsModal({
       }
 
       setPhase("scouting");
-      setProgress(previewMode === "regenerate"
-        ? "Re-scouting the full pool with fresh axes…"
-        : "Scoring the new candidates on the existing pool's axes…");
+      setProgress(
+        chunked
+          ? "Handing the run to the server…"
+          : previewMode === "regenerate"
+            ? "Re-scouting the full pool with fresh axes…"
+            : "Scoring the new candidates on the existing pool's axes…",
+      );
       const res = await fetch(`/api/recruitment/${slug}/add-cvs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -183,6 +200,12 @@ function AddCvsModal({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Add failed");
+      // A chunked add is a run, not a finished edit: follow it so there is
+      // somewhere to watch it and somewhere to restart it from if it parks.
+      if (json.batchId) {
+        router.push(`/recruitment/batch/${json.batchId}`);
+        return;
+      }
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -203,7 +226,9 @@ function AddCvsModal({
         </div>
 
         <p className="text-[11px] text-stone-500">
-          Whether we append to the existing pool or re-scout the whole thing is decided automatically based on pool size and how many CVs you&apos;re adding.
+          Whether we append to the existing pool or re-scout the whole thing is decided automatically based on pool
+          size and how many CVs you&apos;re adding. More than {DESK_CHUNK} at once is always appended, in chunks, on
+          the server.
         </p>
 
         <input
@@ -247,7 +272,11 @@ function AddCvsModal({
           </button>
         </div>
         {phase === "scouting" && (
-          <p className="text-[11px] text-stone-400">Keep this tab open — this takes a few minutes.</p>
+          <p className="text-[11px] text-stone-400">
+            {chunked
+              ? "The server owns this run — you'll be taken to a progress link you can close and come back to."
+              : "Keep this tab open — this takes a few minutes."}
+          </p>
         )}
       </div>
     </div>

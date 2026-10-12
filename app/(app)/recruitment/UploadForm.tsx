@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { FileUp, Loader2, Sparkles } from "lucide-react";
+import { DESK_CHUNK, needsChunking } from "@/lib/recruitment/chunking";
 import { CV_ACCEPT, cvContentType, validateCvFile } from "@/lib/recruitment/cvFiles";
 import {
   describeNetworkFailure,
@@ -15,6 +16,9 @@ import {
 import TriageReview, { type TriageAssignment, type TriageCity } from "./TriageReview";
 
 type Phase = "idle" | "uploading" | "sorting" | "scouting";
+
+/** Client-minted run id. Starting a run is idempotent on it — see runBatch. */
+const newRunId = () => `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 export type JobPickerRow = {
   id: string;
@@ -141,11 +145,51 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         return;
       }
 
+      // Too big for one call: hand it to the batch runner, which builds it in
+      // chunks of DESK_CHUNK with progress committed per chunk. A 50-CV pool
+      // in a single generate is ~40-75k output tokens — 10-25 minutes of
+      // streaming against a 300s ceiling, so it was killed every time and
+      // came back as "Timed out … the pool is probably too large". The size
+      // was never the recruiter's problem to solve by splitting the pile.
+      if (needsChunking(files.length)) {
+        setPhase("scouting");
+        setProgress("Handing the run to the server…");
+        const runId = (runIdRef.current ||= newRunId());
+        const res = await fetchRetrying("/api/recruitment/batch/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            runId,
+            title: title.trim(),
+            date,
+            context: jobless ? context.trim() : "",
+            jobId: jobless ? null : jobId,
+            desks: [
+              {
+                key: locationIds[0] || "__single__",
+                label: selectedJob?.locations.find((l) => l.id === locationIds[0])?.city || title.trim(),
+                locationId: jobless || notCitySpecific ? null : locationIds[0] || null,
+                // Neither flag is a guess here: a single-desk run has been
+                // told where it is for, and `unplaced` is the triage pool's
+                // answer, which this is not.
+                unplaced: false,
+                notCitySpecific: !jobless && notCitySpecific,
+                cvs,
+              },
+            ],
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || describeServerFailure(res.status, "start the run"));
+        router.push(`/recruitment/batch/${json.batchId}`);
+        return;
+      }
+
       setPhase("scouting");
       setProgress("Scouting the pool — this takes a few minutes…");
       // Deliberately NOT retried: this call writes a desk, and a repeat after
-      // a lost response builds a second one. Multi-city runs don't come
-      // through here at all — they hand the whole plan to the server.
+      // a lost response builds a second one. A pool over DESK_CHUNK never
+      // reaches here — it hands the whole plan to the server instead.
       const res = await fetch("/api/recruitment/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -169,9 +213,14 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
     } catch (err) {
       setError(
         isNetworkError(err)
-          ? // Sorting writes nothing; building a desk does, and by the time the
-            // connection drops the server may already have finished it.
-            describeNetworkFailure(multiCity ? "sort the CVs" : "build the desk", !multiCity)
+          ? // Sorting writes nothing, and neither does handing a plan to the
+            // server — both are safe to repeat. A direct desk build is not: by
+            // the time the connection drops the server may already have
+            // finished it, and "try again" would make a second desk.
+            describeNetworkFailure(
+              multiCity ? "sort the CVs" : needsChunking(files.length) ? "start the run" : "build the desk",
+              !multiCity && !needsChunking(files.length),
+            )
           : err instanceof Error
             ? err.message
             : "Something went wrong",
@@ -202,7 +251,7 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
     setError(null);
     setPhase("scouting");
     setProgress("Handing the run to the server…");
-    const runId = (runIdRef.current ||= `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`);
+    const runId = (runIdRef.current ||= newRunId());
 
     try {
       // Retryable because of `runId`: the server treats a second start with
@@ -404,6 +453,14 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         {files.length > 0 && (
           <p className="mt-1.5 text-xs text-stone-400 truncate">{files.map((f) => f.name).join(" · ")}</p>
         )}
+        {/* A large pool is not a problem to be split by hand — say where it
+            will be built, since the answer changes what the next screen is. */}
+        {needsChunking(files.length) && !multiCity && (
+          <p className="mt-1.5 text-[11px] text-stone-500 leading-relaxed">
+            {files.length} CVs is more than one scouting call can finish, so this run is built on the server in
+            chunks of {DESK_CHUNK}. You&apos;ll get a progress link straight away and can close the tab.
+          </p>
+        )}
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="flex items-center gap-3">
@@ -425,7 +482,11 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         )}
       </div>
       {phase === "scouting" && (
-        <p className="text-xs text-stone-400">Keep this tab open — you&apos;ll be taken to the desk when it&apos;s ready.</p>
+        <p className="text-xs text-stone-400">
+          {needsChunking(files.length)
+            ? "The server owns this run — you'll be taken to a progress link you can close and come back to."
+            : "Keep this tab open — you'll be taken to the desk when it's ready."}
+        </p>
       )}
     </form>
   );

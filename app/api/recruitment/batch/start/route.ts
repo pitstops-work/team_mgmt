@@ -1,10 +1,15 @@
 /**
  * POST /api/recruitment/batch/start
- *   body: { title, date, context, jobId, desks: [{ key, label, locationId, unplaced, cvs }] }
+ *   body: { title, date, context, jobId,
+ *           desks: [{ key, label, locationId, unplaced, notCitySpecific, cvs }] }
  *
- * Hands a whole multi-city run to the server and returns immediately. The
- * browser's only job after this is to watch — it can be closed, and the run
- * carries on (see lib/recruitment/batchRunner.ts for why that matters).
+ * Hands a whole run to the server and returns immediately. The browser's only
+ * job after this is to watch — it can be closed, and the run carries on (see
+ * lib/recruitment/batchRunner.ts for why that matters).
+ *
+ * One desk or several: a multi-city run arrives here with one desk per city
+ * after triage, and a single-desk run whose pool is larger than DESK_CHUNK
+ * arrives here too, because that pool cannot be scouted in one request either.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -34,11 +39,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (cvs.length === 0) continue;
     const bad = invalidCvRef(cvs);
     if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+    const locationId = typeof d?.locationId === "string" && d.locationId ? String(d.locationId) : null;
+    const notCitySpecific = d?.notCitySpecific === true;
     desks.push({
-      key: String(d?.key || d?.locationId || "__unplaced__"),
+      key: String(d?.key || locationId || "__unplaced__"),
       label: String(d?.label || "Unplaced").slice(0, 80),
-      locationId: typeof d?.locationId === "string" && d.locationId ? String(d.locationId) : null,
-      unplaced: d?.unplaced === true || !d?.locationId,
+      locationId,
+      notCitySpecific,
+      // "No city" is not "city unknown", and conflating them is a 400 from
+      // generateDesk, which refuses the two together. So a city-less desk is
+      // only the unplaced pool when the role does have cities to be placed in:
+      // either the client said so outright, or a JD-backed desk arrived with
+      // no city and no answer as to why.
+      unplaced: d?.unplaced === true || (!locationId && !notCitySpecific && !!jobId),
       cvs,
     });
   }
