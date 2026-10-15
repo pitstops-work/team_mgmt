@@ -16,6 +16,7 @@ import { put } from "@vercel/blob";
 import prisma from "@/lib/prisma";
 import { renderScoutingDoc, type ScoutDocData } from "@/lib/recruitment/renderDoc";
 import { itemIds, type AppendItem } from "@/lib/recruitment/scoutingDayOps";
+import { storable } from "@/lib/recruitment/jsonSafe";
 import {
   buildSystemPrompt,
   jobSnapshotFromRow,
@@ -134,8 +135,8 @@ export async function createDeskForCity(opts: {
       batchId,
       matchday,
       title,
-      jobSnapshotJson: snapshot as unknown as never,
-      snapshotJson: data as unknown as never,
+      jobSnapshotJson: storable(snapshot) as unknown as never,
+      snapshotJson: storable(data) as unknown as never,
       renderedBlobUrl: blobUrl,
       createdById: session?.user?.id ?? null,
     },

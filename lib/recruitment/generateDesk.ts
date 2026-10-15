@@ -29,6 +29,7 @@ import {
   type JobSnapshot,
 } from "@/lib/recruitment/systemPrompt";
 import { resolveDayLocation } from "@/lib/recruitment/locations";
+import { storable } from "@/lib/recruitment/jsonSafe";
 import type { CvRef } from "@/lib/recruitment/scoutingDayOps";
 
 type SessionLike = { user?: { id?: string; name?: string | null } | null } | null;
@@ -316,8 +317,8 @@ export async function generateDesk(input: {
       title,
       // Cast: Prisma's JSON input type is picky about our structured shapes; DB
       // just stores JSONB. Same trick as RecruitmentScoutState.stateJson.
-      jobSnapshotJson: snapshot as unknown as never,
-      snapshotJson: data as unknown as never,
+      jobSnapshotJson: storable(snapshot) as unknown as never,
+      snapshotJson: storable(data) as unknown as never,
       renderedBlobUrl: putResult.url,
       createdById: session?.user?.id ?? null,
     },

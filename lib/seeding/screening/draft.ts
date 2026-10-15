@@ -17,6 +17,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createHmac, timingSafeEqual } from "crypto";
 import { get } from "@vercel/blob";
+import AdmZip from "adm-zip";
 import prisma from "@/lib/prisma";
 import { extractCv, UnsupportedCvError } from "@/lib/recruitment/extractCv";
 import { activeDimensions, rubricFor, screeningSettings, type Dimension } from "./rubric";
@@ -55,9 +56,42 @@ export async function fetchDoc(url: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
+/**
+ * Slide text from a .pptx, in slide order. The application portal accepts the
+ * statement of purpose as PowerPoint, and the shared CV extractor would read
+ * any zip as Word and fail on it.
+ */
+export function pptxText(buf: Buffer): string | null {
+  let zip: AdmZip;
+  try {
+    zip = new AdmZip(buf);
+  } catch {
+    return null;
+  }
+  const slides = zip
+    .getEntries()
+    .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e.entryName))
+    .sort((a, b) => Number(a.entryName.match(/(\d+)\.xml$/)![1]) - Number(b.entryName.match(/(\d+)\.xml$/)![1]));
+  if (slides.length === 0) return null;
+  const decode = (t: string) =>
+    t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+  return slides
+    .map((e, i) => {
+      const xml = e.getData().toString("utf8");
+      const paras = xml.split(/<\/a:p>/).map((p) => [...p.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((m) => decode(m[1])).join(""));
+      return `[Slide ${i + 1}]\n${paras.filter((p) => p.trim()).join("\n")}`;
+    })
+    .join("\n\n")
+    .slice(0, DOC_CHARS);
+}
+
 async function readDoc(doc: Doc | undefined): Promise<{ text: string; images: Anthropic.ImageBlockParam[] } | null> {
   if (!doc) return null;
   const buf = await fetchDoc(doc.url);
+  if (buf[0] === 0x50 && buf[1] === 0x4b) {
+    const slides = pptxText(buf);
+    if (slides !== null) return { text: slides, images: [] };
+  }
   try {
     const got = await extractCv(buf, { maxChars: DOC_CHARS });
     return {
