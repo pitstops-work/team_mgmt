@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import { needsChunking } from "@/lib/recruitment/chunking";
 import { generateDesk } from "@/lib/recruitment/generateDesk";
+import { buildFailure } from "@/lib/recruitment/buildFailure";
 
 // POST /api/recruitment/generate
 //   body: { title, date, context, jobId, locationId, unplaced, batchId, cvs }
@@ -38,21 +39,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const result = await generateDesk({
-    title: String(body?.title || "").trim(),
-    date: String(body?.date || "").trim(),
-    context: String(body?.context || "").trim(),
-    jobId: typeof body?.jobId === "string" && body.jobId ? String(body.jobId) : null,
-    // Which of the JD's cities this scouting day is for. Optional: a
-    // single-city JD resolves on its own; a multi-city one requires it.
-    locationId: typeof body?.locationId === "string" && body.locationId ? String(body.locationId) : null,
-    unplaced: body?.unplaced === true,
-    /** The ROLE has no city at all — different from `unplaced`, see generateDesk. */
-    notCitySpecific: body?.notCitySpecific === true,
-    batchId: typeof body?.batchId === "string" && body.batchId ? String(body.batchId).slice(0, 64) : null,
-    cvs,
-    session,
-  });
+  let result: Awaited<ReturnType<typeof generateDesk>>;
+  try {
+    result = await generateDesk({
+      title: String(body?.title || "").trim(),
+      date: String(body?.date || "").trim(),
+      context: String(body?.context || "").trim(),
+      jobId: typeof body?.jobId === "string" && body.jobId ? String(body.jobId) : null,
+      // Which of the JD's cities this scouting day is for. Optional: a
+      // single-city JD resolves on its own; a multi-city one requires it.
+      locationId: typeof body?.locationId === "string" && body.locationId ? String(body.locationId) : null,
+      unplaced: body?.unplaced === true,
+      /** The ROLE has no city at all — different from `unplaced`, see generateDesk. */
+      notCitySpecific: body?.notCitySpecific === true,
+      batchId: typeof body?.batchId === "string" && body.batchId ? String(body.batchId).slice(0, 64) : null,
+      cvs,
+      session,
+    });
+  } catch (e) {
+    const f = buildFailure(e, "build the desk");
+    return NextResponse.json({ error: f.error }, { status: f.status });
+  }
 
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ slug: result.slug });

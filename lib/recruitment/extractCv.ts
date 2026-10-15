@@ -9,6 +9,8 @@
  * stored type is not evidence of anything. The bytes are.
  */
 
+import { storableText } from "@/lib/recruitment/jsonSafe";
+
 const MAX_PAGES = 8;
 const MAX_CHARS = 24_000;
 // Below this the CV is treated as a scan and pages are rasterized for the model.
@@ -139,6 +141,13 @@ export async function extractCv(
   buffer: Buffer,
   opts: { textOnly?: boolean; maxChars?: number } = {},
 ): Promise<ExtractedCv> {
+  const got = await extractAny(buffer, opts);
+  // Text that can't be stored would sail through the model call and kill the
+  // desk at the database write — see lib/recruitment/jsonSafe.ts.
+  return { ...got, text: storableText(got.text) };
+}
+
+async function extractAny(buffer: Buffer, opts: { textOnly?: boolean; maxChars?: number }): Promise<ExtractedCv> {
   const maxChars = opts.maxChars ?? MAX_CHARS;
   switch (sniffCvFormat(buffer)) {
     case "pdf":

@@ -15,6 +15,7 @@ import { del, get, put } from "@vercel/blob";
 import prisma from "@/lib/prisma";
 import { extractCv, UnsupportedCvError } from "@/lib/recruitment/extractCv";
 import { renderScoutingDoc, type ScoutCandidate, type ScoutDocData } from "@/lib/recruitment/renderDoc";
+import { storable } from "@/lib/recruitment/jsonSafe";
 import {
   buildAppendSystemPrompt,
   buildRegenerateSystemPrompt,
@@ -108,7 +109,7 @@ async function persist(slug: string, data: ScoutDocData): Promise<string | null>
   await prisma.recruitmentScoutingDay.update({
     where: { slug },
     data: {
-      snapshotJson: data as unknown as never,
+      snapshotJson: storable(data) as unknown as never,
       ...(url ? { renderedBlobUrl: url } : {}),
     },
   });
