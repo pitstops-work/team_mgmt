@@ -7,7 +7,9 @@ import { Resend } from "resend";
 // password-reset mail, and the only symptom users saw was "invalid credentials".
 type EmailPayload = Parameters<Resend["emails"]["send"]>[0];
 
-const FROM = process.env.RESEND_FROM_EMAIL ?? "noreply@pitstop.app";
+// .trim() because env values on this project have a history of arriving with
+// a trailing newline, and Resend rejects a from address that carries one.
+const FROM = (process.env.RESEND_FROM_EMAIL ?? "noreply@pitstop.app").trim();
 
 // NEXTAUTH_URL is stored with a trailing newline; left in, it lands in the
 // middle of every link we build.

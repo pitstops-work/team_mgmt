@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import prisma from "@/lib/prisma";
 import { type AdapterResult, type ChannelInput, WIKI_BRAND } from "../types";
 
-const FROM = process.env.RESEND_FROM_EMAIL ?? "Pitstops <no-reply@pitstops.local>";
+const FROM = (process.env.RESEND_FROM_EMAIL ?? "Pitstops <no-reply@pitstops.local>").trim();
 
 function getClient(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null;
