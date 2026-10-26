@@ -70,17 +70,33 @@ export async function sendEmail(input: ChannelInput): Promise<AdapterResult> {
     return { channel: "email", status: "skipped", error: "user opted out" };
   }
 
-  const baseUrl =
-    process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://pitstops.local";
+  // NEXTAUTH_URL is stored with a trailing newline — trim it, or it lands in
+  // the middle of every link in the mail.
+  const baseUrl = (
+    process.env.NEXTAUTH_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "https://pitstops.local"
+  )
+    .trim()
+    .replace(/\/+$/, "");
 
   try {
-    await client.emails.send({
+    // Resend reports an API failure in { error } rather than throwing, so
+    // without this check a refused send still returns status "sent".
+    const { error } = await client.emails.send({
       from: input.brand?.from ?? FROM,
       to: user.email,
       subject: input.title,
       html: renderHtml(input, baseUrl),
       text: renderText(input, baseUrl),
     });
+    if (error) {
+      return {
+        channel: "email",
+        status: "failed",
+        error: error.message ?? JSON.stringify(error),
+      };
+    }
     return { channel: "email", status: "sent" };
   } catch (err) {
     return {

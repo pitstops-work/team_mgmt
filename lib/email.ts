@@ -1,5 +1,27 @@
 import { Resend } from "resend";
 
+// Resend answers an API failure (unverified sender domain, bad key) with an
+// { error } payload instead of throwing, so a bare `await send()` resolves and
+// the caller believes the mail went out. Every send goes through sendOrThrow so
+// a refusal is loud. Reason this exists: an unverified domain silently ate every
+// password-reset mail, and the only symptom users saw was "invalid credentials".
+type EmailPayload = Parameters<Resend["emails"]["send"]>[0];
+
+const FROM = process.env.RESEND_FROM_EMAIL ?? "noreply@pitstop.app";
+
+// NEXTAUTH_URL is stored with a trailing newline; left in, it lands in the
+// middle of every link we build.
+const baseUrl = () => (process.env.NEXTAUTH_URL ?? "").trim().replace(/\/+$/, "");
+
+async function sendOrThrow(resend: Resend, payload: EmailPayload) {
+  const { error } = await resend.emails.send(payload);
+  if (error) {
+    throw new Error(
+      `Resend refused the message from ${FROM}: ${error.message ?? JSON.stringify(error)}`,
+    );
+  }
+}
+
 /**
  * First contact with an external grantee organisation. Shares the reset-token
  * machinery — the account exists but has no usable password until they set one
@@ -12,11 +34,11 @@ export async function sendPartnerInviteEmail(
   opts: { orgName: string; invitedBy?: string | null; expiresInDays: number },
 ) {
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const url = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}&invite=1`;
+  const url = `${baseUrl()}/reset-password?token=${token}&invite=1`;
   const from = opts.invitedBy ? ` by ${escapeHtml(opts.invitedBy)}` : "";
 
-  await resend.emails.send({
-    from: "noreply@pitstop.app",
+  await sendOrThrow(resend, {
+    from: FROM,
     to: email,
     subject: `You've been invited to file grant reports for ${opts.orgName}`,
     html: `
@@ -62,10 +84,10 @@ const escapeHtml = (s: string) =>
 
 export async function sendPasswordResetEmail(email: string, token: string) {
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
+  const resetUrl = `${baseUrl()}/reset-password?token=${token}`;
 
-  await resend.emails.send({
-    from: "noreply@pitstop.app",
+  await sendOrThrow(resend, {
+    from: FROM,
     to: email,
     subject: "Reset your Pitstop password",
     html: `
