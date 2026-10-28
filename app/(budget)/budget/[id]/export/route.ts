@@ -42,7 +42,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     resolveRegistryRows(sourceCity),
   ]);
 
-  const registry: RegistryItem[] = registryRows;
+  // Resolve the Working sheet against the costs this budget was GENERATED with,
+  // not today's registry. The live rows supply the item set and their units, but
+  // any key the budget froze in costSnapshot (then costOverrides, which are
+  // budget-specific) wins on value.
+  //
+  // Without this the Working sheet was rebuilt from the current registry while
+  // the Budget sheet's unit-cost cells reverse-link into it, so a registry edit
+  // made after generation silently rewrote an existing budget's export — the
+  // xlsx disagreed with the app (APSA's Creche "Cluster Coordinator" exported at
+  // ₹35,000 against ₹30,000 on screen) and a signed-off budget stopped
+  // reproducing. Keys added to the registry after generation aren't in the
+  // snapshot and keep their live value, which is the only thing available.
+  const frozen: Record<string, number> = {
+    ...((budget.costSnapshot ?? {}) as Record<string, number>),
+    ...((budget.costOverrides ?? {}) as Record<string, number>),
+  };
+  // Budgets created before createBudget started recording the real scale inputs
+  // carry the registry's DEFAULT inp.* values in their snapshot (APSA has
+  // inp.nCLCs=1 against 3 entered). Overlaying those onto the registry would
+  // resolve the Working sheet at the wrong scale, so the budget's own inputs
+  // win for inp.* regardless of snapshot age.
+  for (const [k, v] of Object.entries((budget.inputs?.extraInputs ?? {}) as Record<string, number>)) {
+    if (typeof v === "number" && Number.isFinite(v)) frozen[`inp.${k}`] = v;
+  }
+  const registry: RegistryItem[] = registryRows.map(r =>
+    r.itemKey in frozen ? { ...r, unitCost: frozen[r.itemKey] } : r,
+  );
   const templateByKey = new Map<string, TemplateLike>();
   for (const t of templates) templateByKey.set(t.templateKey, t);
 

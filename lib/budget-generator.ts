@@ -154,8 +154,10 @@ function templateToLine(
   reg: Record<string, number>,
   position: number,
   opts: GeneratorOpts,
+  // Domain selected but sized at zero — emit the line's shape, no money.
+  domainIsZeroScale = false,
 ): GeneratedLine {
-  const fullUnits   = computeUnitCount(t, inp, reg);
+  const fullUnits   = domainIsZeroScale ? 0 : computeUnitCount(t, inp, reg);
   const unitCost    = computeUnitCost(t, inp, reg);
   const allocPct    = 1;
   const rates       = opts.inflationRates ?? DEFAULT_INFLATION_RATES;
@@ -252,6 +254,39 @@ export function buildAugmentedRegistry(
   return augmented;
 }
 
+/** An inputVar that carries no scale information — a literal unit count, a gate
+ *  or a derived product. Never a candidate for a domain's primary scale input. */
+function isScalelessInputVar(v: string): boolean {
+  return v.startsWith("fixed_") || v.startsWith("gate:") || v === "cosTotal";
+}
+
+/**
+ * Each domain's primary scale input, derived from the template set rather than a
+ * hard-coded map, so a new domain needs no code change: it is the scale-bearing
+ * inputVar that the most of that domain's templates are driven by (ties broken
+ * by name for determinism).
+ *
+ * Used to suppress a domain whose scale is zero. Without it, a domain the user
+ * selected but sized at zero still emitted every `fixed_1` / `fixed_12` line at
+ * full cost — APSA carried ₹37.2 L/yr of kitchen electricity, gas, water,
+ * cleaning and maintenance for a kitchen serving zero meals a day.
+ */
+export function primaryScaleInputByDomain(templates: LineTemplate[]): Map<string, string> {
+  const counts = new Map<string, Map<string, number>>();
+  for (const t of templates) {
+    if (t.domain === null || isScalelessInputVar(t.inputVar)) continue;
+    if (!counts.has(t.domain)) counts.set(t.domain, new Map());
+    const c = counts.get(t.domain)!;
+    c.set(t.inputVar, (c.get(t.inputVar) ?? 0) + 1);
+  }
+  const out = new Map<string, string>();
+  for (const [domain, c] of counts) {
+    const best = [...c].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+    if (best) out.set(domain, best[0]);
+  }
+  return out;
+}
+
 export function generateBudgetLines(
   domains: string[],
   inp: BudgetGeneratorInputs,
@@ -265,5 +300,15 @@ export function generateBudgetLines(
     .filter(t => t.domain === null || domains.includes(t.domain))
     .sort((a, b) => a.position - b.position);
 
-  return active.map((t, i) => templateToLine(t, inp, augmented, i, opts));
+  // Domains the user selected but sized at zero: emit their lines at zero
+  // rather than at full fixed cost. The lines are still emitted (so the domain
+  // keeps its sheet and the shape of the budget is visible) but cost nothing.
+  const primary = primaryScaleInputByDomain(active);
+  const zeroedDomains = new Set(
+    [...primary].filter(([, v]) => resolveInputVar(v, inp) === 0).map(([d]) => d),
+  );
+
+  return active.map((t, i) =>
+    templateToLine(t, inp, augmented, i, opts, t.domain !== null && zeroedDomains.has(t.domain)),
+  );
 }

@@ -129,14 +129,17 @@ export function EditRow({ line, vals, setVals, bands, showAlloc, inflationRate, 
 
   const setY1UnitCost = (v: number) => {
     const next: Partial<Line> = { ...vals, y1UnitCost: v };
-    // Re-compute Y2..Y5 from existing cost ratio. Use a conservative inflation
-    // pass: same rate per year as the line's current Y1→Y2 step.
-    const ratio = line.y1UnitCost > 0 ? line.y2UnitCost / line.y1UnitCost : 1;
-    let cur = v;
+    // Re-inflate Y2..Y5 from the line's inflation CATEGORY, exactly as
+    // setCostCategory does. Deriving the step from the stored y2/y1 ratio (the
+    // previous behaviour) was a one-way ratchet: a line already sitting at
+    // ratio 1.0 — an un-inflated row, or any stub whose y1UnitCost was still 0
+    // so the ratio defaulted to 1 — could never regain inflation, and every
+    // later edit re-applied 0%. That silently flat-lined Salary lines whose
+    // costCategory asked for 10%.
+    const rate = inflationRate[vals.costCategory ?? line.costCategory] ?? 0;
     for (const b of bands) {
       if (b.k === 1) continue;
-      cur = Math.round(cur * ratio);
-      next[yCostKey(b.k)] = cur;
+      next[yCostKey(b.k)] = Math.round(v * Math.pow(1 + rate, b.k - 1));
     }
     setVals(next);
   };

@@ -104,6 +104,16 @@ const DOMAIN_LABELS: Record<string, string> = {
   WelfareRights: "Welfare Rights", Creche: "Creche",
 };
 
+/** Sheet carrying the cross-cutting (domain === null) lines in a multi-domain
+ *  workbook — pooled roles, cross.* programme items and the admin block. It is
+ *  a peer of the domain sheets, never a duplicate of their contents, so the
+ *  03.Budget roll-up counts each pooled line exactly once. */
+export const POOLED_LABEL = "Pooled";
+export const POOLED_SHEET = `Budget - ${POOLED_LABEL}`;
+/** Working-plan / workingCellMap key for the pooled group. Deliberately not a
+ *  real domain slug so it can never collide with one. */
+const POOLED_DOMAIN_KEY = "__pooled__";
+
 // ── Template-exact colour palette (extracted from APF Budget Sheet template) ──
 const C = {
   black: "FF000000",
@@ -847,9 +857,12 @@ function emitSubTotalRow(
   const r = ws.addRow([]);
   const rn = r.number;
   r.getCell(2).value = label;
-  const sum = (col: string) => endDataRow >= startDataRow
-    ? { formula: `SUM(${col}${startDataRow}:${col}${endDataRow})` }
-    : (0 as unknown as ExcelJS.CellValue);
+  // An empty section still gets a real SUM() over its (single, blank)
+  // placeholder data row — see the `Math.max(1, …)` in buildBudgetSheet. The
+  // old behaviour wrote a literal 0 here, so a line typed into an empty
+  // section was silently left out of the sub-total, the sheet total and the
+  // 03.Budget roll-up.
+  const sum = (col: string) => ({ formula: `SUM(${col}${startDataRow}:${col}${Math.max(endDataRow, startDataRow)})` });
   r.getCell(9).value = sum("I");
   r.getCell(13).value = sum("M");
   r.getCell(17).value = sum("Q");
@@ -928,7 +941,9 @@ export function buildBudgetSheet(
     cursor += 1; // repeated header
     const startData = cursor;
     const endData = startData + p.data.length - 1;
-    cursor += p.data.length;
+    // An empty section still occupies one blank row so its Sub-total can SUM a
+    // real range the partner can type into (A13).
+    cursor += Math.max(1, p.data.length);
     const subtotalRow = cursor;
     cursor += 1;
     planned[p.key] = { startData, endData, subtotalRow };
@@ -964,6 +979,11 @@ export function buildBudgetSheet(
         programmeRows.push({ line, rowNum: ws.rowCount });
         programmeIdxInDomain++;
       }
+    }
+    // Blank, styled placeholder so an empty section's Sub-total SUMs a real row.
+    if (p.data.length === 0) {
+      const blank = ws.addRow([]);
+      applyDataRowStyling(blank);
     }
 
     const stRow = emitSubTotalRow(ws, "Sub-total", planned[p.key].startData, planned[p.key].endData);
@@ -1352,18 +1372,43 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
 
   const domains = budget.domains.length > 0 ? budget.domains : ["__all__"];
 
-  // Step 1: gather programme lines per domain so we can forecast Working rows.
-  const programmeByDomain = domains.map(domain => {
-    const isAll = domain === "__all__";
-    const filteredLines = isAll
+  // A multi-domain workbook gives cross-cutting (domain === null) lines a sheet
+  // of their own. They used to be repeated on EVERY domain sheet at full units
+  // and cost, while 03.Budget sums each domain sheet's section sub-totals — so
+  // every pooled rupee was counted once per domain (×6 on a six-domain grant,
+  // ₹1.96 Cr of phantom budget on APSA). Rendering them once keeps the six
+  // domain sheets disjoint, so the roll-up adds each line exactly once, and it
+  // also makes a domain sheet show that domain's true cost.
+  //
+  // Single-domain workbooks keep everything on the one sheet: there is nothing
+  // to double count, and no pooled sheet is worth a tab.
+  const isMultiDomain = domains.length > 1;
+  const pooledLines = isMultiDomain ? budget.lines.filter(l => l.domain === null) : [];
+  const linesForDomainSheet = (domain: string) =>
+    domain === "__all__"
       ? budget.lines
-      : budget.lines.filter(l => l.domain === domain || l.domain === null);
-    return {
+      : isMultiDomain
+        ? budget.lines.filter(l => l.domain === domain)
+        : budget.lines.filter(l => l.domain === domain || l.domain === null);
+
+  // Step 1: gather programme lines per domain so we can forecast Working rows.
+  // The pooled group gets its own Working block too — otherwise the same
+  // cross-cutting line appeared in all six blocks, each with its own
+  // independently-editable "× 12 months?" toggle.
+  const programmeByDomain = [
+    ...domains.map(domain => ({
       domainKey: domain,
-      domainLabel: isAll ? budget.name : (DOMAIN_LABELS[domain] ?? domain),
-      lines: filteredLines.filter(l => l.section === "programme"),
-    };
-  });
+      domainLabel: domain === "__all__" ? budget.name : (DOMAIN_LABELS[domain] ?? domain),
+      lines: linesForDomainSheet(domain).filter(l => l.section === "programme"),
+    })),
+    ...(pooledLines.length > 0
+      ? [{
+          domainKey: POOLED_DOMAIN_KEY,
+          domainLabel: POOLED_LABEL,
+          lines: pooledLines.filter(l => l.section === "programme"),
+        }]
+      : []),
+  ];
 
   // Step 2: forecast Working sheet row positions; build a (domain, idx) →
   // unit-cost cell address map that emitDataRow uses for Budget G col.
@@ -1371,12 +1416,9 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
   const workingCellMap = buildWorkingCellMap(workingPlan);
 
   // Step 3: build Budget sheets with cross-sheet references in place.
-  if (domains.length === 1) {
+  if (!isMultiDomain) {
     const domainKey = domains[0];
-    const linesForDomain = domainKey === "__all__"
-      ? budget.lines
-      : budget.lines.filter(l => l.domain === domainKey || l.domain === null);
-    const { map, dataRows } = buildBudgetSheet(wb, "03.Budget", budget.name, linesForDomain, budget.years, domainKey, workingCellMap);
+    const { map, dataRows } = buildBudgetSheet(wb, "03.Budget", budget.name, linesForDomainSheet(domainKey), budget.years, domainKey, workingCellMap);
     metaSheetRows.push({ sheet: "03.Budget", rows: dataRows });
     buildSummarySheet(wb, budget.name, "03.Budget", map);
   } else {
@@ -1384,10 +1426,16 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
     for (const domain of domains) {
       const label = DOMAIN_LABELS[domain] ?? domain;
       const sheetName = `Budget - ${label}`.substring(0, 31);
-      const domainLines = budget.lines.filter(l => l.domain === domain || l.domain === null);
-      const { map, dataRows } = buildBudgetSheet(wb, sheetName, `${label} – ${budget.name}`, domainLines, budget.years, domain, workingCellMap);
+      const { map, dataRows } = buildBudgetSheet(wb, sheetName, `${label} – ${budget.name}`, linesForDomainSheet(domain), budget.years, domain, workingCellMap);
       metaSheetRows.push({ sheet: sheetName, rows: dataRows });
       domainSheets.push({ name: sheetName, map, label });
+    }
+    // The pooled sheet is a peer of the domain sheets in the roll-up, so
+    // 03.Budget sums (domains + pooled) disjoint sheets.
+    if (pooledLines.length > 0) {
+      const { map, dataRows } = buildBudgetSheet(wb, POOLED_SHEET, `${POOLED_LABEL} – ${budget.name}`, pooledLines, budget.years, POOLED_DOMAIN_KEY, workingCellMap);
+      metaSheetRows.push({ sheet: POOLED_SHEET, rows: dataRows });
+      domainSheets.push({ name: POOLED_SHEET, map, label: POOLED_LABEL });
     }
     const masterMap = buildMasterBudgetSheet(wb, budget.name, budget.years, domainSheets);
     buildSummarySheet(wb, budget.name, "03.Budget", masterMap);

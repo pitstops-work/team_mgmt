@@ -429,6 +429,17 @@ export async function createBudget(payload: CreateBudgetPayload) {
   // so future regenerate / scale-up actions reproduce the partner's basis
   // even if the registry has since changed.
   const costSnapshot: Record<string, number> = Object.fromEntries(registryRows.map(r => [r.itemKey, r.unitCost]));
+  // The registry's own `inp.*` rows are DEFAULT scale inputs, so snapshotting
+  // the registry verbatim recorded the defaults instead of what this budget was
+  // actually sized with — APSA stored inp.nCLCs=1 against 3 entered, nClusters=1
+  // against 2, nSettlements=12 against 24, nCreches=0 against 3, nDPs=0 against
+  // 4. Generation itself was unaffected (buildAugmentedRegistry overlays the
+  // real inputs before evaluating), but the persisted snapshot is also the
+  // record the export's Working sheet and the round-trip meta are rebuilt from,
+  // so it has to describe the budget that was actually generated.
+  for (const [k, v] of Object.entries(payload.programmeInputs ?? {})) {
+    if (typeof v === "number" && Number.isFinite(v)) costSnapshot[`inp.${k}`] = v;
+  }
   // Drop overrides for keys not in the registry so we never persist orphan keys.
   const rawOverrides = payload.costOverrides ?? {};
   const costOverrides: Record<string, number> = {};

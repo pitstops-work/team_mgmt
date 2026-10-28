@@ -37,8 +37,13 @@ export const META_SHEET = "00.Meta";
 /** Cell on the Meta sheet holding the JSON blob. */
 export const META_CELL = "A1";
 /** Bump when the on-sheet layout or meta schema changes incompatibly.
- *  v2: MetaLine carries `locations[]` (was sheet+row) + cadence/plannedMonths. */
-export const LAYOUT_VERSION = 2;
+ *  v2: MetaLine carries `locations[]` (was sheet+row) + cadence/plannedMonths.
+ *  v3: multi-domain exports render cross-cutting (domain=null) lines ONCE on a
+ *      "Budget - Pooled" sheet instead of repeating them on every domain sheet,
+ *      and empty sections carry a blank placeholder data row so their Sub-total
+ *      is a real SUM(). The meta schema is unchanged — a v3 pooled line simply
+ *      has a single location — so the importer reads v2 and v3 identically. */
+export const LAYOUT_VERSION = 3;
 
 /** Prefix marking a blank template's placeholder-row templateKey. Such a key
  *  exists only to keep otherwise-identical empty rows distinct in the Meta index
@@ -52,8 +57,9 @@ export const BLANK_TEMPLATE_KEY_PREFIX = "__blank__";
  *  when a cell is unreadable (e.g. an un-opened file whose formulas have no
  *  cached result). */
 export type MetaLine = {
-  /** All (sheet,row) occurrences. A cross-cutting (domain=null) line is repeated
-   *  on every domain sheet in multi-domain exports, so it has >1 location. */
+  /** All (sheet,row) occurrences. Normally one. Workbooks exported before v3
+   *  repeated a cross-cutting (domain=null) line on every domain sheet, so
+   *  those carry >1 location and import still reconciles them. */
   locations: { sheet: string; row: number }[];
   position: number;     // BudgetLine.position
   domain: string | null;
