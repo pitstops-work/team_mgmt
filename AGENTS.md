@@ -14,20 +14,26 @@ root-level `*.html` hubs). To add a public page, drop the HTML under
 
 ## Bengaluru Settlement Needs Map — `/training/settlement-needs-map.html`
 
-The all-zone needs assessment + GBA proposal map with our Pitstops settlement
-mapping superimposed (298 partner-coloured settlement footprints, 28 resource
-centres, drawn under the assessed-site marks). Public; linked from the
-training hub's "Start here" section.
+The all-zone needs assessment + GBA proposal, superimposed on the programme's
+settlement mapping the way the in-app Programme Map (`/map`) shows it: a
+MapLibre GL map (cdnjs, pinned 4.7.1) with OSM streets / Esri satellite
+basemaps, 298 partner-coloured settlement footprints as GeoJSON fill layers,
+and the assessment marks (sites, schools, animal premises, resource centres,
+cluster labels) as DOM markers reusing the page's own CSS. Public; linked
+from the training hub's "Start here" section.
 
-- Self-contained: it embeds a snapshot of the settlement layers from
+- EXTERNAL AUDIENCE: the page copy must never name Pitstops or link into the
+  app — it says "the programme's settlement mapping". Keep it that way when
+  editing.
+- Self-contained data: it embeds a snapshot of the settlement layers from
   `public/data/all.geojson` (dated 28 October 2026) as a `PITSTOPS` JS
-  constant, plus a `CLMAP` alias table mapping assessment cluster spellings to
-  mapping cluster spellings (e.g. Nagarabhavi → Nagarbhavi). DB-drawn polygon
-  edits made after that date are NOT in it.
-- To refresh the overlay after the mapping changes: regenerate the `PITSTOPS`
-  constant from the current `all.geojson` (same shape: `partners`,
-  `settlements` with 5-dp ring coords, `rcs`, `stats`), recompute the spatial
-  matching (assessed-site counts per footprint are point-in-polygon against
-  the sites in the page's `DATA` constant), and update the snapshot date in
-  the footprints note and eyebrow. Everything needed is inside the page
-  itself; there is no separate build script in the repo.
+  constant (GeoJSON geometries, 5-dp coords), plus a `CLMAP` alias table
+  mapping assessment cluster spellings to mapping cluster spellings
+  (e.g. Nagarabhavi → Nagarbhavi). DB-drawn polygon edits after that date are
+  NOT in it.
+- To refresh after the mapping changes: regenerate `PITSTOPS` from the current
+  `all.geojson` (same shape: `partners`, `settlements` with `geom`, `rcs`,
+  `stats`), recompute the spatial matching (assessed-site counts per footprint
+  are point-in-polygon against the sites in the page's `DATA` constant), and
+  update the snapshot date in the footprints note. Everything needed is inside
+  the page itself; there is no separate build script in the repo.
