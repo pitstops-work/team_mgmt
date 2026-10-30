@@ -1,99 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { del } from '@vercel/blob';
-import { parseBudgetExcel } from '@/lib/review/extractDocs';
+import { downloadAndProcess, uploadImagesToBlob } from '@/lib/review/processFiles';
+import type { ImageDoc } from '@/lib/review/processFiles';
 import { buildSystemPromptFromCaps } from '@/lib/review/rulebook';
 import { sql } from '@/lib/review/db';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+// Matches the orchestrator routes. A full note at high effort does not finish
+// inside 120s, and the old ceiling cut the stream off mid-document.
+export const maxDuration = 300;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-async function extractPdfText(buffer: Buffer): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (buf: Buffer) => Promise<{ text: string }>;
-  const data = await pdfParse(buffer);
-  return data.text;
-}
-
-async function extractDocxText(buffer: Buffer): Promise<string> {
-  const mammoth = await import('mammoth');
-  const result = await mammoth.extractRawText({ buffer });
-  return result.value;
-}
-
-async function extractPptxText(buffer: Buffer): Promise<string> {
-  const officeParser = await import('officeparser');
-  const result = await (officeParser.parseOffice as any)(buffer, { outputErrorToConsole: false });
-  return typeof result === 'string' ? result : '';
-}
-
-type TextDoc = { name: string; text: string };
-type ImageDoc = { name: string; mediaType: 'image/jpeg' | 'image/png'; base64: string };
-type PdfDoc = { name: string; base64: string };
-
-async function processFile(file: { name: string; buffer: Buffer }): Promise<{ text?: TextDoc; image?: ImageDoc; pdf?: PdfDoc; budget?: string }> {
-  const buffer = file.buffer;
-  const name = file.name.toLowerCase();
-
-  if (name.endsWith('.pdf')) {
-    try {
-      const text = await extractPdfText(buffer);
-      const isBlank = text.trim().length < 100;
-      if (!isBlank) {
-        return { text: { name: file.name, text: text.slice(0, 50000) } };
-      }
-      // Scanned PDF — send directly to Claude as a document block
-      return { pdf: { name: file.name, base64: buffer.toString('base64') } };
-    } catch (e: any) {
-      console.error('PDF extraction error:', e.message);
-      // Fall back to sending scanned PDF directly to Claude
-      return { pdf: { name: file.name, base64: buffer.toString('base64') } };
-    }
-  }
-
-  if (name.endsWith('.docx') || name.endsWith('.doc')) {
-    try {
-      const text = await extractDocxText(buffer);
-      return { text: { name: file.name, text: text.slice(0, 50000) } };
-    } catch {
-      return { text: { name: file.name, text: '[Could not extract text from Word document]' } };
-    }
-  }
-
-  if (name.endsWith('.pptx') || name.endsWith('.ppt')) {
-    try {
-      const text = await extractPptxText(buffer);
-      return { text: { name: file.name, text: text.slice(0, 50000) } };
-    } catch {
-      return { text: { name: file.name, text: '[Could not extract text from PowerPoint]' } };
-    }
-  }
-
-  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
-    try {
-      const budget = parseBudgetExcel(buffer);
-      return { budget: `=== BUDGET FILE: ${file.name} ===\n${budget.raw}` };
-    } catch {
-      return { text: { name: file.name, text: '[Could not parse Excel file]' } };
-    }
-  }
-
-  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) {
-    return { image: { name: file.name, mediaType: 'image/jpeg', base64: buffer.toString('base64') } };
-  }
-
-  if (name.endsWith('.png')) {
-    return { image: { name: file.name, mediaType: 'image/png', base64: buffer.toString('base64') } };
-  }
-
-  if (name.endsWith('.txt') || name.endsWith('.md')) {
-    return { text: { name: file.name, text: buffer.toString('utf-8').slice(0, 20000) } };
-  }
-
-  return {};
-}
+// Document extraction lives in lib/review/processFiles.ts and is shared with the
+// orchestrator. This route used to carry its own copy, which silently drifted:
+// it truncated every document at 50,000 characters and flattened Word tables.
 
 export async function POST(req: NextRequest) {
   try {
@@ -226,21 +147,13 @@ export async function POST(req: NextRequest) {
     // Download and process files from Vercel Blob URLs
     const blobUrlsRaw = formData.get('blobUrls') as string;
     const blobUrls: string[] = blobUrlsRaw ? JSON.parse(blobUrlsRaw) : [];
-    const textDocs: TextDoc[] = [];
-    const imageDocs: ImageDoc[] = [];
-    const pdfDocs: PdfDoc[] = [];
-    const budgetParts: string[] = [];
-
-    await Promise.all(blobUrls.map(async (url) => {
-      const rawName = decodeURIComponent(url.split('/').pop()?.split('?')[0] || 'file');
-      const name = rawName.replace(/^\d+-/, '');
-      const res = await fetch(url);
-      const buffer = Buffer.from(await res.arrayBuffer());
-      const result = await processFile({ name, buffer });
-      if (result.text) textDocs.push(result.text);
-      if (result.image) imageDocs.push(result.image);
-      if (result.pdf) pdfDocs.push(result.pdf);
-      if (result.budget) budgetParts.push(result.budget);
+    const {
+      textDocs, pdfDocs, budgetParts, extractedImages, warnings: corpusWarnings,
+    } = await downloadAndProcess(blobUrls);
+    const imageDocs: ImageDoc[] = (await uploadImagesToBlob(extractedImages)).map(img => ({
+      name: img.name,
+      mediaType: img.mediaType,
+      base64: img.buffer.toString('base64'),
     }));
 
     // Build the text portion of the message
@@ -291,6 +204,12 @@ ${meta.staffNotes || '[Not provided]'}`;
 
     const budgetBlock = budgetParts.length > 0 ? budgetParts.join('\n\n') : 'BUDGET FILE: [Not provided]';
 
+    // Tell the model what never arrived, so it cannot mistake a pipeline failure
+    // for a fact the documents omit.
+    const warningsBlock = corpusWarnings.length > 0
+      ? `\n=== SOURCE CORPUS IS INCOMPLETE ===\n${corpusWarnings.map(w => `- ${w}`).join('\n')}\nTreat the affected material as unavailable, not as absent from the source. Leave the fields it would have supplied as [to be filled], and do not invent, infer, estimate or round any figure it would have carried.\n`
+      : '';
+
     const imageNote = imageDocs.length > 0
       ? `\nIMAGES PROVIDED: ${imageDocs.map(i => i.name).join(', ')} — read these carefully for financial data, tables, org charts, or other relevant information.`
       : '';
@@ -305,7 +224,7 @@ ${staffNotesBlock}
 ${structuredBlocks ? `\n${structuredBlocks}\n` : ''}
 ${docsBlock}
 
-${budgetBlock}${imageNote}${pdfNote}
+${budgetBlock}${warningsBlock}${imageNote}${pdfNote}
 
 ${meta.docType === 'programme_design'
   ? 'Draft the complete internal programme design note now. Follow the template structure exactly. Where a figure or fact is not in the documents, write "[to be filled]" in that field only — do not add any commentary, summary of gaps, or readiness assessment.'
@@ -360,9 +279,13 @@ Critical requirements:
       async start(controller) {
         try {
           const anthropicStream = client.messages.stream({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 16000,
+            model: 'claude-opus-5-5',
+            // A full note with annexures exceeds 16k output tokens; this request
+            // streams, so the larger ceiling costs nothing until it is used.
+            max_tokens: 64000,
             system: systemPrompt,
+            thinking: { type: 'adaptive' },
+            output_config: { effort: 'high' },
             messages: [{ role: 'user', content }],
           });
 
@@ -375,9 +298,10 @@ Critical requirements:
           controller.enqueue(encoder.encode(`\n\n[ERROR: ${err.message}]`));
         } finally {
           controller.close();
-          if (blobUrls.length > 0) {
-            await del(blobUrls).catch(() => {});
-          }
+          // The uploaded source documents are NOT deleted here. They used to be,
+          // and grant_note_metadata.source_documents still points at them — so
+          // every later re-ingest, refresh or export read dead URLs. Blob cleanup
+          // belongs to whatever deletes the note, not to one draft run.
         }
       },
     });

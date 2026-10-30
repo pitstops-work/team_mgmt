@@ -11,8 +11,15 @@ export type IngestResult = {
   note_id: string;
   doc_url: string;
   doc_name: string;
-  status: 'inserted' | 'skipped_existing' | 'no_text' | 'unsupported';
+  /**
+   * `parse_failed` means the document was fetched but yielded nothing usable —
+   * a spreadsheet whose layout we couldn't read, say. Distinct from `no_text`
+   * (genuinely empty) and from an error, which the route reports separately.
+   */
+  status: 'inserted' | 'skipped_existing' | 'no_text' | 'unsupported' | 'parse_failed';
   chunks: number;
+  /** Extraction problems. Non-empty means the corpus is incomplete. */
+  warnings: string[];
 };
 
 function fileNameFromUrl(url: string): string {
@@ -29,20 +36,42 @@ async function alreadyIngested(noteId: string, docUrl: string): Promise<boolean>
   return rows.length > 0;
 }
 
-async function extractText(name: string, buffer: Buffer): Promise<string> {
+async function extractText(
+  name: string,
+  buffer: Buffer,
+): Promise<{ text: string; warnings: string[]; parseFailed: boolean }> {
   // Excel: structured raw text via parseBudgetExcel (same as the rest of the portal).
   if (/\.(xlsx|xls)$/i.test(name)) {
     try {
       const budget = parseBudgetExcel(buffer);
-      return budget.raw || '';
-    } catch {
-      return '';
+      const d = budget.diagnostics;
+      if (!d.ok) {
+        console.error(
+          `[ingest] BUDGET PARSE FAILED for ${name} — sheets: [${d.sheetsSeen.join(', ')}] — ${d.warnings.join('; ')}`,
+        );
+      }
+      return {
+        // Store the text either way: when the parse failed it is the loud
+        // "could not be read" block, which is what retrieval should surface.
+        text: budget.raw || '',
+        warnings: d.ok
+          ? d.warnings
+          : [`Budget file "${name}" yielded no figures. Sheets found: ${d.sheetsSeen.join(', ') || '(none)'}. ${d.warnings.join(' ')}`],
+        parseFailed: !d.ok,
+      };
+    } catch (e) {
+      const msg = `Could not parse Excel file "${name}": ${(e as Error).message}`;
+      console.error('[ingest]', msg);
+      return { text: '', warnings: [msg], parseFailed: true };
     }
   }
 
   const result = await processFileFromBuffer({ name, buffer });
-  if (result.text) return result.text.text;
-  return '';
+  return {
+    text: result.text?.text ?? '',
+    warnings: result.warnings ?? [],
+    parseFailed: false,
+  };
 }
 
 export async function ingestSourceDoc(args: {
@@ -54,21 +83,29 @@ export async function ingestSourceDoc(args: {
   const docName = args.docName || fileNameFromUrl(docUrl);
 
   if (await alreadyIngested(noteId, docUrl)) {
-    return { note_id: noteId, doc_url: docUrl, doc_name: docName, status: 'skipped_existing', chunks: 0 };
+    return { note_id: noteId, doc_url: docUrl, doc_name: docName, status: 'skipped_existing', chunks: 0, warnings: [] };
   }
 
   const res = await fetch(docUrl);
   if (!res.ok) throw new Error(`Failed to fetch ${docUrl}: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
 
-  const text = await extractText(docName, buffer);
+  const { text, warnings, parseFailed } = await extractText(docName, buffer);
   if (!text.trim()) {
-    return { note_id: noteId, doc_url: docUrl, doc_name: docName, status: 'no_text', chunks: 0 };
+    console.warn(`[ingest] no text extracted from ${docName}`);
+    return {
+      note_id: noteId, doc_url: docUrl, doc_name: docName,
+      status: parseFailed ? 'parse_failed' : 'no_text', chunks: 0,
+      warnings: warnings.length > 0 ? warnings : [`No text could be extracted from "${docName}".`],
+    };
   }
 
   const chunks = chunkText(text);
   if (chunks.length === 0) {
-    return { note_id: noteId, doc_url: docUrl, doc_name: docName, status: 'no_text', chunks: 0 };
+    return {
+      note_id: noteId, doc_url: docUrl, doc_name: docName,
+      status: parseFailed ? 'parse_failed' : 'no_text', chunks: 0, warnings,
+    };
   }
 
   const embeddings = await embedTexts(chunks, 'document');
@@ -89,7 +126,11 @@ export async function ingestSourceDoc(args: {
     `;
   }
 
-  return { note_id: noteId, doc_url: docUrl, doc_name: docName, status: 'inserted', chunks: chunks.length };
+  console.log(`[ingest] ${docName} → ${chunks.length} chunk(s), ${text.length} chars${parseFailed ? ' (PARSE FAILED — stored the failure notice)' : ''}`);
+  return {
+    note_id: noteId, doc_url: docUrl, doc_name: docName,
+    status: parseFailed ? 'parse_failed' : 'inserted', chunks: chunks.length, warnings,
+  };
 }
 
 function kindFromName(name: string): string {

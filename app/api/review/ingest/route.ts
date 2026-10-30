@@ -29,5 +29,12 @@ export async function POST(req: Request) {
     }
   }
 
-  return ok({ results, errors });
+  // Hoisted so a caller doesn't have to walk per-document results to learn that
+  // a source document contributed nothing.
+  const warnings = results.flatMap(r => r.warnings);
+  const unusable = results
+    .filter(r => r.status === 'parse_failed' || r.status === 'no_text')
+    .map(r => r.doc_name);
+
+  return ok({ results, errors, warnings, unusable });
 }

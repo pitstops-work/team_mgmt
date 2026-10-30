@@ -22,8 +22,15 @@ import { tryFastPath } from './fastPath';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-const MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 16000;
+const MODEL = 'claude-opus-5-5';
+// A full grant note with its annexures runs well past the old 16k ceiling, and
+// hitting the ceiling truncates the last annexure mid-table with no error. These
+// calls stream, so a large ceiling costs nothing until it is used.
+const MAX_TOKENS = 64000;
+const REPAIR_MAX_TOKENS = 16000;
+// Effort defaults to `medium` on this model; drafting an approval note from a
+// hundred-page application earns `high`.
+const EFFORT = 'high' as const;
 const RAG_TOP_K = 8;
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -301,6 +308,46 @@ async function fetchBudgetComparisonBlock(
   ].join('\n');
 }
 
+/**
+ * The one place that talks to the model. Streams, because a full note can run to
+ * tens of thousands of output tokens and a non-streaming request that large
+ * trips the SDK's HTTP timeout.
+ *
+ * Deliberately not using `eager_input_streaming`: it moves input validation to
+ * this side and can hand back a silently truncated tool input. Silent truncation
+ * is the failure mode this pipeline is being fixed for.
+ */
+async function callModel(
+  systemPrompt: string,
+  userContent: any[],
+  maxTokens: number,
+): Promise<Anthropic.Message> {
+  const stream = client.messages.stream({
+    model: MODEL,
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    thinking: { type: 'adaptive' },
+    output_config: { effort: EFFORT },
+    tools: EDITOR_TOOLS,
+    messages: [{ role: 'user', content: userContent }],
+  });
+  const msg = await stream.finalMessage();
+
+  // Both of these used to pass through silently as a short or empty document.
+  if (msg.stop_reason === 'max_tokens') {
+    throw new Error(
+      `The model hit the ${maxTokens}-token output ceiling before finishing the document. ` +
+      'Nothing was applied. Narrow the turn (use a section filter) or raise MAX_TOKENS.',
+    );
+  }
+  if (msg.stop_reason === 'refusal') {
+    throw new Error(
+      `The model declined this request${msg.stop_details && 'category' in msg.stop_details ? ` (${msg.stop_details.category})` : ''}. Nothing was applied.`,
+    );
+  }
+  return msg;
+}
+
 async function fetchSourceCorpusForInitialDraft(noteId: string): Promise<any[]> {
   // Only used on the initial-draft turn — sends the full corpus with cache_control.
   const metaRows = await sql`
@@ -311,12 +358,13 @@ async function fetchSourceCorpusForInitialDraft(noteId: string): Promise<any[]> 
     : [];
   console.log(`[review-ingest] initial-draft corpus: ${urls.length} source_documents url(s)`);
   if (urls.length === 0) return [];
-  const { textDocs, imageDocs, pdfDocs, budgetParts, extractedImages } = await downloadAndProcess(urls, true);
+  const { textDocs, imageDocs, pdfDocs, budgetParts, extractedImages, warnings } =
+    await downloadAndProcess(urls, true);
   // Persist source figures (drawings, rasterized PDF pages, uploaded images) to
   // blob so the model can embed them via <img> and the exporter can fetch them later.
   const uploadedImages = await uploadImagesToBlob(extractedImages);
   console.log(`[review-ingest] uploaded ${uploadedImages.length} image(s) to blob; with URL: ${uploadedImages.filter(i => i.blobUrl).length}`);
-  const content = buildMessageContent(textDocs, imageDocs, pdfDocs, budgetParts, uploadedImages);
+  const content = buildMessageContent(textDocs, imageDocs, pdfDocs, budgetParts, uploadedImages, warnings);
   // Attach cache_control to the last block so the whole corpus is cached.
   if (content.length > 0) {
     content[content.length - 1] = {
@@ -614,13 +662,7 @@ export async function runOrchestrator(input: OrchestrateInput): Promise<Orchestr
   const working: DocumentState = JSON.parse(JSON.stringify(before));
   let clarification: { message: string; suggested_scope?: string[] } | undefined;
 
-  const msg = await client.messages.create({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    system: systemPrompt,
-    tools: EDITOR_TOOLS,
-    messages: [{ role: 'user', content: userContent }],
-  });
+  const msg = await callModel(systemPrompt, userContent, MAX_TOKENS);
   totalInput += msg.usage.input_tokens;
   totalOutput += msg.usage.output_tokens;
 
@@ -657,13 +699,7 @@ export async function runOrchestrator(input: OrchestrateInput): Promise<Orchestr
         'Emit only the tool calls needed to fix the listed issues.',
       ].join('\n') },
     ];
-    const repair = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4000,
-      system: systemPrompt,
-      tools: EDITOR_TOOLS,
-      messages: [{ role: 'user', content: repairUserContent }],
-    });
+    const repair = await callModel(systemPrompt, repairUserContent, REPAIR_MAX_TOKENS);
     totalInput += repair.usage.input_tokens;
     totalOutput += repair.usage.output_tokens;
     for (const block of repair.content) {
