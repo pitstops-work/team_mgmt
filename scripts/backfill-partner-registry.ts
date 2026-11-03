@@ -172,7 +172,13 @@ async function main() {
   }
 
   console.log(`\n── grant_notes (${notes.length} notes, ${byName.size} distinct unlinked spellings) ──`);
-  const unresolved: { name: string; count: number; candidates: string[] }[] = [];
+  const unresolved: {
+    name: string;
+    count: number;
+    candidates: string[];
+    /** consortium rows need a different instruction from unknown ones. */
+    kind: "unknown" | "consortium";
+  }[] = [];
   let linkedNotes = 0;
 
   for (const [name, rows] of [...byName.entries()].sort()) {
@@ -205,11 +211,12 @@ async function main() {
         return pk.length >= 4 && key.includes(pk);
       });
       if (mentioned.length > 1) {
-        console.log(
-          `  CONSORTIUM  "${name}" × ${rows.length} — names ${mentioned.map((m) => m.name).join(", ")}; ` +
-            `one note cannot belong to several partners`,
-        );
-        unresolved.push({ name, count: rows.length, candidates: [] });
+        unresolved.push({
+          name,
+          count: rows.length,
+          candidates: mentioned.map((m) => m.name),
+          kind: "consortium",
+        });
         continue;
       }
 
@@ -225,7 +232,12 @@ async function main() {
         console.log(`  ${apply ? "alias +    " : "would alias"} "${name}" → ${target.name}`);
         match = { partner: target, matchedVia: "alias" as const };
       } else {
-        unresolved.push({ name, count: rows.length, candidates: candidates.map((c) => c.name) });
+        unresolved.push({
+          name,
+          count: rows.length,
+          candidates: candidates.map((c) => c.name),
+          kind: "unknown",
+        });
         continue;
       }
     }
@@ -244,9 +256,17 @@ async function main() {
   if (unresolved.length) {
     console.log(`\n── needs a human (${unresolved.length} spellings) ──`);
     for (const u of unresolved) {
-      const hint = u.candidates.length
-        ? `  — looks like: ${u.candidates.join(", ")} (re-run with --apply-aliases, or --alias "${u.name}=${u.candidates[0]}")`
-        : `  — no registry partner resembles this; add one in Settings → Partners, then --alias "${u.name}=<name>"`;
+      // A consortium row must never be offered an alias: the whole point is
+      // that no single partner owns the note. Say what it names and leave it.
+      const hint =
+        u.kind === "consortium"
+          ? `  — names ${u.candidates.join(", ")}; a note cannot belong to several partners. ` +
+            `Leave it unlinked, or split it per partner.`
+          : u.candidates.length
+            ? `  — looks like: ${u.candidates.join(", ")} (re-run with --apply-aliases, or --alias "${u.name}=${u.candidates[0]}")`
+            : `  — no registry partner resembles this. If it is a misspelling or an old name, ` +
+              `--alias "${u.name}=<partner>"; if it is a partner we simply don't have, ` +
+              `add it in Settings → Partners first.`;
       console.log(`  "${u.name}" × ${u.count}${hint}`);
     }
   }
