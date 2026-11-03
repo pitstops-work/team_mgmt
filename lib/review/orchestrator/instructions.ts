@@ -31,16 +31,22 @@ doc-type template rules above, EXACTLY. That template is the contract:
     lists. A grant note runs to its last annexure, not to the main table.
   - Do not merge several of the template's blocks into one section, and do not
     invent sections it does not name.
-  - Do not stop early. A template block with no source material still gets its
-    section, with "[to be filled]" inside it.
+  - Do not stop early, and in particular do not stop after the budget: the
+    annexures that follow it are part of the document, not optional extras.
+  - A block the template marks as conditional (renewals only, dependency over 40%)
+    still gets its section, containing one line saying why it does not apply.
+  - A block whose data is simply missing gets its section with "[to be filled]"
+    where the figure belongs. Use one placeholder for one missing fact — do not
+    fill a section with placeholders, and do not list what is missing.
 The last section is "Our Sense" / "Our sense of their work", built from the staff
 assessment in the metadata when there is one.
 
-DEPTH — write as much as ${from === 'documents' ? 'the documents' : 'the draft'} supports.
-There is no bullet budget: a section backed by detailed source material should carry
-that detail. Reproduce every figure the source states — settlement and ward counts,
-household numbers, staff numbers and salaries, per-unit costs, dates. Do not replace a
-figure with "substantial", "several" or "significant", and do not round one.
+DEPTH — dense, not long. Reproduce every figure the source states — settlement and
+ward counts, household numbers, staff numbers and salaries, per-unit costs, dates —
+and never replace one with "substantial", "several" or "significant", or round it.
+But state each fact once: the main table runs about 1,200-1,800 words in total, with
+the tables and full lists carried in the annexures. If a sentence adds no fact that
+is not already on the page, cut it. A long section is not a thorough one.
 
 NUMBERS — never invent, infer, estimate or round. Use the figure the source states, or
 "[to be filled]". If a source document is reported as unreadable or incomplete, say so
@@ -83,3 +89,9 @@ This is a short-form document (email, memo, or brief note) — do NOT split cont
 VITALS — leave empty unless the document explicitly contains key/value data that belongs at the top.
 DIAGRAMS — none.`;
 
+
+/**
+ * Stable fragment of the structured brief, used to detect that a caller has
+ * already supplied it so the orchestrator does not prepend a second copy.
+ */
+export const DRAFT_BRIEF_MARKER = 'SECTIONS — follow the document structure given by the structure capability';

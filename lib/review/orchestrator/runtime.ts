@@ -19,6 +19,7 @@ import { snapshotVersion } from '../versions';
 import { embedQuery, toPgVector } from '../embedding';
 import { downloadAndProcess, buildMessageContent, uploadImagesToBlob } from '../processFiles';
 import { tryFastPath } from './fastPath';
+import { structuredDraftInstruction, DRAFT_BRIEF_MARKER } from './instructions';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
@@ -96,7 +97,7 @@ async function logInstructionAndDetect(args: {
         (note_id, version_id, instruction, normalized, capabilities_used)
       VALUES
         (${args.noteId}::uuid,
-         ${args.versionId ? `${args.versionId}::uuid` as any : null},
+         ${args.versionId ?? null}::uuid,
          ${args.instruction}, ${normalized}, ${args.capabilitiesUsed as any})
     `;
   } catch (e: any) {
@@ -626,7 +627,28 @@ export async function runOrchestrator(input: OrchestrateInput): Promise<Orchestr
   if (initialDraft || input.useFullCorpus) {
     corpusContent = await fetchSourceCorpusForInitialDraft(input.noteId);
   } else {
+    // The original instruction, not the brief below — the brief would swamp the
+    // embedding and retrieve by boilerplate instead of by what was asked.
     chunks = await retrieveChunks(input.noteId, input.instruction);
+  }
+
+  // The structured brief belongs to the initial-draft *turn*, not to one route.
+  // /transform passed it; the /grant-notes/draft wizard calls /orchestrate with
+  // its own intent text and used to get no brief at all, so the same note came
+  // out shaped differently depending on which screen started it. Applying it
+  // here covers every entry point, now and later.
+  let instruction = input.instruction;
+  if (initialDraft && !instruction.includes(DRAFT_BRIEF_MARKER)) {
+    const dtRows = await sql`
+      SELECT sections_mode FROM doc_types WHERE key = ${before.doc_type}
+    `.catch(() => [] as any[]);
+    const singleSection = (dtRows as any[])[0]?.sections_mode === 'single_section';
+    if (!singleSection) {
+      const brief = structuredDraftInstruction(corpusContent.length > 0 ? 'documents' : 'draft');
+      instruction = instruction.trim()
+        ? `${brief}\n\nADDITIONAL INSTRUCTION FOR THIS TURN:\n${instruction.trim()}`
+        : brief;
+    }
   }
 
   const systemPrompt = composeSystemPrompt({ caps, state: before, sectionFilter: input.sectionFilter });
@@ -647,7 +669,7 @@ export async function runOrchestrator(input: OrchestrateInput): Promise<Orchestr
   }
   userTextParts.push('');
   userTextParts.push('INSTRUCTION:');
-  userTextParts.push(input.instruction);
+  userTextParts.push(instruction);
 
   const userContent: any[] = [];
   for (const c of corpusContent) userContent.push(c);
