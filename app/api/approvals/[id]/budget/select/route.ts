@@ -12,6 +12,7 @@ import { auth } from '@/lib/auth';
 import { isSuperAdmin } from '@/lib/roleGuard';
 import prisma from '@/lib/prisma';
 import { getAssembly, getPartnerData, upsertBudgetSnapshot } from '@/lib/approvals/repo';
+import { budgetMismatchReason } from '@/lib/partners/approvalScope';
 import { PartnerData } from '@/lib/approvals/schema';
 import { deriveBudget } from '@/lib/approvals/budget/derive';
 
@@ -48,6 +49,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!partnerParsed.success) {
     return NextResponse.json({ error: 'Partner data is not schema-valid.' }, { status: 400 });
   }
+
+  // The approval is about one organisation and the budget belongs to one
+  // grantee; they must be the same. Filtering the picker is not enough — this
+  // route takes a budget_id from the client.
+  const mismatch = await budgetMismatchReason(asm.org_id, parsed.data.budget_id);
+  if (mismatch) return NextResponse.json({ error: mismatch }, { status: 409 });
 
   const budget = await prisma.budget.findUnique({
     where: { id: parsed.data.budget_id },

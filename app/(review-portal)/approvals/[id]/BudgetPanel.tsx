@@ -78,6 +78,9 @@ export default function BudgetPanel({ assemblyId }: { assemblyId: string }) {
   const router = useRouter();
   const [state, setState] = useState<Resp | null>(null);
   const [budgets, setBudgets] = useState<BudgetOption[]>([]);
+  // Whose budgets the picker is showing. null = this approval's org predates
+  // the partner registry, so the list could not be narrowed.
+  const [scopedTo, setScopedTo] = useState<string | null>(null);
   const [picked, setPicked] = useState('');
   const [linking, setLinking] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -86,12 +89,13 @@ export default function BudgetPanel({ assemblyId }: { assemblyId: string }) {
   const load = useCallback(async () => {
     const [r1, r2] = await Promise.all([
       fetch(`/api/approvals/${assemblyId}/budget`),
-      fetch('/api/budgets'),
+      fetch(`/api/budgets?forApproval=${assemblyId}`),
     ]);
     if (r1.ok) setState(await r1.json());
     if (r2.ok) {
       const d = await r2.json();
       setBudgets(Array.isArray(d) ? d : d.budgets || []);
+      setScopedTo(d?.scoped && d?.partner?.name ? d.partner.name : null);
     }
   }, [assemblyId]);
 
@@ -178,6 +182,16 @@ export default function BudgetPanel({ assemblyId }: { assemblyId: string }) {
               {linking ? 'Linking…' : 'Link budget'}
             </button>
           </div>
+          {scopedTo ? (
+            <div className="text-xs text-stone-500 mt-2">
+              Showing {scopedTo}&apos;s budgets only{budgets.length === 0 ? ' — none on file yet' : ''}.
+            </div>
+          ) : (
+            <div className="text-xs text-amber-700 mt-2">
+              This approval&apos;s organisation isn&apos;t linked to the partner registry, so the list
+              isn&apos;t narrowed to one grantee. Check the budget belongs to this organisation.
+            </div>
+          )}
           {error && <div className="text-xs text-red-600 mt-2">{error}</div>}
         </div>
       </div>

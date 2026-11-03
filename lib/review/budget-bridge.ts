@@ -352,13 +352,24 @@ function escapeHtml(s: string): string {
 export async function listUserBudgets(
   viewerUserId: string,
   domainKey?: string,
-): Promise<Array<{ id: string; name: string; city: string }>> {
+  /**
+   * Restrict to budgets belonging to these grant relationships
+   * (GrantPartner.ids). Used by the approvals budget picker so it can only
+   * offer budgets for the grantee the approval is actually about. A budget with
+   * no grantee assigned is still offered — 51 of 82 predate the registry link,
+   * and hiding them would wall reviewers out of their own historical work.
+   */
+  grantPartnerIds?: string[],
+): Promise<Array<{ id: string; name: string; city: string; grantPartnerId: string | null }>> {
   const rows = await prisma.budget.findMany({
     where: {
       partnerId: viewerUserId,
       ...(domainKey ? { domains: { has: domainKey } } : {}),
+      ...(grantPartnerIds
+        ? { OR: [{ grantPartnerId: { in: grantPartnerIds } }, { grantPartnerId: null }] }
+        : {}),
     },
-    select: { id: true, name: true, city: true },
+    select: { id: true, name: true, city: true, grantPartnerId: true },
     orderBy: { createdAt: "desc" },
   });
   return rows;

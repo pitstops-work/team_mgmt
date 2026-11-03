@@ -5,6 +5,13 @@ import { isBudgetAdminOrSuperAdmin } from "@/lib/roleGuard";
 import { requireBudgetAccess, withBudgetLineWrite, type BudgetLineWrite } from "@/lib/budget/budgetAccess";
 import { assertPartnerEditClosed } from "@/lib/budget/partnerDraft";
 import { requireGrantingUnit } from "@/lib/budget/grantingUnits";
+import {
+  createPartner,
+  ensureGrantRelationship,
+  renamePartner,
+  listPartners,
+  resolvePartnerByName,
+} from "@/lib/partners/registry";
 import { resolveRegistryRows, resolveRegistryComponents } from "@/lib/budget/costRegistry";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
@@ -106,32 +113,67 @@ export async function listGrantPartners(city: string) {
   });
 }
 
-/** Create-or-return a partner for a granting unit (idempotent on [grantingUnitId, name]). */
-export async function createGrantPartner(city: string, name: string): Promise<{ id: string; name: string }> {
+/**
+ * Give a granting unit a grant relationship with a partner.
+ *
+ * `name` is resolved through the registry rather than inserted: typing a
+ * partner that already exists under another spelling attaches to the existing
+ * identity instead of minting a second one. Only a genuinely unknown name
+ * creates an Org — and that Org is immediately visible to due diligence and
+ * the review portal too, which is the point.
+ *
+ * Returns GrantPartner.id (what Budget.grantPartnerId holds) plus the orgId
+ * behind it, for callers that want to deep-link the registry.
+ */
+export async function createGrantPartner(
+  city: string,
+  name: string,
+): Promise<{ id: string; name: string; orgId: string }> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Partner name required");
-  const unit = await requireGrantingUnit(city);
-  const gp = await prisma.grantPartner.upsert({
-    where: { grantingUnitId_name: { grantingUnitId: unit.id, name: trimmed } },
-    create: { city: unit.name, grantingUnitId: unit.id, name: trimmed },
-    update: { isActive: true },
-    select: { id: true, name: true },
-  });
+
+  const match = await resolvePartnerByName(trimmed);
+  const partner = match?.partner ?? (await createPartner({ name: trimmed }));
+  const rel = await ensureGrantRelationship(partner.id, city);
+
   revalidatePath("/budget/dashboard");
   revalidatePath("/budget/admin/partners");
-  return gp;
+  return { id: rel.id, name: partner.name, orgId: partner.id };
 }
 
+/** Attach an existing registry partner to a granting unit. */
+export async function addGrantPartnerFromRegistry(
+  city: string,
+  orgId: string,
+): Promise<{ id: string; city: string }> {
+  const session = await auth();
+  if (!isBudgetAdminOrSuperAdmin(session)) throw new Error("Forbidden");
+  const rel = await ensureGrantRelationship(orgId, city);
+  revalidatePath("/budget/dashboard");
+  revalidatePath("/budget/admin/partners");
+  return rel;
+}
+
+/**
+ * Rename the partner behind this grant relationship.
+ *
+ * The rename lands on the Org, so the map, the wiki, due diligence and the
+ * review portal all see the new name — and the old spelling is kept as an
+ * alias so existing grant notes still resolve. Renaming only the GrantPartner
+ * label, as this used to, made the budget portal disagree with every other
+ * portal about what the partner was called.
+ */
 export async function renameGrantPartner(id: string, name: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error("Partner name required");
-  await prisma.grantPartner.update({ where: { id }, data: { name: trimmed } });
+  const rel = await prisma.grantPartner.findUnique({ where: { id }, select: { orgId: true } });
+  if (!rel) throw new Error("Partner not found");
+  await renamePartner(rel.orgId, name);
   revalidatePath("/budget/admin/partners");
   revalidatePath("/budget/dashboard");
+  revalidatePath("/settings/partners");
 }
 
 export async function toggleGrantPartner(id: string, isActive: boolean) {
@@ -151,15 +193,18 @@ export async function reassignGrantPartnerCity(partnerId: string, newCity: strin
   const unit = await requireGrantingUnit(newCity.trim());
   const city = unit.name;
 
-  const gp = await prisma.grantPartner.findUnique({ where: { id: partnerId }, select: { name: true, city: true } });
+  const gp = await prisma.grantPartner.findUnique({ where: { id: partnerId }, select: { name: true, city: true, orgId: true } });
   if (!gp) throw new Error("Partner not found");
   if (gp.city === city) return { movedBudgets: 0 };
 
+  // Clash is on the identity, not the label: the same org already holding a
+  // relationship with the target unit is the case to refuse, whatever either
+  // row happens to be called.
   const clash = await prisma.grantPartner.findUnique({
-    where: { grantingUnitId_name: { grantingUnitId: unit.id, name: gp.name } },
+    where: { grantingUnitId_orgId: { grantingUnitId: unit.id, orgId: gp.orgId } },
     select: { id: true },
   });
-  if (clash) throw new Error(`A partner named "${gp.name}" already exists in ${city}. Rename or merge it there first.`);
+  if (clash) throw new Error(`${gp.name} already holds a grant relationship with ${city}. Move its budgets there instead.`);
 
   const movedBudgets = await prisma.$transaction(async (tx) => {
     await tx.grantPartner.update({ where: { id: partnerId }, data: { city, grantingUnitId: unit.id } });
@@ -188,14 +233,19 @@ export async function linkGrantPartnerLogin(partnerId: string, email: string): P
   });
   if (!user) throw new Error("No user with that email. Create the account in Settings → Users first, then link it here.");
 
+  const rel = await prisma.grantPartner.findUnique({ where: { id: partnerId }, select: { orgId: true } });
+  if (!rel) throw new Error("Grantee not found");
+
   const PROMOTABLE = ["member", "viewer", "partner"];
   await prisma.$transaction(async (tx) => {
     // Still one grantee per login — moving an account re-points it rather than
-    // giving that person sight of two grantees' budgets.
+    // giving that person sight of two grantees' budgets. The link is to the
+    // org, so the login reaches that grantee's budgets under every granting
+    // unit it holds a relationship with, not just this one.
     await tx.grantPartnerUser.upsert({
       where: { userId: user.id },
-      create: { userId: user.id, grantPartnerId: partnerId },
-      update: { grantPartnerId: partnerId },
+      create: { userId: user.id, orgId: rel.orgId, grantPartnerId: partnerId },
+      update: { orgId: rel.orgId, grantPartnerId: partnerId },
     });
     if (PROMOTABLE.includes(user.role)) {
       await tx.user.update({ where: { id: user.id }, data: { role: "partner" } });
@@ -224,7 +274,10 @@ export async function inviteGrantPartnerLogin(
   const normalized = email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) throw new Error("Enter a valid email address");
 
-  const partner = await prisma.grantPartner.findUnique({ where: { id: partnerId }, select: { name: true } });
+  const partner = await prisma.grantPartner.findUnique({
+    where: { id: partnerId },
+    select: { name: true, orgId: true, org: { select: { name: true } } },
+  });
   if (!partner) throw new Error("Grantee not found");
 
   const existing = await prisma.user.findFirst({
@@ -260,8 +313,8 @@ export async function inviteGrantPartnerLogin(
 
     await tx.grantPartnerUser.upsert({
       where: { userId },
-      create: { userId, grantPartnerId: partnerId },
-      update: { grantPartnerId: partnerId },
+      create: { userId, orgId: partner.orgId, grantPartnerId: partnerId },
+      update: { orgId: partner.orgId, grantPartnerId: partnerId },
     });
 
     await tx.passwordResetToken.deleteMany({ where: { email: normalized } });
@@ -271,7 +324,7 @@ export async function inviteGrantPartnerLogin(
   });
 
   await sendPartnerInviteEmail(normalized, token, {
-    orgName: partner.name,
+    orgName: partner.org.name,
     invitedBy: session?.user?.name ?? null,
     expiresInDays: INVITE_DAYS,
   });
@@ -287,39 +340,31 @@ export async function unlinkGrantPartnerLogin(userId: string) {
   revalidatePath("/budget/admin/partners");
 }
 
-/** One-way import: copy every active Settings → Partners org (Org kind="partner")
- *  into GrantPartner for the given granting unit. Idempotent on
- *  [grantingUnitId, name]; existing
- *  rows are left untouched (and reactivated if they were deactivated). Returns
- *  how many were newly created. */
+/**
+ * Give every registry partner a grant relationship with this granting unit.
+ *
+ * This used to *copy* each Org's name into a fresh GrantPartner row, which is
+ * exactly how the two stores drifted: the copy was a new identity, and a
+ * rename or a typo on either side split the partner in two. It now links by
+ * foreign key — same registry row, one more relationship — and is idempotent
+ * on [grantingUnitId, orgId].
+ */
 export async function importGrantPartnersFromOrgs(city: string): Promise<{ added: number; total: number }> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
   const unit = await requireGrantingUnit(city.trim());
-  const trimmedCity = unit.name;
 
-  const orgs = await prisma.org.findMany({
-    where: { kind: "partner", archivedAt: null },
-    select: { name: true },
-    orderBy: { name: "asc" },
-  });
-
+  const partners = await listPartners();
   let added = 0;
-  for (const o of orgs) {
-    const name = o.name.trim();
-    if (!name) continue;
-    const existing = await prisma.grantPartner.findUnique({
-      where: { grantingUnitId_name: { grantingUnitId: unit.id, name } },
-      select: { id: true },
-    });
-    if (existing) continue;
-    await prisma.grantPartner.create({ data: { city: trimmedCity, grantingUnitId: unit.id, name } });
+  for (const p of partners) {
+    if (p.grants.some((g) => g.grantingUnitId === unit.id)) continue;
+    await ensureGrantRelationship(p.id, unit.name);
     added++;
   }
 
   revalidatePath("/budget/admin/partners");
   revalidatePath("/budget/dashboard");
-  return { added, total: orgs.length };
+  return { added, total: partners.length };
 }
 
 /** (Re)assign a budget to a grantee org, or unassign (null). Owner-only; the

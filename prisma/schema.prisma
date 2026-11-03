@@ -2529,7 +2529,19 @@ model GrantingUnit {
 // the dashboard can aggregate approved amounts + utilisation per partner. Scoped
 // to a GrantingUnit so the same name can exist independently under each unit.
 model GrantPartner {
-  id                   String                  @id @default(cuid())
+  id String @id @default(cuid())
+  /// Partner identity. Org (kind="partner") is the one registry every portal
+  /// resolves a partner through — due diligence, budgets and the review portal
+  /// included. A GrantPartner row is no longer an identity of its own: it is
+  /// this org's *grant relationship* with one granting unit, so the same
+  /// organisation granting under both Bangalore and Chennai is one Org and two
+  /// relationships. Restrict, not SetNull: an org that holds grants cannot be
+  /// hard-deleted out from under them — archive it (Org.archivedAt) instead.
+  orgId String
+  org   Org    @relation("GrantPartnerOrg", fields: [orgId], references: [id], onDelete: Restrict)
+  /// Denormalised labels, kept in step with `org` by the registry layer
+  /// (lib/partners/registry.ts). Read `org.name` for display; these exist so
+  /// historical exports and the dashboard's group-by keep working unchanged.
   name                 String
   city                 String                  @default("Bangalore") // legacy label; grantingUnit is authoritative
   grantingUnitId       String?
@@ -2542,9 +2554,11 @@ model GrantPartner {
   schoolPlansAsAnchor  SchoolPlan[]            @relation("SchoolPlanAnchorPartner")
   deliveryPartnerRoles BudgetDeliveryPartner[]
 
+  @@unique([grantingUnitId, orgId])
   @@unique([grantingUnitId, name])
   @@index([city])
   @@index([grantingUnitId])
+  @@index([orgId])
 }
 
 // Login accounts for a grantee organisation (Users with role "partner"). A
@@ -2552,17 +2566,30 @@ model GrantPartner {
 // report and the director who signs the declaration are two people, and a
 // handover shouldn't need an admin.
 //
+// The login attaches to the Org, not to one GrantPartner row. It used to hang
+// off grantPartnerId, which quietly capped a grantee at one granting unit: an
+// org granting under both Bangalore and Chennai had two GrantPartner rows, the
+// login could point at only one of them, and its budgets under the other unit
+// were invisible. Resolving to an org instead gives the session every grant
+// relationship that org holds (see lib/budget/partnerAccess.ts).
+//
 // The reverse stays single: userId is unique, so a login belongs to exactly one
-// grantee. Every access check downstream resolves a session to one
-// grantPartnerId, and a person straddling two grantees would break all of them.
+// grantee org. A person straddling two grantees would break every access check
+// downstream.
 model GrantPartnerUser {
-  id             String       @id @default(cuid())
-  grantPartnerId String
-  grantPartner   GrantPartner @relation(fields: [grantPartnerId], references: [id], onDelete: Cascade)
-  userId         String       @unique
-  user           User         @relation("PartnerLogin", fields: [userId], references: [id], onDelete: Cascade)
-  createdAt      DateTime     @default(now())
+  id    String @id @default(cuid())
+  orgId String
+  org   Org    @relation("PartnerLoginOrg", fields: [orgId], references: [id], onDelete: Cascade)
+  /// Legacy pointer at one grant relationship, kept nullable so historical rows
+  /// still say which unit the login was first set up under. Never read for
+  /// access — orgId is authoritative.
+  grantPartnerId String?
+  grantPartner   GrantPartner? @relation(fields: [grantPartnerId], references: [id], onDelete: SetNull)
+  userId         String        @unique
+  user           User          @relation("PartnerLogin", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
 
+  @@index([orgId])
   @@index([grantPartnerId])
 }
 
@@ -3354,6 +3381,38 @@ model Org {
   facilitiesAsPartner   LayerFeature[]             @relation("LayerFeaturePartnerOrg")
   // Optional link from a Seeding outreach channel that is already an APF partner.
   seedingChannels       SeedingChannel[]           @relation("SeedingChannelOrg")
+  // Cross-portal partner registry (2026-11-03). Org is the single partner
+  // identity; these are the per-portal attachments that used to be separate
+  // identities of their own. See lib/partners/registry.ts.
+  grantRelationships    GrantPartner[]             @relation("GrantPartnerOrg")
+  partnerLogins         GrantPartnerUser[]         @relation("PartnerLoginOrg")
+  aliases               OrgAlias[]
+}
+
+/// Name variants that resolve to one Org.
+///
+/// Needed because two portals minted partners as free text before the registry
+/// existed: the review portal's 33 grant notes hold seven spellings of one
+/// grantee ("Gubbachi", "Gubbachi Foundation", "Gubbachi NGO", "Gubabchi", …)
+/// and "SEIDS" for SIEDS. A lookup table, not a fuzzy match: "Gubbachi NGO" and
+/// "Gubbachi Foundation" are one org by someone's judgement, not by edit
+/// distance, and a typo must stay resolved once a human has resolved it.
+///
+/// `normalized` is the match key — lowercased, non-alphanumerics stripped (see
+/// normalizePartnerName). Unique globally, so one spelling can never resolve to
+/// two orgs.
+model OrgAlias {
+  id         String   @id @default(cuid())
+  orgId      String
+  org        Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  /// The spelling as it was found in the wild, kept for the audit trail.
+  alias      String
+  normalized String   @unique
+  /// Where this spelling came from, e.g. "grant_notes.org_name".
+  source     String?
+  createdAt  DateTime @default(now())
+
+  @@index([orgId])
 }
 
 // ── Wiki module ──────────────────────────────────────────────────────────────

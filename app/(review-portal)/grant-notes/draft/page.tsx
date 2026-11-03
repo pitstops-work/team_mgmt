@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import PartnerPicker from '@/components/partners/PartnerPicker';
 import { upload } from '@vercel/blob/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -49,6 +50,9 @@ export default function NoteStartPage() {
   const [intent, setIntent] = useState('');
   const [fieldValues, setFieldValues] = useState<Record<string, string | boolean>>({});
   const [orgName, setOrgName] = useState('');
+  // Registry identity (Org.id) behind orgName. The name is still carried on the
+  // note as its own wording; this is what says which organisation it is about.
+  const [orgId, setOrgId] = useState('');
   const [ddOrg, setDdOrg] = useState<{ id: string; name: string } | null>(null);
 
   // Source documents (optional, collapsible)
@@ -146,18 +150,23 @@ export default function NoteStartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docTypeKey, catalogLoaded]);
 
-  // Org name → DD lookup
+  // Partner → DD lookup, keyed on the registry id.
+  //
+  // This used to match the typed org name against review.orgs case-
+  // insensitively, which almost never hit: the two stores had no shared
+  // identity, so "Gubbachi Foundation" found nothing even with Gubbachi's due
+  // diligence on file. Matching on app_org_id makes the banner fire whenever
+  // the partner has a DD record, whatever either side calls it.
   useEffect(() => {
-    const name = orgName.trim();
-    if (!name) { setDdOrg(null); return; }
-    const t = setTimeout(() => {
-      fetch('/api/review/orgs').then(r => r.json()).then((orgs: any[]) => {
-        const match = orgs.find(o => o.name.toLowerCase() === name.toLowerCase());
-        setDdOrg(match ? { id: match.id, name: match.name } : null);
-      }).catch(() => {});
-    }, 500);
-    return () => clearTimeout(t);
-  }, [orgName]);
+    if (!orgId) { setDdOrg(null); return; }
+    let live = true;
+    fetch('/api/review/orgs').then(r => r.json()).then((orgs: any[]) => {
+      if (!live) return;
+      const match = orgs.find(o => o.app_org_id === orgId);
+      setDdOrg(match ? { id: match.id, name: match.name } : null);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [orgId]);
 
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
@@ -258,6 +267,7 @@ export default function NoteStartPage() {
         body: JSON.stringify({
           org_name: meta.orgName || '(unnamed)',
           org_city: meta.orgCity || '',
+          app_org_id: orgId || null,
           meeting: meta.meeting || '',
           theme: meta.theme || '',
           grant_number: meta.grantNumber || '',
@@ -520,12 +530,16 @@ export default function NoteStartPage() {
         />
       </div>
 
-      {/* Org name — hero */}
+      {/* Partner — hero. Picked from the shared registry so the note, the
+          budget it cites and the due diligence behind it all name the same
+          organisation. */}
       <div className="ns-org">
         <div className="ns-field">
-          <label htmlFor="ns-org">Organisation <span className="ns-muted">(optional — enables DD lookup + cross-note retrieval)</span></label>
-          <input id="ns-org" type="text" placeholder="Deepti Foundation"
-            value={orgName} onChange={e => setOrgName(e.target.value)} />
+          <label htmlFor="ns-org">Organisation <span className="ns-muted">(enables DD lookup + cross-note retrieval)</span></label>
+          <PartnerPicker
+            value={orgId}
+            onChange={(id, partner) => { setOrgId(id); setOrgName(partner?.name ?? ''); }}
+          />
         </div>
         {cityField && (
           <div className="ns-field">

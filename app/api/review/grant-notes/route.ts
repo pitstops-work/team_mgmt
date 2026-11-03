@@ -2,6 +2,7 @@ import { sql, ok, bad } from '@/lib/review/db';
 import { snapshotVersion } from '@/lib/review/versions';
 import { auth } from '@/lib/auth';
 import { loadBudgetSnapshot } from '@/lib/review/budget-bridge';
+import { ensurePartnerColumns } from '@/lib/partners/reviewMirror';
 
 export const runtime = 'nodejs';
 
@@ -21,8 +22,9 @@ async function ensureMetadataTable() {
 }
 
 export async function GET() {
+  await ensurePartnerColumns();
   const rows = await sql`
-    SELECT id, org_name, org_city, meeting, theme, grant_number, grant_amount, grant_duration,
+    SELECT id, org_name, org_city, app_org_id, meeting, theme, grant_number, grant_amount, grant_duration,
            doc_type, status, submitted_by, created_at
     FROM grant_notes
     ORDER BY created_at DESC
@@ -35,12 +37,20 @@ export async function POST(req: Request) {
   try { body = await req.json(); } catch { return bad('invalid json'); }
 
   const {
-    org_name, org_city, meeting, theme, grant_number, grant_amount, grant_duration,
+    org_name, org_city, app_org_id, meeting, theme, grant_number, grant_amount, grant_duration,
     doc_type, draft_text, submitted_by, status,
     source_documents, staff_notes, linked_budget_id, linked_budget_domain,
   } = body;
 
   if (!org_name?.trim()) return bad('org_name required');
+
+  // app_org_id is the registry identity (Org.id). org_name stays alongside it
+  // as the note's own wording — but it is no longer what identifies the
+  // organisation, which is how 33 notes ended up spread over seven spellings
+  // of one grantee. Still nullable: the drafter can be used before a partner
+  // is in the registry, and scripts/backfill-partner-registry.ts resolves the
+  // historical rows.
+  const appOrgId = typeof app_org_id === 'string' && app_org_id.trim() ? app_org_id.trim() : null;
 
   // draft_text is required for draft path; design path sends source_documents instead
   const hasSourceDocs = Array.isArray(source_documents) && source_documents.length > 0;
@@ -49,12 +59,13 @@ export async function POST(req: Request) {
   const validStatuses = ['designing', 'submitted', 'approved', 'rejected'];
   const insertStatus = validStatuses.includes(status) ? status : 'designing';
 
+  await ensurePartnerColumns();
   const rows = await sql`
     INSERT INTO grant_notes
-      (org_name, org_city, meeting, theme, grant_number, grant_amount, grant_duration,
+      (org_name, org_city, app_org_id, meeting, theme, grant_number, grant_amount, grant_duration,
        doc_type, draft_text, submitted_by, status)
     VALUES
-      (${org_name}, ${org_city || ''}, ${meeting || ''}, ${theme || ''},
+      (${org_name}, ${org_city || ''}, ${appOrgId}, ${meeting || ''}, ${theme || ''},
        ${grant_number || ''}, ${grant_amount || ''}, ${grant_duration || ''},
        ${doc_type || 'grant_note'}, ${draft_text || ''}, ${submitted_by || ''}, ${insertStatus})
     RETURNING id

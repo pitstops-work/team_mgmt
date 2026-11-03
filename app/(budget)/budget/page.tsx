@@ -30,9 +30,10 @@ export default async function BudgetCityLandingPage() {
   const session = await auth();
   if (isPartner(session)) {
     const access = await getPartnerAccess(session);
-    const budgets = access.grantPartnerId
+    const budgets = access.grantPartnerIds.length
       ? await prisma.budget.findMany({
-          where: { grantPartnerId: access.grantPartnerId },
+          // Every granting unit this grantee is funded from, not just one.
+          where: { grantPartnerId: { in: access.grantPartnerIds } },
           include: {
             reportConfig: true,
             reportSlots: {
@@ -49,7 +50,7 @@ export default async function BudgetCityLandingPage() {
     return (
       <>
         <PendingApprovalsBanner />
-        <PartnerBudgetHome budgets={JSON.parse(JSON.stringify(safe))} linked={!!access.grantPartnerId} />
+        <PartnerBudgetHome budgets={JSON.parse(JSON.stringify(safe))} linked={access.grantPartnerIds.length > 0} />
       </>
     );
   }

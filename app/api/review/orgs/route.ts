@@ -1,4 +1,21 @@
+/**
+ * Due-diligence org list.
+ *
+ * `orgs` is the review DB's *mirror* of the shared partner registry, not a
+ * registry of its own. It used to be one: `name` is a UNIQUE text column the
+ * "+ New org" form typed straight into, which is how this table came to hold
+ * "Demo", "Test" and "dmnfbjdkbs" alongside one real grantee while the other
+ * eighteen funded partners were absent entirely — and why due diligence had
+ * nothing to pre-fill an approval from.
+ *
+ * POST now takes an `appOrgId` (Org.id) and mirrors that partner through
+ * ensureReviewOrg. Name and city are read from the registry; passing them is
+ * no longer how a partner comes into existence.
+ */
+
 import { sql, ok, bad } from '@/lib/review/db';
+import { auth } from '@/lib/auth';
+import { ensurePartnerColumns, ensureReviewOrg } from '@/lib/partners/reviewMirror';
 
 export const runtime = 'nodejs';
 
@@ -34,8 +51,9 @@ async function ensureTables() {
 
 export async function GET() {
   await ensureTables();
+  await ensurePartnerColumns();
   const rows = await sql`
-    SELECT o.id, o.name, o.city, o.created_at,
+    SELECT o.id, o.name, o.city, o.created_at, o.app_org_id,
            COALESCE(d.completed_stages, '{}') as completed_stages
     FROM orgs o
     LEFT JOIN org_due_diligence d ON d.org_id = o.id
@@ -45,21 +63,22 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) return bad('Unauthorized', 401);
+
   await ensureTables();
-  const { name, city } = await req.json();
-  if (!name?.trim()) return bad('name required');
+  const body = await req.json().catch(() => ({}));
+  const appOrgId = typeof body?.appOrgId === 'string' ? body.appOrgId.trim() : '';
+  // Deliberately no free-text fallback: a partner the registry doesn't know is
+  // created in the registry (POST /api/partners) and then opened here, so due
+  // diligence and the budget portal can never mean different organisations by
+  // the same name.
+  if (!appOrgId) return bad('appOrgId required — pick a partner from the registry');
 
-  const rows = await sql`
-    INSERT INTO orgs (name, city) VALUES (${name.trim()}, ${city?.trim() || ''})
-    ON CONFLICT (name) DO UPDATE SET city = EXCLUDED.city, updated_at = now()
-    RETURNING id, name, city
-  `;
-  const org = rows[0];
-
-  await sql`
-    INSERT INTO org_due_diligence (org_id) VALUES (${org.id})
-    ON CONFLICT (org_id) DO NOTHING
-  `;
-
-  return ok(org);
+  try {
+    const org = await ensureReviewOrg(appOrgId);
+    return ok(org);
+  } catch (e) {
+    return bad(e instanceof Error ? e.message : 'Could not resolve that partner', 404);
+  }
 }

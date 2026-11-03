@@ -2,19 +2,23 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { createGrantPartner, renameGrantPartner, toggleGrantPartner, importGrantPartnersFromOrgs, linkGrantPartnerLogin, unlinkGrantPartnerLogin, inviteGrantPartnerLogin, reassignGrantPartnerCity } from "../../budget/actions";
+import { createGrantPartner, addGrantPartnerFromRegistry, renameGrantPartner, toggleGrantPartner, importGrantPartnersFromOrgs, linkGrantPartnerLogin, unlinkGrantPartnerLogin, inviteGrantPartnerLogin, reassignGrantPartnerCity } from "../../budget/actions";
 
 type Login = { userId: string; email: string; name: string | null };
-type Partner = { id: string; name: string; city: string; isActive: boolean; budgetCount: number; logins: Login[] };
+type Partner = { id: string; orgId: string; name: string; slug: string; city: string; isActive: boolean; budgetCount: number; logins: Login[] };
 type Candidate = { email: string; name: string | null };
 type Unit = { id: string; name: string };
+/** A partner identity in the shared registry, and the units it already funds from. */
+type RegistryPartner = { id: string; name: string; cities: string[] };
 
-export default function PartnersClient({ partners, units, candidates = [] }: { partners: Partner[]; units: Unit[]; candidates?: Candidate[] }) {
+export default function PartnersClient({ partners, units, candidates = [], registry = [] }: { partners: Partner[]; units: Unit[]; candidates?: Candidate[]; registry?: RegistryPartner[] }) {
   const unitNames = units.map((u) => u.name);
   const firstUnit = unitNames[0] ?? "Bangalore";
   const [pending, start] = useTransition();
   const [addCity, setAddCity] = useState<string>(firstUnit);
+  const [addOrgId, setAddOrgId] = useState<string>("");
   const [addName, setAddName] = useState("");
+  const [addingNew, setAddingNew] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [linking, setLinking] = useState<string | null>(null);
@@ -44,25 +48,53 @@ export default function PartnersClient({ partners, units, candidates = [] }: { p
         <p className="text-sm text-stone-500">Grantee organisations. Budgets are assigned a partner; the dashboard aggregates by it.</p>
       </div>
 
-      {/* Add */}
-      <div className="rounded-xl border border-stone-200 bg-white p-4 flex flex-wrap items-end gap-3">
-        <label className="text-xs text-stone-500">City
-          <select value={addCity} onChange={(e) => setAddCity(e.target.value)} className="mt-1 block rounded border border-stone-300 px-2 py-1.5 text-sm">
-            {unitNames.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
-        <label className="text-xs text-stone-500 flex-1 min-w-[12rem]">Name
-          <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="e.g. CFAR" className="mt-1 block w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
-        </label>
-        <button disabled={pending || !addName.trim()} onClick={() => run(async () => { await createGrantPartner(addCity, addName); setAddName(""); })}
-          className="rounded-lg bg-sky-600 px-4 py-2 text-sm text-white hover:bg-sky-700 disabled:opacity-50">Add partner</button>
+      {/* Add — pick from the registry first; typing a name is the exception */}
+      <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs text-stone-500">City
+            <select value={addCity} onChange={(e) => { setAddCity(e.target.value); setAddOrgId(""); }} className="mt-1 block rounded border border-stone-300 px-2 py-1.5 text-sm">
+              {unitNames.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+          {addingNew ? (
+            <>
+              <label className="text-xs text-stone-500 flex-1 min-w-[12rem]">New partner name
+                <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="e.g. Deepti Foundation" className="mt-1 block w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
+              </label>
+              <button disabled={pending || !addName.trim()} onClick={() => run(async () => { await createGrantPartner(addCity, addName); setAddName(""); setAddingNew(false); })}
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm text-white hover:bg-sky-700 disabled:opacity-50">Create &amp; add</button>
+              <button onClick={() => { setAddingNew(false); setAddName(""); }} className="text-xs text-stone-400">Cancel</button>
+            </>
+          ) : (
+            <>
+              <label className="text-xs text-stone-500 flex-1 min-w-[14rem]">Partner
+                <select value={addOrgId} onChange={(e) => setAddOrgId(e.target.value)} className="mt-1 block w-full rounded border border-stone-300 px-2 py-1.5 text-sm">
+                  <option value="">Choose a partner…</option>
+                  {registry.filter((r) => !r.cities.includes(addCity)).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}{r.cities.length ? ` — already in ${r.cities.join(", ")}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button disabled={pending || !addOrgId} onClick={() => run(async () => { await addGrantPartnerFromRegistry(addCity, addOrgId); setAddOrgId(""); })}
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm text-white hover:bg-sky-700 disabled:opacity-50">Add to {addCity}</button>
+            </>
+          )}
+        </div>
+        {!addingNew && (
+          <p className="text-xs text-stone-500">
+            Partners are shared with due diligence and the review portal — pick an existing one so all three agree.{" "}
+            <button onClick={() => setAddingNew(true)} className="text-sky-600 hover:underline">Not listed? Create a new partner</button>
+          </p>
+        )}
       </div>
 
       {/* Pull from Settings → Partners */}
       <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[14rem]">
-          <div className="text-sm font-medium text-stone-700">Pull from Settings partners</div>
-          <p className="text-xs text-stone-500 mt-0.5">Copies every active org from Settings → Partners into the chosen city. Skips names that already exist here.</p>
+          <div className="text-sm font-medium text-stone-700">Add every registry partner</div>
+          <p className="text-xs text-stone-500 mt-0.5">Gives each partner in Settings → Partners a grant relationship with the chosen city. Links to the same registry row — nothing is copied or renamed.</p>
         </div>
         <label className="text-xs text-stone-500">City
           <select value={importCity} onChange={(e) => setImportCity(e.target.value)} className="mt-1 block rounded border border-stone-300 px-2 py-1.5 text-sm">
@@ -96,7 +128,7 @@ export default function PartnersClient({ partners, units, candidates = [] }: { p
                       <>
                         <span className={`flex-1 text-sm ${p.isActive ? "text-stone-900" : "text-stone-400 line-through"}`}>{p.name}</span>
                         <span className="text-xs text-stone-400">{p.budgetCount} budget{p.budgetCount === 1 ? "" : "s"}</span>
-                        <button onClick={() => { setEditing(p.id); setEditName(p.name); }} className="text-xs text-stone-500 hover:text-stone-800">Rename</button>
+                        <button onClick={() => { setEditing(p.id); setEditName(p.name); }} className="text-xs text-stone-500 hover:text-stone-800" title="Renames the partner in every portal; the old name keeps resolving">Rename</button>
                         <button onClick={() => { setMoving(p.id); setMoveCity(unitNames.find((c) => c !== p.city) ?? firstUnit); }} className="text-xs text-stone-500 hover:text-stone-800">Move</button>
                         <button disabled={pending} onClick={() => run(async () => { await toggleGrantPartner(p.id, !p.isActive); })} className="text-xs text-stone-400 hover:text-stone-700">
                           {p.isActive ? "Deactivate" : "Reactivate"}

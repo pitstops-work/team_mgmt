@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
+import PartnerPicker from '@/components/partners/PartnerPicker';
 
 const STAGES = [
   'org-profile', 'governing-body', 'compliance', 'statutory-filings',
@@ -11,15 +12,17 @@ const STAGES = [
 type Org = {
   id: string; name: string; city: string;
   created_at: string; completed_stages: string[];
+  /** Org.id in the shared partner registry. Null only for pre-registry rows. */
+  app_org_id: string | null;
 };
 
 export default function DueDiligenceListPage() {
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newCity, setNewCity] = useState('');
+  const [pickedOrgId, setPickedOrgId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [createErr, setCreateErr] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -29,17 +32,26 @@ export default function DueDiligenceListPage() {
       .then(data => { setOrgs(data); setLoading(false); });
   }, []);
 
+  // The partner is chosen from the shared registry, never typed here: this
+  // table used to be its own registry and filled up with "Demo" / "Test" rows
+  // while the eighteen partners that actually hold budgets were missing.
   async function createOrg() {
-    if (!newName.trim()) return;
+    if (!pickedOrgId) return;
     setSaving(true);
-    const res = await fetch('/api/review/orgs', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim(), city: newCity.trim() }),
-    });
-    const org = await res.json();
-    setSaving(false);
-    window.location.href = `/due-diligence/${org.id}`;
+    setCreateErr(null);
+    try {
+      const res = await fetch('/api/review/orgs', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ appOrgId: pickedOrgId }),
+      });
+      const org = await res.json();
+      if (!res.ok) throw new Error(org?.error ?? 'Could not open that partner');
+      window.location.href = `/due-diligence/${org.id}`;
+    } catch (e) {
+      setCreateErr(e instanceof Error ? e.message : 'Could not open that partner');
+      setSaving(false);
+    }
   }
 
   async function deleteOrg(orgId: string) {
@@ -67,33 +79,24 @@ export default function DueDiligenceListPage() {
 
       {showForm && (
         <div className="bg-white border border-stone-200 rounded-xl p-4 mb-4 flex gap-3 flex-wrap items-end">
-          <div className="flex flex-col gap-1 flex-1 min-w-40">
-            <label className="text-xs text-stone-500 font-medium">Organisation name</label>
-            <input
-              className="border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-400"
-              placeholder="Deepti Foundation"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && createOrg()}
+          <div className="flex flex-col gap-1 flex-1 min-w-48">
+            <label className="text-xs text-stone-500 font-medium">Partner</label>
+            <PartnerPicker
+              value={pickedOrgId}
+              onChange={(id) => setPickedOrgId(id)}
               autoFocus
             />
-          </div>
-          <div className="flex flex-col gap-1 flex-1 min-w-32">
-            <label className="text-xs text-stone-500 font-medium">City</label>
-            <input
-              className="border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-400"
-              placeholder="Bangalore"
-              value={newCity}
-              onChange={e => setNewCity(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && createOrg()}
-            />
+            <p className="text-xs text-stone-400">
+              Shared with the budget and review portals — the same partner everywhere.
+            </p>
+            {createErr && <div className="text-xs text-red-600">{createErr}</div>}
           </div>
           <button
             className="bg-sky-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-sky-700 transition-colors disabled:opacity-50"
             onClick={createOrg}
-            disabled={saving || !newName.trim()}
+            disabled={saving || !pickedOrgId}
           >
-            {saving ? 'Creating…' : 'Create & open →'}
+            {saving ? 'Opening…' : 'Open →'}
           </button>
         </div>
       )}

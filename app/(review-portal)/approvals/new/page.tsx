@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import PartnerPicker from '@/components/partners/PartnerPicker';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -31,9 +32,12 @@ export default function NewApprovalPage() {
 
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [partners, setPartners] = useState<PartnerUser[]>([]);
-  const [creatingOrg, setCreatingOrg] = useState(false);
-  const [newOrgName, setNewOrgName] = useState('');
-  const [newOrgCity, setNewOrgCity] = useState('');
+  // Registry partner chosen for a new approval. The assembly still stores the
+  // review DB's own org uuid, so picking one mirrors the registry partner into
+  // that table (POST /api/review/orgs) and uses the uuid it returns.
+  const [addingPartner, setAddingPartner] = useState(false);
+  const [pickedAppOrgId, setPickedAppOrgId] = useState('');
+  const [mirroring, setMirroring] = useState(false);
 
   const [orgId, setOrgId] = useState('');
   const [docType, setDocType] = useState<(typeof DOC_TYPES)[number]['key']>('standard_new');
@@ -68,23 +72,30 @@ export default function NewApprovalPage() {
     [partners, partnerUserId],
   );
 
-  async function createOrg() {
-    if (!newOrgName.trim()) return;
-    const res = await fetch('/api/review/orgs', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: newOrgName.trim(), city: newOrgCity.trim() }),
-    });
-    if (!res.ok) {
-      setError('Failed to create org');
-      return;
+  // Bring a registry partner into this portal's org list and select it. Never
+  // creates a partner from a typed name: the organisation an approval is about
+  // has to be the same row the budget and the due diligence hang off.
+  async function useRegistryPartner(appOrgId: string) {
+    if (!appOrgId) return;
+    setMirroring(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/review/orgs', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ appOrgId }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.error ?? 'Could not add that partner');
+      setOrgs((prev) => (prev.some((o) => o.id === d.id) ? prev : [...prev, d]));
+      setOrgId(d.id);
+      setAddingPartner(false);
+      setPickedAppOrgId('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add that partner');
+    } finally {
+      setMirroring(false);
     }
-    const d = await res.json();
-    setOrgs((prev) => [...prev, d]);
-    setOrgId(d.id);
-    setCreatingOrg(false);
-    setNewOrgName('');
-    setNewOrgCity('');
   }
 
   async function submit(e: React.FormEvent) {
@@ -148,18 +159,18 @@ export default function NewApprovalPage() {
         <div className={CARD}>
           <div className="flex items-center justify-between mb-3">
             <label className={LABEL}>Organisation</label>
-            {!creatingOrg && (
+            {!addingPartner && (
               <button
                 type="button"
-                onClick={() => setCreatingOrg(true)}
+                onClick={() => setAddingPartner(true)}
                 className="text-xs text-sky-600 hover:text-sky-700"
               >
-                + Add new
+                + Add from registry
               </button>
             )}
           </div>
 
-          {!creatingOrg && (
+          {!addingPartner && (
             <select
               value={orgId}
               onChange={(e) => setOrgId(e.target.value)}
@@ -176,35 +187,31 @@ export default function NewApprovalPage() {
             </select>
           )}
 
-          {creatingOrg && (
+          {addingPartner && (
             <div className="space-y-2">
-              <input
+              <PartnerPicker
+                value={pickedAppOrgId}
+                onChange={(id) => setPickedAppOrgId(id)}
                 autoFocus
-                value={newOrgName}
-                onChange={(e) => setNewOrgName(e.target.value)}
-                placeholder="Org legal name"
-                className={INPUT}
               />
-              <input
-                value={newOrgCity}
-                onChange={(e) => setNewOrgCity(e.target.value)}
-                placeholder="City (optional)"
-                className={INPUT}
-              />
+              <p className="text-xs text-stone-400">
+                The same partner the budget portal and due diligence use — so this approval can be
+                scoped to its budgets.
+              </p>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={createOrg}
-                  className="bg-sky-600 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-sky-700"
+                  disabled={!pickedAppOrgId || mirroring}
+                  onClick={() => useRegistryPartner(pickedAppOrgId)}
+                  className="bg-sky-600 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-sky-700 disabled:bg-stone-300"
                 >
-                  Create
+                  {mirroring ? 'Adding…' : 'Use this partner'}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    setCreatingOrg(false);
-                    setNewOrgName('');
-                    setNewOrgCity('');
+                    setAddingPartner(false);
+                    setPickedAppOrgId('');
                   }}
                   className="text-sm text-stone-500 hover:text-stone-800"
                 >
