@@ -15,8 +15,8 @@ export async function GET() {
       polygon: true,
       cityId: true,
       city: { select: { id: true, name: true } },
-      partnerId: true,
-      partner: { select: { key: true, label: true, color: true } },
+      partnerOrgId: true,
+      partnerOrg: { select: { mapKey: true, slug: true, name: true, color: true } },
       cluster: {
         select: {
           id: true,
@@ -54,8 +54,13 @@ export async function GET() {
     centroidLng: s.centroidLng,
     polygon: s.polygon,
     city: s.city ?? null,
-    partner: s.partner
-      ? { key: s.partner.key, label: s.partner.label, color: s.partner.color }
+    // Same { key, label, color } shape the map UI consumes — sourced from Org.
+    partner: s.partnerOrg
+      ? {
+          key: s.partnerOrg.mapKey ?? s.partnerOrg.slug,
+          label: s.partnerOrg.name,
+          color: s.partnerOrg.color ?? "#6366f1",
+        }
       : null,
     cluster: s.cluster
       ? { id: s.cluster.id, name: s.cluster.name, zone: s.cluster.zone }

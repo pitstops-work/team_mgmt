@@ -13,16 +13,22 @@ const INCLUDE = {
 async function resolvePartner(
   partnerOrgId: string | null | undefined,
   partnerMapKey: string | null | undefined,
-): Promise<{ partnerOrgId: string | null; partner: string | null } | null> {
+): Promise<{ partnerOrgId: string | null } | null> {
+  // Both undefined means "don't touch" (only on PATCH); caller checks that.
   if (partnerOrgId === undefined && partnerMapKey === undefined) return null;
+
   const idOrKey = partnerOrgId || partnerMapKey;
-  if (!idOrKey) return { partnerOrgId: null, partner: null };
+  if (!idOrKey) return { partnerOrgId: null };
+
   const org = await prisma.org.findFirst({
     where: { kind: "partner", OR: [{ id: idOrKey }, { mapKey: idOrKey }] },
-    select: { id: true, name: true, mapKey: true },
+    select: { id: true },
   });
-  if (!org) return { partnerOrgId: null, partner: idOrKey || null };
-  return { partnerOrgId: org.id, partner: org.mapKey ?? org.name };
+  // An identifier that resolves to no org clears the assignment rather than
+  // being stored as a loose string. The free-text column that used to hold
+  // the unresolved value is gone, and silently keeping one was how a partner
+  // came to exist as text in one place and a row in another.
+  return { partnerOrgId: org?.id ?? null };
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -42,7 +48,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(name !== undefined      && { name }),
       ...(layerKey !== undefined  && { layerKey }),
       ...(centreType !== undefined && { centreType: centreType || null }),
-      ...(resolvedPartner       && { partner: resolvedPartner.partner, partnerOrgId: resolvedPartner.partnerOrgId }),
+      ...(resolvedPartner       && { partnerOrgId: resolvedPartner.partnerOrgId }),
       ...(lat !== undefined       && { lat: parseFloat(lat) }),
       ...(lng !== undefined       && { lng: parseFloat(lng) }),
       ...(settlementId !== undefined && { settlementId: settlementId || null }),

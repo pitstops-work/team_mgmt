@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   const deactivated = await prisma.settlement.findMany({
     where: {
       deletedAt: { not: null },
-      ...(partner ? { partner: { key: partner } } : {}),
+      ...(partner ? { partnerOrg: { mapKey: partner } } : {}),
     },
     select: { name: true },
   });
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     where: {
       deletedAt: null,
       polygon: { not: null as never },
-      ...(partner ? { partner: { key: partner } } : {}),
+      ...(partner ? { partnerOrg: { mapKey: partner } } : {}),
       ...(city
         ? { city: { name: { contains: city, mode: "insensitive" } } }
         : {}),
@@ -66,7 +66,9 @@ export async function GET(req: NextRequest) {
       name: true,
       polygon: true,
       clusterId: true,
-      partner: { select: { key: true, color: true } },
+      // Org.mapKey is the slug MapPartner.key held, so `properties.partner`
+      // keeps the exact string the map UI already filters and labels by.
+      partnerOrg: { select: { mapKey: true, slug: true, color: true } },
       cluster: { select: { name: true, zoneId: true, zone: { select: { id: true, name: true } } } },
     },
     orderBy: { name: "asc" },
@@ -99,8 +101,8 @@ export async function GET(req: NextRequest) {
           cluster: dbRow.cluster.name,
           clusterId: dbRow.clusterId,
           description: "",
-          partner: dbRow.partner?.key ?? partner ?? "",
-          color: dbRow.partner?.color ?? "#6366f1",
+          partner: dbRow.partnerOrg?.mapKey ?? dbRow.partnerOrg?.slug ?? partner ?? "",
+          color: dbRow.partnerOrg?.color ?? "#6366f1",
         },
       });
     } else {
@@ -129,8 +131,8 @@ export async function GET(req: NextRequest) {
           cluster: dbRow.cluster.name,
           clusterId: dbRow.clusterId,
           description: "",
-          partner: dbRow.partner?.key ?? partner ?? "",
-          color: dbRow.partner?.color ?? "#6366f1",
+          partner: dbRow.partnerOrg?.mapKey ?? dbRow.partnerOrg?.slug ?? partner ?? "",
+          color: dbRow.partnerOrg?.color ?? "#6366f1",
         },
       });
     }

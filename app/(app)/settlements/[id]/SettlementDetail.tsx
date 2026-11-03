@@ -5,7 +5,7 @@ import { MapPin, Users, CalendarDays, Target, ChevronRight, ExternalLink } from 
 import Avatar from "@/components/Avatar";
 
 type User = { id: string; name: string | null; image: string | null };
-type Partner = { key: string; label: string; color: string };
+type Partner = { slug: string; mapKey: string | null; name: string; color: string | null };
 type City = { id: string; name: string };
 type Cluster = { id: string; name: string; zone: { id: string; name: string } };
 type Profile = {
@@ -54,7 +54,7 @@ interface Props {
     centroidLat: number | null;
     centroidLng: number | null;
     city: City | null;
-    partner: Partner | null;
+    partnerOrg: Partner | null;
     cluster: Cluster | null;
     profile: Profile | null;
     assessments: Assessment[];
@@ -88,7 +88,7 @@ function fmt(d: string | null) {
 }
 
 export default function SettlementDetail({ settlement }: Props) {
-  const { name, city, partner, cluster, profile, assessments, note, needsGoals, needsPitstops } = settlement;
+  const { name, city, partnerOrg, cluster, profile, assessments, note, needsGoals, needsPitstops } = settlement;
   const lat = settlement.centroidLat;
   const lng = settlement.centroidLng;
 
@@ -125,12 +125,12 @@ export default function SettlementDetail({ settlement }: Props) {
                 {city.name}
               </span>
             )}
-            {partner && (
+            {partnerOrg && (
               <span
                 className="text-xs font-bold px-2.5 py-0.5 rounded-full text-white"
-                style={{ background: partner.color }}
+                style={{ background: partnerOrg.color ?? "#6366f1" }}
               >
-                {partner.label}
+                {partnerOrg.name}
               </span>
             )}
             {cluster?.zone && (

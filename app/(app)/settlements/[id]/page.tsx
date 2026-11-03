@@ -23,8 +23,12 @@ export default async function SettlementPage({
       centroidLng: true,
       cityId: true,
       city: { select: { id: true, name: true } },
-      partnerId: true,
-      partner: { select: { key: true, label: true, color: true } },
+      // Partner comes from Org (partnerOrgId). The legacy MapPartner relation
+      // this used to read was retired in 20261103160000_retire_map_partner; it
+      // agreed with partnerOrgId on all 270 rows that had both, and was blank
+      // on the 7 settlements partnered since the Org migration — which is what
+      // this page silently failed to show.
+      partnerOrg: { select: { slug: true, mapKey: true, name: true, color: true } },
       cluster: {
         select: {
           id: true,

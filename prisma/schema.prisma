@@ -1303,11 +1303,11 @@ model LayerFeature {
   name         String
   layerKey     String // creches | children_centres | youth_centres | resource_centres
   centreType   String?
-  // Legacy free-text partner identifier (e.g. "CFAR Creches", "actionaid").
-  // Kept during the Org migration so backfill can resolve to partnerOrgId.
-  // To be dropped once partnerOrg is fully populated.
-  partner      String?
-  // Partner-org FK (added 2026-06-04). Backfilled from `partner` free-text.
+  // Partner-org FK (added 2026-06-04). The free-text `partner` column it was
+  // backfilled from was dropped in 20261103160000_retire_map_partner: all 40
+  // values resolved to the org already on the row, and the only ones that
+  // differed ("CFAR Creches" → CFAR) differed by a suffix that layerKey
+  // already carries.
   partnerOrgId String?
   lat          Float
   lng          Float
@@ -1346,14 +1346,15 @@ model Settlement {
   // City direct FK — denormalised for fast city-scoped queries (backfilled from cluster→zone→city)
   cityId String?
 
-  // Partner organisation (1:1 — one partner covers this settlement). Legacy
-  // MapPartner FK kept during the Org migration; new code reads partnerOrg.
-  partnerId    String?
+  // Partner organisation (1:1 — one partner covers this settlement). The legacy
+  // MapPartner FK that sat beside this was dropped in
+  // 20261103160000_retire_map_partner: it agreed with partnerOrgId on every one
+  // of the 270 rows that had both, and the admin API had already stopped
+  // writing it (7 settlements had partnerOrgId and no partnerId).
   partnerOrgId String?
 
   cluster               Cluster                        @relation(fields: [clusterId], references: [id], onDelete: Cascade)
   city                  City?                          @relation(fields: [cityId], references: [id])
-  partner               MapPartner?                    @relation(fields: [partnerId], references: [id])
   partnerOrg            Org?                           @relation("SettlementPartnerOrg", fields: [partnerOrgId], references: [id], onDelete: SetNull)
   assessments           SettlementAssessment[]
   profile               SettlementProfile?
@@ -1764,20 +1765,6 @@ model SettlementNote {
   updatedAt    DateTime @updatedAt
 
   settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
-}
-
-model MapPartner {
-  id           String   @id @default(cuid())
-  key          String   @unique
-  label        String
-  color        String   @default("#6366f1")
-  contactName  String?
-  contactPhone String?
-  notes        String?
-  isBuiltIn    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-
-  settlements Settlement[]
 }
 
 // ── Needs Assessment ──────────────────────────────────────────────────────────

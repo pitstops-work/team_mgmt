@@ -1,11 +1,14 @@
 /**
  * LayerFeature CRUD (centres / facilities for the map-features admin panel).
- * Accepts both the new `partnerOrgId` (Org.id) and the legacy `partner`
- * (mapKey string) — the admin UI currently sends mapKey, so we resolve it
- * to an Org row before writing partnerOrgId. The free-text `partner` column
- * is also kept in sync with the resolved Org.name for backward compatibility
- * with the GeoJSON-tile-driven map popups; once those switch to the live DB
- * read (task 25), the free-text column can be dropped.
+ * Accepts both `partnerOrgId` (Org.id) and a `partner` mapKey string — the
+ * admin UI sends mapKey — and resolves either to the Org before writing
+ * partnerOrgId.
+ *
+ * It used to write the resolved name into a free-text `partner` column too,
+ * for map popups that read the GeoJSON tiles. Those now read partnerOrg
+ * directly (/api/map/geojson/layer-features), so that column was dropped in
+ * 20261103160000_retire_map_partner — the condition this file's own comment
+ * set for dropping it.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -26,19 +29,22 @@ const INCLUDE = {
 async function resolvePartner(
   partnerOrgId: string | null | undefined,
   partnerMapKey: string | null | undefined,
-): Promise<{ partnerOrgId: string | null; partner: string | null } | null> {
+): Promise<{ partnerOrgId: string | null } | null> {
   // Both undefined means "don't touch" (only on PATCH); caller checks that.
   if (partnerOrgId === undefined && partnerMapKey === undefined) return null;
 
   const idOrKey = partnerOrgId || partnerMapKey;
-  if (!idOrKey) return { partnerOrgId: null, partner: null };
+  if (!idOrKey) return { partnerOrgId: null };
 
   const org = await prisma.org.findFirst({
     where: { kind: "partner", OR: [{ id: idOrKey }, { mapKey: idOrKey }] },
-    select: { id: true, name: true, mapKey: true },
+    select: { id: true },
   });
-  if (!org) return { partnerOrgId: null, partner: idOrKey || null };
-  return { partnerOrgId: org.id, partner: org.mapKey ?? org.name };
+  // An identifier that resolves to no org clears the assignment rather than
+  // being stored as a loose string. The free-text column that used to hold
+  // the unresolved value is gone, and silently keeping one was how a partner
+  // came to exist as text in one place and a row in another.
+  return { partnerOrgId: org?.id ?? null };
 }
 
 export async function GET(req: NextRequest) {
@@ -68,7 +74,6 @@ export async function POST(req: NextRequest) {
       name,
       layerKey,
       centreType: centreType || null,
-      partner: resolved?.partner ?? null,
       partnerOrgId: resolved?.partnerOrgId ?? null,
       lat: parseFloat(lat),
       lng: parseFloat(lng),

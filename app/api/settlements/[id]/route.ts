@@ -20,8 +20,8 @@ export async function GET(
       centroidLng: true,
       cityId: true,
       city: { select: { id: true, name: true } },
-      partnerId: true,
-      partner: { select: { key: true, label: true, color: true } },
+      partnerOrgId: true,
+      partnerOrg: { select: { mapKey: true, slug: true, name: true, color: true } },
       cluster: {
         select: {
           id: true,
