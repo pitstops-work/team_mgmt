@@ -286,21 +286,46 @@ export default function NoteStartPage() {
       const created = await createRes.json();
       if (!created.id) throw new Error(created.error || 'Failed to create note');
 
-      // Kick off RAG ingest for any uploaded docs.
+      // Ingest the uploaded docs, and keep what it reports. This used to be
+      // fire-and-forget with a swallowed catch, so a document that extracted to
+      // nothing was reported by the API and then thrown away here — the note got
+      // drafted against a corpus the user believed had been read.
+      let ingestProblems: string[] = [];
       if (Array.isArray(created.ingest_doc_urls) && created.ingest_doc_urls.length > 0) {
-        fetch('/api/review/ingest', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ note_id: created.id, doc_urls: created.ingest_doc_urls }),
-        }).catch(() => {});
+        setBusyStatus('Reading source documents…');
+        try {
+          const ingestRes = await fetch('/api/review/ingest', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ note_id: created.id, doc_urls: created.ingest_doc_urls }),
+          });
+          const ingest = await ingestRes.json().catch(() => ({}));
+          ingestProblems = [
+            ...(Array.isArray(ingest?.warnings) ? ingest.warnings : []),
+            ...(Array.isArray(ingest?.errors) ? ingest.errors.map((e: any) => `${e.doc_url}: ${e.error}`) : []),
+          ];
+        } catch (e: any) {
+          ingestProblems = [`Source documents could not be read: ${e?.message || 'ingest failed'}`];
+        }
+        if (ingestProblems.length > 0) console.warn('[draft] ingest problems:', ingestProblems);
       }
 
-      // Persist the chosen scope as sticky scope on the new note.
-      await fetch(`/api/review/grant-notes/${created.id}/scope`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ capability_ids: scopeIds, updated_by: submitterName }),
-      }).catch(() => {});
+      // Persist the chosen scope as sticky scope on the new note. A silent
+      // failure here is not cosmetic: the draft then runs under the doc-type
+      // default capabilities instead of the ones that were picked, which changes
+      // which rules apply to the whole note.
+      try {
+        const scopeRes = await fetch(`/api/review/grant-notes/${created.id}/scope`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ capability_ids: scopeIds, updated_by: submitterName }),
+        });
+        if (!scopeRes.ok) {
+          ingestProblems.push(`Your scope selection could not be saved (${scopeRes.status}); the draft ran under the doc-type default scope.`);
+        }
+      } catch (e: any) {
+        ingestProblems.push(`Your scope selection could not be saved (${e?.message || 'request failed'}); the draft ran under the doc-type default scope.`);
+      }
 
       // Build the initial-draft instruction from intent + collected fields.
       const instructionLines: string[] = [];
@@ -344,6 +369,21 @@ export default function NoteStartPage() {
         // Don't redirect — surface the question right here so the user can
         // refine their input without leaving the entry screen.
         setError(`AI needs more from you to start: ${orchData.clarification_request.message}\n\nThe note has been created (id: ${created.id}) — refine your input below and try again, or open it in the design editor at /grant-notes/notes/${created.id}/design to continue manually.`);
+        setBusy(false);
+        setBusyStatus('');
+        return;
+      }
+
+      if (ingestProblems.length > 0) {
+        // Don't redirect into the draft as if nothing happened. If part of the
+        // corpus never arrived, that has to be known before the note is read —
+        // reading it is how a gap turns into a figure someone trusts.
+        setError(
+          `The note was drafted (id: ${created.id}), but some of what you gave it could not be read:\n` +
+          ingestProblems.map(p => `• ${p}`).join('\n') +
+          `\n\nThe draft does not contain that material. Open it at /grant-notes/notes/${created.id}/design — ` +
+          `fix the source document and use "Refresh content" to redraft.`,
+        );
         setBusy(false);
         setBusyStatus('');
         return;

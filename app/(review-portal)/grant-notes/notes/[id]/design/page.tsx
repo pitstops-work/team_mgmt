@@ -531,13 +531,26 @@ export default function DesignPage() {
       const patchData = await patchRes.json().catch(() => ({}));
       const toIngest: string[] = Array.isArray(patchData?.new_doc_urls) ? patchData.new_doc_urls : newUrls;
       if (toIngest.length > 0) {
-        // Fire ingestion for RAG. Phase 0: kicked off here so the server function
-        // has a live request to keep it alive on Vercel. We don't block on it.
-        fetch('/api/review/ingest', {
+        // Awaited, and its result is read. This used to be fire-and-forget with a
+        // swallowed catch: a document that extracted to nothing was reported by
+        // the API and then discarded here, so the note was drafted against a
+        // corpus the user believed had been read. Navigating away mid-upload also
+        // cut ingestion off part-way, leaving some documents with no chunks.
+        const ingestRes = await fetch('/api/review/ingest', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ note_id: id, doc_urls: toIngest }),
-        }).catch(() => { /* ingest is best-effort in phase 0 */ });
+        });
+        const ingest = await ingestRes.json().catch(() => ({}));
+        const problems: string[] = [
+          ...(Array.isArray(ingest?.warnings) ? ingest.warnings : []),
+          ...(Array.isArray(ingest?.errors) ? ingest.errors.map((e: any) => `${e.doc_url}: ${e.error}`) : []),
+        ];
+        if (problems.length > 0) {
+          setUploadError(
+            `Uploaded, but some content could not be read — the draft will not contain it:\n${problems.join('\n')}`,
+          );
+        }
       }
     } catch (e: any) {
       setUploadError(e.message || 'Upload failed');
