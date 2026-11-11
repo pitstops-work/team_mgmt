@@ -74,6 +74,14 @@
     {
       "path": "/api/cron/screening-drafts",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/grant-compliance-expiry",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/grant-closure-due",
+      "schedule": "0 5 * * 1"
     }
   ],
   "framework": "nextjs"

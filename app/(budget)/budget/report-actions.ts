@@ -12,6 +12,16 @@ import { computeDeclarationData } from "@/lib/budget/declarationData";
 import { getPartnerAccess, partnerCanAccessBudget } from "@/lib/budget/partnerAccess";
 import { assertPartnerEditClosed } from "@/lib/budget/partnerDraft";
 import { declarationInputsComplete, AFFIRMATION_CLAUSES, type DeclarationInputs } from "@/lib/budget/declaration";
+import {
+  logBudgetApproval,
+  logBudgetStatus,
+  logReportConfig,
+  logReportSubmit,
+  logReportDecision,
+  logReallocationRaised,
+  logReallocationResolved,
+  diffGrantChanges,
+} from "@/lib/budget/audit";
 import type { ReportFrequency, BudgetSection, ReallocationDuration } from "@/app/generated/prisma/client";
 
 // ── Admin: approve a budget and set up report config ──────────────────────────
@@ -28,7 +38,20 @@ export async function approveBudget(
   const session = await auth();
   if (!session?.user || !isBudgetAdminOrSuperAdmin(session)) throw new Error("Unauthorized");
 
-  const budget = await prisma.budget.findUnique({ where: { id: budgetId }, select: { partnerEditState: true } });
+  const budget = await prisma.budget.findUnique({
+    where: { id: budgetId },
+    // status and the existing config are read BEFORE the write: the update
+    // overwrites both and nothing else keeps the previous values, so this read
+    // is the only chance to record what changed (lib/budget/audit.ts).
+    select: {
+      partnerEditState: true,
+      status: true,
+      approvedAmount: true,
+      reportConfig: {
+        select: { frequency: true, grantStartDate: true, grantEndDate: true, dueAfterDays: true },
+      },
+    },
+  });
   if (!budget) throw new Error("Not found");
   assertPartnerEditClosed(budget.partnerEditState, "approved");
 
@@ -65,6 +88,20 @@ export async function approveBudget(
       })
     ),
   ]);
+
+  logBudgetStatus(budgetId, session.user.id, { from: budget.status, to: "approved" });
+  logBudgetApproval(budgetId, session.user.id, { amount: budget.approvedAmount });
+  logReportConfig(
+    budgetId,
+    session.user.id,
+    diffGrantChanges(budget.reportConfig ?? {}, {
+      frequency: config.frequency,
+      grantStartDate: config.grantStartDate,
+      grantEndDate: config.grantEndDate,
+      dueAfterDays,
+    }),
+    slots.length,
+  );
 
   revalidatePath(`/budget/${budgetId}`);
   revalidatePath("/admin");
@@ -277,6 +314,11 @@ export async function submitReportWithDeclaration(
     }),
   ]);
 
+  logReportSubmit(slotId, session.user!.id, {
+    slotId,
+    totalActual: data.summary ?? null,
+  });
+
   revalidatePath(`/budget/${slot.budgetId}/reports`);
   redirect(`/budget/${slot.budgetId}/reports`);
 }
@@ -422,6 +464,8 @@ export async function approveReport(slotId: string) {
     prisma.budgetReport.update({ where: { slotId }, data: { approvedAt: new Date() } }),
   ]);
 
+  logReportDecision(report?.id ?? slotId, session.user.id, "approved", { from: slot.status });
+
   revalidatePath(`/budget/${slot.budgetId}/reports`);
   revalidatePath("/admin");
 }
@@ -499,6 +543,11 @@ export async function sendBackReport(slotId: string, reviewerNotes: string) {
     prisma.budgetReport.update({ where: { slotId }, data: { reviewerNotes } }),
   ]);
 
+  logReportDecision(slotId, session.user.id, "sent_back", {
+    from: slot.status,
+    note: reviewerNotes.slice(0, 200),
+  });
+
   revalidatePath(`/budget/${slot.budgetId}/reports`);
 }
 
@@ -524,7 +573,7 @@ export async function addReallocationRequest(
   });
   if (!slot) throw new Error("Slot not found");
   if (!["pending", "sent_back"].includes(slot.status)) throw new Error("Cannot add requests in current status");
-  await assertCanEditReport(slot.budgetId);
+  const session = await assertCanEditReport(slot.budgetId);
 
   // Carrying money backwards is not a reallocation — an earlier year is already
   // reported and its declaration signed.
@@ -558,7 +607,7 @@ export async function addReallocationRequest(
   const durationMonths = req.durationMonths ?? null;
   const monthlyAmount = isRecurring && durationMonths ? req.requestedAmount / durationMonths : 0;
 
-  await prisma.budgetReallocationRequest.create({
+  const created = await prisma.budgetReallocationRequest.create({
     data: {
       reportId: report.id,
       fromLineId: req.fromLineId,
@@ -576,6 +625,14 @@ export async function addReallocationRequest(
       willSustain,
       sustainNote,
     },
+    select: { id: true },
+  });
+
+  logReallocationRaised(created.id, session.user!.id, {
+    budgetId: slot.budgetId,
+    amount: req.requestedAmount,
+    fromSection: fromLine.section,
+    toSection: req.toSection ?? undefined,
   });
 
   revalidatePath(`/budget/${slot.budgetId}/reports/${slotId}`);
@@ -618,6 +675,14 @@ export async function resolveReallocationRequest(
       reviewerComment: resolution.reviewerComment ?? null,
       resolvedAt: new Date(),
     },
+  });
+
+  // A reallocation moves money between heads inside an approved grant, so it is
+  // an approval in substance whatever the UI calls it.
+  logReallocationResolved(requestId, session.user.id, {
+    decision: resolution.status,
+    amount: resolution.status === "approved" ? (resolution.approvedAmount ?? null) : null,
+    note: resolution.reviewerComment?.slice(0, 200),
   });
 
   revalidatePath(`/budget/${req.report.slot.budgetId}/reports/${req.report.slotId}`);

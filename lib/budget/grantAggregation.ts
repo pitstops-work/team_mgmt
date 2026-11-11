@@ -7,6 +7,16 @@
 //   - Grant total = Σ of active-year yN totals across all lines.
 //   - Utilised     = Σ BudgetReportLine.actualAmount on reports that have been
 //     submitted (slot.status ≠ pending), i.e. what the partner has reported.
+//   - Released     = Σ Disbursement.amount where status = released. GROSS, not
+//     net: TDS is a tax artefact, and the grant's position is the gross figure.
+//     Accounting is the system of record for payments, so this is what Pitstops
+//     has been told was paid — it is a confirmation, not a ledger.
+//   - committedNext / indicativeNext are the FORWARD schedule, and are kept
+//     SEPARATE on purpose. Only the current grant year is committed; later years
+//     are projections off the budget that get restated from utilisation and
+//     reallocations. Summing them into one "committed" figure would report a
+//     pipeline that was never promised — so there is deliberately no helper
+//     here that adds them.
 
 import { activeYearBands } from "@/lib/budget-generator";
 
@@ -42,6 +52,9 @@ export type BudgetForAgg = {
   reportConfig: { grantStartDate: Date | string; grantEndDate: Date | string } | null;
   lines: LineForAgg[];
   reportSlots: ReportSlotForAgg[];
+  /** Optional so existing callers that do not select them still compile. */
+  disbursements?: DisbursementForAgg[];
+  tranches?: TrancheForAgg[];
 };
 
 /** Σ of the active year-bands (per horizon) for one line. */
@@ -56,6 +69,20 @@ function lineTotal(l: LineForAgg, bands: number): number {
 
 export type DomainSlice = { approved: number; utilised: number };
 
+/** Payments, as the aggregation sees them. Amounts in rupees. */
+export type DisbursementForAgg = {
+  amount: number;
+  status: string;
+};
+
+/** Forward schedule rows. `isCommitted` is the whole point — see the header. */
+export type TrancheForAgg = {
+  plannedAmount: number;
+  plannedOn: Date | string;
+  isCommitted: boolean;
+  status: string;
+};
+
 export type GrantRow = {
   budgetId: string;
   name: string;
@@ -68,6 +95,14 @@ export type GrantRow = {
   grantLeadName: string;         // "Unassigned" when null
   approved: number;
   utilised: number;
+  /** Σ released payments. 0 where the grant has no disbursement records yet. */
+  released: number;
+  /** Approved for release but not yet confirmed paid — the gap that matters. */
+  approvedUnpaid: number;
+  /** Forward schedule, committed only. Never add this to `indicativeNext`. */
+  committedNext: number;
+  /** Forward schedule, indicative projections. A label, not a commitment. */
+  indicativeNext: number;
   periodFrom: string | null;     // ISO
   periodTo: string | null;
   perDomain: Record<string, DomainSlice>;
@@ -97,6 +132,23 @@ export function buildGrantRow(b: BudgetForAgg): GrantRow {
   const approved = Object.values(perDomain).reduce((a, s) => a + s.approved, 0);
   const utilised = Object.values(perDomain).reduce((a, s) => a + s.utilised, 0);
 
+  // Released is deliberately NOT split per domain: a payment is made against a
+  // tranche, which covers the whole grant, so attributing it to a domain would
+  // mean inventing an apportionment nobody decided.
+  const released = (b.disbursements ?? [])
+    .filter((d) => d.status === "released")
+    .reduce((a, d) => a + d.amount, 0);
+
+  const tranches = b.tranches ?? [];
+  const live = tranches.filter((t) => t.status !== "cancelled");
+  const committedNext = live.filter((t) => t.isCommitted).reduce((a, t) => a + t.plannedAmount, 0);
+  const indicativeNext = live.filter((t) => !t.isCommitted).reduce((a, t) => a + t.plannedAmount, 0);
+  // Approved-for-release tranches with nothing paid against them yet. Computed
+  // from the tranche side because the status is derived from its payments.
+  const approvedUnpaid = live
+    .filter((t) => t.status === "approved")
+    .reduce((a, t) => a + t.plannedAmount, 0);
+
   return {
     budgetId: b.id,
     name: b.name,
@@ -109,6 +161,10 @@ export function buildGrantRow(b: BudgetForAgg): GrantRow {
     grantLeadName: b.grantLead?.name ?? b.grantLead?.email ?? "Unassigned",
     approved,
     utilised,
+    released,
+    approvedUnpaid,
+    committedNext,
+    indicativeNext,
     periodFrom: b.reportConfig ? new Date(b.reportConfig.grantStartDate).toISOString() : null,
     periodTo: b.reportConfig ? new Date(b.reportConfig.grantEndDate).toISOString() : null,
     perDomain,
@@ -159,6 +215,11 @@ export type Rollup = {
   label: string;
   approved: number;
   utilised: number;
+  released: number;
+  approvedUnpaid: number;
+  /** Kept apart from `indicativeNext` at every level of aggregation. */
+  committedNext: number;
+  indicativeNext: number;
   grantCount: number;
   domains: Set<string>;
   periodFrom: string | null;
@@ -181,11 +242,20 @@ export function rollup(
     const { key, label } = by(g);
     let r = map.get(key);
     if (!r) {
-      r = { key, label, approved: 0, utilised: 0, grantCount: 0, domains: new Set(), periodFrom: null, periodTo: null, grants: [] };
+      r = {
+        key, label,
+        approved: 0, utilised: 0, released: 0, approvedUnpaid: 0,
+        committedNext: 0, indicativeNext: 0,
+        grantCount: 0, domains: new Set(), periodFrom: null, periodTo: null, grants: [],
+      };
       map.set(key, r);
     }
     r.approved += g.approved;
     r.utilised += g.utilised;
+    r.released += g.released;
+    r.approvedUnpaid += g.approvedUnpaid;
+    r.committedNext += g.committedNext;
+    r.indicativeNext += g.indicativeNext;
     r.grantCount += 1;
     g.domains.forEach((d) => r!.domains.add(d));
     r.grants.push(g);

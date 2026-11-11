@@ -17,7 +17,26 @@ export type AuditEntityType =
   | "FieldVisit"        // a cadence visit occurrence
   | "FieldIntervention" // the Goal, seen through /field
   | "FieldTemplate"     // Setup/VisitStepTemplate — the recipe
-  | "FieldDomain";      // FieldDomainConfig + domain-wide bulk ops (resync, derive)
+  | "FieldDomain"       // FieldDomainConfig + domain-wide bulk ops (resync, derive)
+  // ── Grant lifecycle (the money) ───────────────────────────────────────────
+  // Until the grant-ERP work there were NO audit rows anywhere under
+  // app/(budget), app/api/approvals or lib/review — the modules that move money
+  // were the only ones with no logbook at all. Every writer below goes through
+  // lib/budget/audit.ts; nothing calls auditLog() directly from a budget route.
+  | "Budget"            // the grant spine: status, approval, finalise, amendment
+  | "BudgetLine"        // a single costed line — edits after approval matter most
+  | "BudgetReport"      // grantee submission, review, approve, send-back
+  | "Reallocation"      // BudgetReallocationRequest raise/resolve
+  | "CostRegistry"      // the rates every future budget is generated from
+  | "GrantDecision"     // the decision of record and its conditions
+  | "GrantAgreement"    // contracting, signature, execution, termination
+  | "GrantDocument"     // the grant document set
+  | "GrantTranche"      // schedule, restatement, commitment
+  | "Disbursement"      // release requests, approvals, payment confirmations
+  | "GrantClosure"      // the terminal state
+  | "Authority"         // AuthorityRule / AuthorityDelegation edits
+  | "Compliance"        // OrgCompliance registration windows
+  | "Proposal";         // intake and pipeline
 
 export type AuditEntry = {
   entityType: AuditEntityType;

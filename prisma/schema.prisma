@@ -184,6 +184,29 @@ model User {
   fieldVisitStepsCompleted  FieldVisitStep[]               @relation("FieldVisitStepCompleter")
   fieldStepsUpdated         FieldStep[]                    @relation("FieldStepUpdater")
   fieldVisitStepsUpdated    FieldVisitStep[]               @relation("FieldVisitStepUpdater")
+  // ── Grant lifecycle ───────────────────────────────────────────────────────
+  grantDecisionsRecorded    GrantDecision[]                @relation("GrantDecisionRecorder")
+  grantVotes                GrantDecisionVote[]            @relation("GrantVoter")
+  conditionsDischarged      GrantCondition[]               @relation("ConditionDischarger")
+  conditionsWaived          GrantCondition[]               @relation("ConditionWaiver")
+  agreementsPrepared        GrantAgreementSignoff[]        @relation("AgreementPreparer")
+  agreementsReviewed        GrantAgreementSignoff[]        @relation("AgreementReviewer")
+  agreementsApproved        GrantAgreementSignoff[]        @relation("AgreementApprover")
+  grantDocumentsUploaded    GrantDocument[]                @relation("GrantDocumentUploader")
+  disbursementRequests      DisbursementRequest[]          @relation("DisbursementRequester")
+  disbursementApprovals     DisbursementApproval[]         @relation("DisbursementApprover")
+  disbursementsRecorded     Disbursement[]                 @relation("DisbursementRecorder")
+  grantsClosed              GrantClosure[]                 @relation("GrantCloser")
+  authorityRules            AuthorityRule[]                @relation("AuthorityHolder")
+  delegationsGiven          AuthorityDelegation[]          @relation("DelegationFrom")
+  delegationsReceived       AuthorityDelegation[]          @relation("DelegationTo")
+  delegationsCreated        AuthorityDelegation[]          @relation("DelegationCreator")
+  complianceVerified        OrgCompliance[]                @relation("ComplianceVerifier")
+  conflictDeclarations      ConflictDeclaration[]          @relation("ConflictDeclarant")
+  conflictsReviewed         ConflictDeclaration[]          @relation("ConflictReviewer")
+  proposalsAssigned         Proposal[]                     @relation("ProposalAssignee")
+  proposalReviews           ProposalReview[]               @relation("ProposalReviewer")
+  proposalEvents            ProposalEvent[]                @relation("ProposalEventActor")
 }
 
 model Account {
@@ -302,6 +325,17 @@ model Goal {
   // Field-ops surface (/field)
   fieldSteps            FieldStep[]
   fieldVisits           FieldVisit[]
+
+  // ── Which grant pays for this work ────────────────────────────────────────
+  // Delivery and grants were joined only by a human inferring partner +
+  // geography. This is the join.
+  fundingBudgetId       String?
+  fundingBudget         Budget?                        @relation("GoalFundingBudget", fields: [fundingBudgetId], references: [id], onDelete: SetNull)
+  /// What share of this goal the grant funds, 0-100. REQUIRED IN CODE whenever
+  /// fundingBudgetId is set (Prisma cannot express a conditional NOT NULL).
+  /// Deliberately not defaulted: treating an unapportioned co-funded goal as
+  /// 100% would make every cost-per-outcome figure quietly wrong.
+  fundingSharePct       Float?
 }
 
 // One row per settlement that received actuals from a completed domain goal.
@@ -849,9 +883,23 @@ model Risk {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  // ── Grant risk register ───────────────────────────────────────────────────
+  // An appraisal's risk list becomes a register only if it survives the
+  // decision: recordDecision() copies the appraisal's RiskEntry rows here with
+  // budgetId + sourceDecisionId set and a review date, so "what did we say the
+  // risks were" has an answer after approval.
+  budgetId        String?
+  budget          Budget?        @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  sourceDecisionId String?
+  sourceDecision   GrantDecision? @relation("RiskSourceDecision", fields: [sourceDecisionId], references: [id], onDelete: SetNull)
+  reviewDueOn      DateTime?      @db.Date
+
   goal      Goal?    @relation(fields: [goalId], references: [id], onDelete: SetNull)
   pitstop   Pitstop? @relation(fields: [pitstopId], references: [id], onDelete: SetNull)
   createdBy User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([budgetId, status])
+  @@index([reviewDueOn])
 }
 
 // ── Broadcast Updates ─────────────────────────────────────────────────────────
@@ -2330,6 +2378,9 @@ enum BudgetStatus {
   draft
   final
   approved
+  /// Terminal. Set by the closure flow, never by hand: a closed grant's
+  /// figures are frozen into GrantClosure and must not drift afterwards.
+  closed
 }
 
 enum BudgetPartnerEditState {
@@ -2455,6 +2506,21 @@ model Budget {
   borrowingsTo       GrantBorrowing[]        @relation("BorrowingTo")
   // After-school centre this budget belongs to (nullable — regular budgets don't).
   schoolPlan         SchoolPlan?             @relation("SchoolBudget")
+
+  // ── Grant lifecycle ───────────────────────────────────────────────────────
+  decisions          GrantDecision[]
+  agreement          GrantAgreement?
+  tranches           GrantTranche[]
+  disbursements      Disbursement[]
+  closure            GrantClosure?
+  // Closures whose unspent balance was carried forward INTO this budget.
+  closureAdjustments GrantClosure[]          @relation("ClosureAdjustment")
+  documents          GrantDocument[]
+  results            GrantResult[]
+  proposal           Proposal?
+  risks              Risk[]
+  fundedGoals        Goal[]                  @relation("GoalFundingBudget")
+  fundedActionPoints ActionPoint[]           @relation("ActionPointFundingBudget")
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
@@ -2508,6 +2574,10 @@ model GrantingUnit {
 
   budgets  Budget[]
   partners GrantPartner[]
+  // Grant-ERP: unit-scoped authority rules, document requirements and calls.
+  authorityRules       AuthorityRule[]
+  documentRequirements GrantDocumentRequirement[]
+  fundingWindows       FundingWindow[]
 
   @@index([isActive, sortOrder])
 }
@@ -2801,6 +2871,8 @@ model BudgetReportSlot {
   createdAt  DateTime         @default(now())
 
   reminderLogs BudgetReportReminderLog[]
+  tranches     GrantTranche[]
+  resultValues GrantResultValue[]
 
   @@unique([budgetId, slotNumber])
   @@index([budgetId, grantYear])
@@ -2861,6 +2933,9 @@ model BudgetReport {
   lines                    BudgetReportLine[]
   reallocationRequests     BudgetReallocationRequest[]
   fdDetails                BudgetReportFd[]
+  /// Payments reconciled against this report's period.
+  reconciledDisbursements  Disbursement[]              @relation("DisbursementReconciliation")
+  narrative                BudgetReportNarrative?
   lineNotes                BudgetReportLineNote[]
   createdAt                DateTime                    @default(now())
   updatedAt                DateTime                    @updatedAt
@@ -3301,6 +3376,7 @@ model Role {
   updatedAt   DateTime @updatedAt
 
   permissions RolePermission[]
+  authorityRules AuthorityRule[]
 }
 
 model Permission {
@@ -3374,6 +3450,11 @@ model Org {
   grantRelationships    GrantPartner[]             @relation("GrantPartnerOrg")
   partnerLogins         GrantPartnerUser[]         @relation("PartnerLoginOrg")
   aliases               OrgAlias[]
+  // Grant-ERP: statutory registrations with validity windows, declared
+  // conflicts, and inbound proposals.
+  compliance            OrgCompliance[]
+  conflictDeclarations  ConflictDeclaration[]
+  proposals             Proposal[]
 }
 
 /// Name variants that resolve to one Org.
@@ -4086,6 +4167,11 @@ model ActionPoint {
   needsZone            Zone?                         @relation("ActionPointNeedsZone", fields: [needsZoneId], references: [id])
   needsCity            City?                         @relation("ActionPointNeedsCity", fields: [needsCityId], references: [id])
   caregiverObservation CaregiverPracticeObservation?
+
+  /// Set when this follow-up came out of grant monitoring, so corrective
+  /// actions land in the tracker staff already use rather than a new one.
+  fundingBudgetId      String?
+  fundingBudget        Budget?                       @relation("ActionPointFundingBudget", fields: [fundingBudgetId], references: [id], onDelete: SetNull)
 
   @@index([ownerId, status, dueDate])
   @@index([pitstopEventId])
@@ -5630,4 +5716,1030 @@ model ScreeningScope {
   districts String[]   @default([])
 
   @@unique([userId, geoId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GRANT LIFECYCLE
+//
+// Everything below closes the chain between "a budget exists" and "a grant was
+// decided, contracted, released, reported on and closed". Before this, a grant
+// became `approved` as a side effect of configuring reporting, a conditional
+// approval was indistinguishable from a clean one the next day, "released"
+// existed nowhere, and nothing ever ended.
+//
+// Placement: these live in the MAIN database, not the review DB. They need real
+// foreign keys to Budget / Org / User and must transact with budget writes; the
+// review DB has neither and is reached by raw SQL. The cross-DB link to a
+// review-portal assembly stays a soft pointer with no FK (`assemblyId`), and is
+// never pretended to be atomic.
+//
+// Money: every amount here is `Decimal(14,2)`. The legacy `Float` columns on
+// BudgetLine and BudgetReportLine are swept separately — see
+// prisma/migrations-pending/README.md. Reconciling against a bank statement in
+// binary floating point is not recoverable.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── 1.1 The decision of record ───────────────────────────────────────────────
+
+enum GrantDecisionOutcome {
+  approved
+  approved_with_conditions
+  deferred
+  declined
+  withdrawn
+}
+
+enum GrantDecisionForum {
+  /// Governing council / board — the ₹1 Cr-and-above forum today.
+  gc
+  /// Delegated internal authority below the board threshold.
+  internal
+  /// A circulated resolution rather than a convened meeting.
+  written_resolution
+}
+
+/// The act of deciding on a grant, as its own record.
+///
+/// Before this, approval was a side effect of `setReportConfig` writing
+/// `status: "approved"` on the Budget, so there was no answer to who decided,
+/// when, in which forum, on what conditions, or on which version of the
+/// numbers.
+model GrantDecision {
+  id       String @id @default(cuid())
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  outcome GrantDecisionOutcome
+  forum   GrantDecisionForum
+  /// The date the decision was taken — NOT the date it was keyed in.
+  decidedOn DateTime @db.Date
+
+  /// The amount actually approved. Need not equal the budget's computed total:
+  /// a committee may approve less, and that divergence is the point of
+  /// `variationNote` rather than something to reconcile away.
+  approvedAmount Decimal  @db.Decimal(14, 2)
+  variationNote  String?
+  /// Approved horizon, where the committee shortened or extended it.
+  approvedMonths Int?
+
+  /// The budget's lines exactly as approved, frozen here. An amendment edits
+  /// the live budget and records a NEW decision carrying its own snapshot;
+  /// variance is snapshot-vs-live via lib/budget/baselineDiff.ts. Cloning the
+  /// Budget row instead is not an option — eight models key to budgetId and two
+  /// of them are @unique, so a clone would split one grant's reporting history.
+  budgetSnapshot Json @default("{}")
+
+  /// Required on deferred / declined / withdrawn.
+  reasonCode String?
+  reasonNote String?
+
+  /// Soft pointer at the review-portal assembly this decision came from. No FK:
+  /// different database. Null for decisions recorded directly.
+  assemblyId String?
+
+  /// The decision this one replaces. A deferral keeps the assembly OPEN and
+  /// re-presentation is a second decision on the same assembly, so this chain
+  /// is the audit answer to "how many times did this go to the board".
+  supersedesId String?        @unique
+  supersedes   GrantDecision? @relation("DecisionRevision", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy GrantDecision? @relation("DecisionRevision")
+
+  meetingId String?
+  meeting   GrantMeeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  recordedById String?
+  recordedBy   User?    @relation("GrantDecisionRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  conditions GrantCondition[]
+  votes      GrantDecisionVote[]
+  agreements GrantAgreement[]
+  risks      Risk[]              @relation("RiskSourceDecision")
+
+  @@index([budgetId, decidedOn])
+  @@index([outcome, decidedOn])
+  @@index([assemblyId])
+}
+
+/// When a condition has to be satisfied. The timing is what makes a condition
+/// mechanical rather than decorative: it decides which gate it blocks.
+enum GrantConditionTiming {
+  pre_disbursement
+  pre_tranche
+  during_grant
+  pre_closure
+}
+
+enum GrantConditionStatus {
+  open
+  discharged
+  waived
+}
+
+/// A condition attached to an approval. The appraisal schema already defined a
+/// `Condition` shape, but nothing carried it forward — so a conditional
+/// approval looked exactly like a clean one the following day.
+model GrantCondition {
+  id         String        @id @default(cuid())
+  decisionId String
+  decision   GrantDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  text   String
+  timing GrantConditionTiming
+  /// For pre_tranche: which tranche this blocks. Null = every tranche.
+  blocksTrancheNumber Int?
+
+  status GrantConditionStatus @default(open)
+  dueOn  DateTime? @db.Date
+
+  dischargedById   String?
+  dischargedBy     User?     @relation("ConditionDischarger", fields: [dischargedById], references: [id], onDelete: SetNull)
+  dischargedAt     DateTime?
+  dischargeNote    String?
+  /// Waiving a condition is the quietest way to approve money without
+  /// appearing to, so it carries its own authority check and its own note.
+  waivedById       String?
+  waivedBy         User?     @relation("ConditionWaiver", fields: [waivedById], references: [id], onDelete: SetNull)
+  waivedAt         DateTime?
+  waiverNote       String?
+
+  documents GrantDocument[]
+  createdAt DateTime @default(now())
+
+  @@index([decisionId, status])
+  @@index([status, timing, dueOn])
+}
+
+/// A convened approval forum. Several decisions per meeting.
+model GrantMeeting {
+  id       String             @id @default(cuid())
+  forum    GrantDecisionForum
+  heldOn   DateTime           @db.Date
+  reference String?
+  /// Attendance as names + roles: committee members are frequently not users.
+  attendance Json             @default("[]")
+  minutesNote String?
+
+  decisions GrantDecision[]
+  documents GrantDocument[]
+  createdAt DateTime @default(now())
+
+  @@index([forum, heldOn])
+}
+
+enum GrantVote {
+  for
+  against
+  abstained
+  recused
+}
+
+/// An individual's vote, where the forum records them. `recused` is pre-filled
+/// from live conflict declarations when attendance is entered.
+model GrantDecisionVote {
+  id         String        @id @default(cuid())
+  decisionId String
+  decision   GrantDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  /// A user where the voter has a login; otherwise the name as minuted.
+  userId    String?
+  user      User?   @relation("GrantVoter", fields: [userId], references: [id], onDelete: SetNull)
+  voterName String?
+
+  vote GrantVote
+  note String?
+
+  @@index([decisionId])
+}
+
+// ── 1.2 Contracting and the grant document set ───────────────────────────────
+
+enum GrantAgreementStatus {
+  drafting
+  sent_for_signature
+  executed
+  terminated
+}
+
+/// The agreement for one budget. An amendment gets its own agreement row
+/// chained by `amendsId` — a variation deed is a second document, even though
+/// the budget it varies is edited in place.
+model GrantAgreement {
+  id       String @id @default(cuid())
+  budgetId String @unique
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Restrict)
+
+  /// The decision this agreement gives effect to.
+  decisionId String?
+  decision   GrantDecision? @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+
+  status    GrantAgreementStatus @default(drafting)
+  reference String?
+
+  /// Signatories as names + roles rather than FKs: the grantee's signatory is
+  /// usually not a Pitstops user, and the internal one may have left.
+  granteeSignatoryName String?
+  granteeSignatoryRole String?
+  granteeSignedOn      DateTime? @db.Date
+  funderSignatoryName  String?
+  funderSignatoryRole  String?
+  funderSignedOn       DateTime? @db.Date
+
+  executedOn    DateTime? @db.Date
+  effectiveFrom DateTime? @db.Date
+  effectiveTo   DateTime? @db.Date
+
+  terminatedOn      DateTime? @db.Date
+  terminationReason String?
+
+  /// The release rhythm this grant's money follows. Annual is the norm; creche
+  /// and urban operational grants run quarterly or half-yearly. The tranche
+  /// generator splits each budget year's total across this frequency.
+  trancheFrequency TrancheFrequency @default(annual)
+
+  /// The agreement this one amends (a variation deed).
+  amendsId  String?         @unique
+  amends    GrantAgreement? @relation("AgreementAmendment", fields: [amendsId], references: [id], onDelete: SetNull)
+  amendedBy GrantAgreement? @relation("AgreementAmendment")
+
+  signoff   GrantAgreementSignoff?
+  documents GrantDocument[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, executedOn])
+}
+
+/// Internal clearance before the agreement goes out. The SchoolPlanSignoff
+/// shape, which already works one module over.
+model GrantAgreementSignoff {
+  id          String         @id @default(cuid())
+  agreementId String         @unique
+  agreement   GrantAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  preparedById String?
+  preparedBy   User?     @relation("AgreementPreparer", fields: [preparedById], references: [id], onDelete: SetNull)
+  preparedAt   DateTime?
+  reviewedById String?
+  reviewedBy   User?     @relation("AgreementReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewerNotes String?
+  approvedById String?
+  approvedBy   User?     @relation("AgreementApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+  approvalNotes String?
+}
+
+enum GrantDocumentKind {
+  proposal
+  dd_evidence
+  appraisal_note
+  board_minutes
+  agreement_draft
+  agreement_executed
+  amendment_deed
+  condition_evidence
+  budget_workbook
+  financial_report
+  narrative_report
+  utilisation_certificate
+  audited_accounts
+  fcra_return
+  disbursement_advice
+  bank_statement
+  asset_register
+  closure_report
+  other
+}
+
+/// One home for grant documents. Until now they lived in five unrelated places
+/// (Attachment, review-portal blobs, ScreeningApplication.documents JSON,
+/// SchoolPlanArtifact, BudgetReport scan URLs) with no document set and no
+/// notion of completeness.
+model GrantDocument {
+  id       String            @id @default(cuid())
+  kind     GrantDocumentKind
+  title    String
+  fileUrl  String
+  mimeType String?
+  sizeBytes Int?
+
+  /// Versioning, as SchoolPlanArtifact does it: a new version is a new row.
+  version    Int     @default(1)
+  supersedesId String? @unique
+  supersedes   GrantDocument? @relation("DocumentVersion", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy GrantDocument? @relation("DocumentVersion")
+
+  /// Attachment points. A document hangs off exactly one of these.
+  budgetId      String?
+  budget        Budget?          @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  agreementId   String?
+  agreement     GrantAgreement?  @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  conditionId   String?
+  condition     GrantCondition?  @relation(fields: [conditionId], references: [id], onDelete: Cascade)
+  meetingId     String?
+  meeting       GrantMeeting?    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  disbursementId String?
+  disbursement  Disbursement?    @relation(fields: [disbursementId], references: [id], onDelete: Cascade)
+  closureId     String?
+  closure       GrantClosure?    @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  proposalId    String?
+  proposal      Proposal?        @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  uploadedById String?
+  uploadedBy   User?    @relation("GrantDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([budgetId, kind])
+  @@index([kind, createdAt])
+}
+
+/// What documents a grant must hold, and by when. Data rather than code so the
+/// set can change per granting unit without a deploy.
+model GrantDocumentRequirement {
+  id   String            @id @default(cuid())
+  kind GrantDocumentKind
+  /// Null = applies to every granting unit.
+  grantingUnitId String?
+  grantingUnit   GrantingUnit? @relation(fields: [grantingUnitId], references: [id], onDelete: Cascade)
+
+  /// Which gate this document blocks, mirroring GrantConditionTiming.
+  timing   GrantConditionTiming
+  isActive Boolean @default(true)
+  note     String?
+
+  @@unique([kind, grantingUnitId, timing])
+}
+
+// ── 1.3 Tranches and disbursement ────────────────────────────────────────────
+
+enum TrancheFrequency {
+  annual
+  half_yearly
+  quarterly
+}
+
+enum TrancheStatus {
+  planned
+  blocked
+  requested
+  approved
+  released
+  partially_released
+  cancelled
+}
+
+enum DisbursementStatus {
+  pending
+  released
+  failed
+  returned
+  recovered
+}
+
+/// The release schedule. Generated from the BUDGET's per-year amounts (not the
+/// agreement period) split across GrantAgreement.trancheFrequency.
+///
+/// Only the current grant year is committed. Year 2+ is an indicative
+/// projection until a year-boundary recompute restates it from year-1
+/// utilisation plus approved reallocations — so a forecast must never sum
+/// committed and indicative money into one figure.
+model GrantTranche {
+  id       String @id @default(cuid())
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  trancheNumber Int
+  grantYear     Int
+  plannedOn     DateTime      @db.Date
+  plannedAmount Decimal       @db.Decimal(14, 2)
+  status        TrancheStatus @default(planned)
+
+  /// False until the year-boundary recompute confirms this year's figure.
+  /// Nothing may be requested against an indicative tranche.
+  isCommitted Boolean   @default(false)
+  committedAt DateTime?
+  /// What the figure was before the last restatement, so a changed projection
+  /// can be explained rather than silently replaced.
+  restatedFromAmount Decimal?  @db.Decimal(14, 2)
+  restatedAt         DateTime?
+  restatementNote    String?
+
+  /// Extra release rule beyond conditions, e.g. "report for slot 2 approved".
+  releaseRuleNote String?
+  /// The report slot whose approval gates this tranche — the common real rule.
+  gatingSlotId String?
+  gatingSlot   BudgetReportSlot? @relation(fields: [gatingSlotId], references: [id], onDelete: SetNull)
+
+  requests      DisbursementRequest[]
+  disbursements Disbursement[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@unique([budgetId, trancheNumber])
+  @@index([budgetId, grantYear])
+  @@index([status, plannedOn])
+}
+
+enum DisbursementRequestStatus {
+  draft
+  submitted
+  approved
+  rejected
+  cancelled
+}
+
+/// A request to release a tranche. Maker-checker: whoever submits may not
+/// approve, enforced in requireAuthority().
+model DisbursementRequest {
+  id        String       @id @default(cuid())
+  trancheId String
+  tranche   GrantTranche @relation(fields: [trancheId], references: [id], onDelete: Cascade)
+
+  requestedAmount Decimal @db.Decimal(14, 2)
+  /// The gate state at submit time, so a later condition discharge does not
+  /// rewrite why this was allowed through.
+  gateSnapshot    Json    @default("{}")
+  justification   String
+
+  status        DisbursementRequestStatus @default(draft)
+  submittedById String?
+  submittedBy   User?                     @relation("DisbursementRequester", fields: [submittedById], references: [id], onDelete: SetNull)
+  submittedAt   DateTime?
+
+  approvals     DisbursementApproval[]
+  disbursements Disbursement[]
+  rejectionNote String?
+  resolvedAt    DateTime?
+  createdAt     DateTime                  @default(now())
+
+  @@index([trancheId])
+  @@index([status, submittedAt])
+}
+
+/// One authority's sign-off on a request. Several rows where the DoA matrix
+/// requires more than one.
+model DisbursementApproval {
+  id        String              @id @default(cuid())
+  requestId String
+  request   DisbursementRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  /// The DoA rule this satisfies. Plain id, no FK: the rule may be edited or
+  /// retired later and this record must not change meaning.
+  authorityRuleId String?
+  /// Denormalised at approval time — what the matrix said when it mattered,
+  /// including the policy clause it came from.
+  authoritySnapshot Json @default("{}")
+
+  approverId String
+  approver   User     @relation("DisbursementApprover", fields: [approverId], references: [id], onDelete: Restrict)
+  decision   String
+  note       String?
+  decidedAt  DateTime @default(now())
+
+  @@unique([requestId, approverId])
+}
+
+/// Confirmation that an approved release was paid.
+///
+/// ACCOUNTING IS THE SYSTEM OF RECORD. This row mirrors a payment made in the
+/// accounting system so the approved-vs-paid gap is visible here; Pitstops is
+/// never the authority on a payment figure and nothing here touches a bank.
+/// `bankReference` is what ties the two systems together, so a released row
+/// without one is refused.
+model Disbursement {
+  id        String       @id @default(cuid())
+  trancheId String
+  tranche   GrantTranche @relation(fields: [trancheId], references: [id], onDelete: Restrict)
+  budgetId  String
+  budget    Budget       @relation(fields: [budgetId], references: [id], onDelete: Restrict)
+  requestId String?
+  request   DisbursementRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  amount Decimal @db.Decimal(14, 2)
+  /// TDS or bank charges withheld at source.
+  tdsAmount Decimal @db.Decimal(14, 2) @default(0)
+  /// amount − tdsAmount. Stored, because this is what the bank actually moved
+  /// and what the grantee reconciles against.
+  netAmount Decimal @db.Decimal(14, 2)
+
+  valueDate DateTime @db.Date
+  /// UTR / NEFT / cheque number. The reconciliation key against accounting.
+  bankReference    String?
+  instrument       String?
+  fromAccountLabel String?
+
+  status      DisbursementStatus @default(pending)
+  failureNote String?
+
+  /// Reconciliation against what the grantee reports having received.
+  reconciledReportId String?
+  reconciledReport   BudgetReport? @relation("DisbursementReconciliation", fields: [reconciledReportId], references: [id], onDelete: SetNull)
+  reconciledAt       DateTime?
+  /// Signed rupees: reported − released. Non-zero is a finding, not an error.
+  reconciliationDelta Decimal? @db.Decimal(14, 2)
+
+  recordedById String?
+  recordedBy   User?    @relation("DisbursementRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  documents GrantDocument[]
+
+  @@index([budgetId, valueDate])
+  @@index([status, valueDate])
+  @@index([bankReference])
+}
+
+// ── 1.4 Closure ──────────────────────────────────────────────────────────────
+
+enum GrantClosureStatus {
+  open
+  closing
+  closed
+  closed_with_exception
+}
+
+enum GrantExitDecision {
+  undecided
+  renew
+  exit
+  pause
+}
+
+/// The terminal state. Nothing ended before this: lapse.ts reported unspent
+/// money as a sizing signal and no grant ever reached a final state.
+model GrantClosure {
+  id       String @id @default(cuid())
+  budgetId String @unique
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  status      GrantClosureStatus @default(open)
+  initiatedAt DateTime?
+  closedAt    DateTime?
+
+  /// Frozen at closure, not read live afterwards: a closed grant's numbers must
+  /// not drift when the registry or the reports move underneath them.
+  totalReleased Decimal @db.Decimal(14, 2) @default(0)
+  totalUtilised Decimal @db.Decimal(14, 2) @default(0)
+  /// released − utilised − carriedForward, floored at 0.
+  unspentAmount Decimal @db.Decimal(14, 2) @default(0)
+
+  /// How the unspent balance was settled. Decided case by case, so there is NO
+  /// DEFAULT and nothing is inferred: where unspentAmount > 0 a person must set
+  /// this before closure can be signed off. A default here would quietly assert
+  /// a financial position nobody took.
+  settlementMode String?
+  /// Required when settlementMode = adjusted_against_renewal: the budget the
+  /// balance was carried into. Without it a carry-forward is untraceable and
+  /// the money appears twice across two grants.
+  adjustedIntoBudgetId String?
+  adjustedIntoBudget   Budget? @relation("ClosureAdjustment", fields: [adjustedIntoBudgetId], references: [id], onDelete: SetNull)
+  refundReceivedOn     DateTime? @db.Date
+  refundAmount         Decimal?  @db.Decimal(14, 2)
+  refundReference      String?
+  writeOffNote         String?
+
+  /// Outstanding borrowings must be settled or explicitly carried.
+  borrowingsSettled Boolean @default(false)
+
+  exitDecision GrantExitDecision @default(undecided)
+  exitNote     String?
+
+  /// Mandatory when status = closed_with_exception. Never a silent pass.
+  exceptionNote String?
+
+  closedById String?
+  closedBy   User?    @relation("GrantCloser", fields: [closedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  assets       GrantAsset[]
+  documents    GrantDocument[]
+  reminderLogs GrantClosureReminderLog[]
+
+  @@index([status, closedAt])
+}
+
+/// Assets bought with grant money, and where they ended up. Asked for at
+/// closure and nowhere recorded until now.
+model GrantAsset {
+  id        String       @id @default(cuid())
+  closureId String
+  closure   GrantClosure @relation(fields: [closureId], references: [id], onDelete: Cascade)
+
+  description String
+  quantity    Int      @default(1)
+  cost        Decimal  @db.Decimal(14, 2)
+  acquiredOn  DateTime? @db.Date
+  /// retained_by_grantee | returned | transferred | written_off
+  disposition String
+  dispositionNote String?
+
+  @@index([closureId])
+}
+
+/// One row per (closure, threshold) the closure-due cron has already fired, so
+/// a re-run on the same day is a no-op. Mirrors BudgetReportReminderLog.
+model GrantClosureReminderLog {
+  id        String       @id @default(cuid())
+  closureId String
+  closure   GrantClosure @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  threshold String
+  sentAt    DateTime     @default(now())
+
+  @@unique([closureId, threshold])
+}
+
+// ── 2.2 Delegation of authority ──────────────────────────────────────────────
+
+/// What a given role or person may approve, up to what amount, for which
+/// action. Data, not code: a live admin UI, not a constant.
+///
+/// NO MATCHING RULE MEANS REFUSAL, so a default ruleset must be seeded with the
+/// migration or every amount-bearing route stops. The ruleset is a
+/// transcription of the written finance policy; `policyReference` carries the
+/// clause so a refusal can be traced back to the paper that caused it.
+model AuthorityRule {
+  id String @id @default(cuid())
+
+  /// Closed vocabulary in lib/budget/authority.ts: grant_decision |
+  /// budget_finalise | report_approve | reallocation_approve |
+  /// disbursement_approve | condition_waive | closure_close | gate_override
+  action String
+
+  /// Scope. Null on either = any.
+  grantingUnitId String?
+  grantingUnit   GrantingUnit? @relation(fields: [grantingUnitId], references: [id], onDelete: Cascade)
+  domain         String?
+
+  /// Who holds it: a role, or a named person. Exactly one.
+  roleId String?
+  role   Role?   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  userId String?
+  user   User?   @relation("AuthorityHolder", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Inclusive rupee ceiling. Null = unlimited.
+  maxAmount Decimal? @db.Decimal(14, 2)
+  /// How many distinct holders must approve. 2 = maker-checker at this level.
+  approvalsRequired Int @default(1)
+  /// When true, the submitter may not be one of the approvers.
+  excludeSubmitter Boolean @default(true)
+
+  /// Lower number wins when several rules match.
+  priority Int      @default(100)
+  isActive Boolean  @default(true)
+  note     String?
+  /// The clause of the written DoA policy this rule encodes, e.g.
+  /// "Finance Policy v4 §6.2(b)".
+  policyReference String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([action, isActive, priority])
+}
+
+/// Temporary transfer of someone's authority while they are away.
+model AuthorityDelegation {
+  id         String @id @default(cuid())
+  fromUserId String
+  fromUser   User   @relation("DelegationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User   @relation("DelegationTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  /// Null = all actions the delegator holds.
+  action String?
+  /// A delegate may be capped below the delegator's own ceiling.
+  maxAmount Decimal? @db.Decimal(14, 2)
+
+  startsOn DateTime @db.Date
+  endsOn   DateTime @db.Date
+  reason   String?
+  isActive Boolean  @default(true)
+
+  createdById String?
+  createdBy   User?    @relation("DelegationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([toUserId, isActive, startsOn, endsOn])
+  @@index([fromUserId, isActive])
+}
+
+// ── 2.3 Compliance calendar ──────────────────────────────────────────────────
+
+/// A statutory registration with a VALIDITY WINDOW, which is what the existing
+/// due-diligence JSON lacks: it holds point-in-time answers, so an expiring
+/// 12A or FCRA certificate is invisible until someone re-reads the file.
+model OrgCompliance {
+  id    String @id @default(cuid())
+  orgId String
+  org   Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  /// Matches ComplianceKindConfig.kind: reg_12a | reg_80g | fcra | csr1 |
+  /// pan | tan | gst | audited_accounts | form_10bd | darpan | trust_deed
+  kind       String
+  identifier String?
+  issuedOn   DateTime? @db.Date
+  /// Null = no expiry (a PAN never expires; an FCRA certificate does).
+  validUntil DateTime? @db.Date
+
+  documentId String?
+  verifiedById String?
+  verifiedBy   User?     @relation("ComplianceVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedAt   DateTime?
+  note         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, kind])
+  @@index([validUntil])
+  @@index([kind, validUntil])
+}
+
+/// Which registrations matter, how long before expiry to warn, and whether an
+/// expired one blocks a release. Data so a new statutory requirement does not
+/// need a deploy.
+model ComplianceKindConfig {
+  id    String @id @default(cuid())
+  kind  String @unique
+  label String
+
+  /// Does an expired or missing row block a disbursement? This is what feeds
+  /// releaseGate() — the difference between a warning and a gate.
+  blocksRelease Boolean @default(false)
+  isRequired    Boolean @default(true)
+  /// Days before validUntil to start warning.
+  warnDays Int     @default(60)
+  isActive Boolean @default(true)
+  note     String?
+}
+
+// ── 2.4 Conflict of interest ─────────────────────────────────────────────────
+
+enum ConflictDisposition {
+  disclose
+  recuse
+}
+
+/// A declared interest in a grantee org. Checked inside requireAuthority: a
+/// live `recuse` declaration refuses the action outright, while `disclose`
+/// passes and stamps the declaration id into the decision's authority snapshot.
+model ConflictDeclaration {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("ConflictDeclarant", fields: [userId], references: [id], onDelete: Cascade)
+  orgId  String
+  org    Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  nature      String
+  disposition ConflictDisposition @default(disclose)
+
+  declaredOn DateTime  @db.Date
+  /// Null = still live.
+  endedOn    DateTime? @db.Date
+
+  reviewedById String?
+  reviewedBy   User?     @relation("ConflictReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, endedOn])
+  @@index([orgId, endedOn])
+}
+
+// ── Phase 3: intake and pipeline ─────────────────────────────────────────────
+
+enum FundingWindowStatus {
+  draft
+  open
+  closed
+  archived
+}
+
+/// A call for proposals. Intake is a PUBLIC open call, so this carries the
+/// published dates and the public slug the unauthenticated form is served from.
+model FundingWindow {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  grantingUnitId String?
+  grantingUnit   GrantingUnit? @relation(fields: [grantingUnitId], references: [id], onDelete: SetNull)
+
+  status    FundingWindowStatus @default(draft)
+  opensOn   DateTime?           @db.Date
+  closesOn  DateTime?           @db.Date
+  /// Published guidance, eligibility and the question set, as data.
+  brief     String?
+  questions Json                @default("[]")
+  /// Indicative ceiling shown to applicants.
+  ceilingAmount Decimal? @db.Decimal(14, 2)
+
+  proposals Proposal[]
+  rubrics   ProposalRubric[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([status, closesOn])
+}
+
+enum ProposalStage {
+  received
+  screening
+  eligible
+  ineligible
+  due_diligence
+  appraisal
+  decided
+  withdrawn
+}
+
+/// An inbound proposal. Built on the screening module's bones — idempotent
+/// intake on a public ref, structured answers, documents, a versioned rubric
+/// whose edits never change a recorded total, and an event trail — but kept as
+/// its own model: a grantee org and a fellowship applicant have genuinely
+/// different fields, and one polymorphic table would be worse.
+model Proposal {
+  id       String        @id @default(cuid())
+  windowId String?
+  window   FundingWindow? @relation(fields: [windowId], references: [id], onDelete: SetNull)
+
+  /// Idempotency key for the public form: a resubmitted draft must not create
+  /// a second proposal.
+  publicRef String @unique
+
+  /// Applicant identity. `orgId` is set once the org is matched or created, so
+  /// the free-text name is what the applicant typed, never the registry's.
+  orgId           String?
+  org             Org?    @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  applicantOrgName String
+  contactName     String
+  contactEmail    String
+  contactPhone    String?
+
+  title           String
+  summary         String?
+  requestedAmount Decimal? @db.Decimal(14, 2)
+  requestedMonths Int?
+  domains         String[] @default([])
+  city            String?
+
+  answers   Json @default("{}")
+  stage     ProposalStage @default(received)
+  /// Required on ineligible / withdrawn, so a decline is never unexplained.
+  declineReasonCode String?
+  declineReasonNote String?
+
+  /// Magic-link resume for the public form. Hashed, never the raw token.
+  resumeTokenHash String?
+  resumeExpiresAt DateTime?
+  submittedAt     DateTime?
+
+  /// Set when the proposal becomes a budget — the join from intake to grant.
+  budgetId String? @unique
+  budget   Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+
+  assignedToId String?
+  assignedTo   User?   @relation("ProposalAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  reviews   ProposalReview[]
+  events    ProposalEvent[]
+  documents GrantDocument[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stage, createdAt])
+  @@index([windowId, stage])
+  @@index([orgId])
+}
+
+/// A versioned scoring sheet. The rubric is COPIED onto each review, so editing
+/// the rubric never changes a score already recorded.
+model ProposalRubric {
+  id       String        @id @default(cuid())
+  windowId String?
+  window   FundingWindow? @relation(fields: [windowId], references: [id], onDelete: SetNull)
+
+  name     String
+  version  Int     @default(1)
+  /// [{ key, label, weight, maxScore, guidance }]
+  criteria Json    @default("[]")
+  isActive Boolean @default(true)
+
+  reviews   ProposalReview[]
+  createdAt DateTime @default(now())
+
+  @@index([windowId, isActive])
+}
+
+model ProposalReview {
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  reviewerId String
+  reviewer   User   @relation("ProposalReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  /// 1 = first pass, 2 = second. Divergence between two level-2 totals routes
+  /// to the granting-unit lead.
+  level Int @default(1)
+
+  rubricId String?
+  rubric   ProposalRubric? @relation(fields: [rubricId], references: [id], onDelete: SetNull)
+  /// The rubric as it stood when this review was scored.
+  rubricSnapshot Json @default("{}")
+  scores         Json @default("{}")
+  totalScore     Float?
+
+  recommendation String?
+  note           String?
+  submittedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([proposalId, reviewerId, level])
+  @@index([proposalId])
+}
+
+/// The proposal audit trail, in the module's own shape. Distinct from
+/// AuditLog: these are pipeline events the applicant-facing timeline reads
+/// back, not sensitive-action records.
+model ProposalEvent {
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  kind    String
+  detail  Json     @default("{}")
+  actorId String?
+  actor   User?    @relation("ProposalEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  /// True for events the applicant may see on the public status page.
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([proposalId, createdAt])
+}
+
+// ── Phase 4: results ─────────────────────────────────────────────────────────
+
+/// An indicator a grant promised, with its target. The framework half of
+/// reporting, which until now was financial-only.
+model GrantResult {
+  id       String @id @default(cuid())
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  /// output | outcome
+  level     String  @default("output")
+  indicator String
+  unit      String?
+  /// Null where the indicator is narrative-only.
+  targetValue Float?
+  /// Which domain of the grant this belongs to; null = whole grant.
+  domain      String?
+  /// derived indicators are computed from delivery data rather than typed.
+  derivedFrom String?
+  position    Int     @default(0)
+
+  values    GrantResultValue[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([budgetId])
+}
+
+/// One period's actual against a target. Both the grantee's figure and a
+/// reviewer's dispute are kept — neither overwrites the other.
+model GrantResultValue {
+  id       String      @id @default(cuid())
+  resultId String
+  result   GrantResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  slotId   String
+  slot     BudgetReportSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+
+  value  Float?
+  /// derived | grantee | staff
+  source String  @default("grantee")
+  note   String?
+  reviewerValue Float?
+  reviewerNote  String?
+  updatedAt     DateTime @updatedAt
+
+  @@unique([resultId, slotId])
+}
+
+/// The narrative half of a report. Sections as data so the template can change
+/// per granting unit without a deploy.
+model BudgetReportNarrative {
+  id       String       @id @default(cuid())
+  reportId String       @unique
+  report   BudgetReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  /// [{ key, heading, body }] against a template on GrantingUnit.
+  sections Json    @default("[]")
+  /// Grantee-reported challenges and changes — the part funders actually read.
+  deviationsNote String?
+  submittedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
 }
