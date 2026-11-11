@@ -376,7 +376,20 @@ export async function linkProposalToBudget(session: SessionLike, proposalId: str
   if (proposal.budgetId) throw new Error("This proposal is already linked to a grant.");
   if (existing) throw new Error("That grant already came from another proposal.");
 
-  await prisma.proposal.update({ where: { id: proposalId }, data: { budgetId } });
+  // Carry the applicant's own framing forward. A grant that the applicant
+  // described as a continuation should not arrive on the grant side looking
+  // like a first grant, which is the context an appraisal leans on.
+  const continuity = await prisma.proposal.findUnique({
+    where: { id: proposalId },
+    select: { continuity: true },
+  });
+
+  await prisma.$transaction([
+    prisma.proposal.update({ where: { id: proposalId }, data: { budgetId } }),
+    ...(continuity?.continuity
+      ? [prisma.budget.update({ where: { id: budgetId }, data: { continuity: continuity.continuity } })]
+      : []),
+  ]);
   logGrant("Proposal", proposalId, userId, "linked_to_budget", { field: "budgetId", to: budgetId });
 }
 

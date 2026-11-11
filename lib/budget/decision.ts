@@ -110,6 +110,7 @@ export async function recordDecision(session: SessionLike, input: RecordDecision
   const verdict = await requireAuthority(session, {
     action: "grant_decision",
     amount: isApproving ? input.approvedAmount : undefined,
+    budgetId: input.budgetId,
     grantingUnitId: budget.grantingUnitId,
     domain: budget.domains[0] ?? null,
     orgId: budget.grantPartner?.orgId ?? null,
@@ -320,6 +321,7 @@ export async function resolveCondition(
     await requireAuthority(session, {
       action: "condition_waive",
       amount: condition.decision.approvedAmount,
+      budgetId: condition.decision.budget.id,
       grantingUnitId: condition.decision.budget.grantingUnitId,
       domain: condition.decision.budget.domains[0] ?? null,
       orgId: condition.decision.budget.grantPartner?.orgId ?? null,

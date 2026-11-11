@@ -30,6 +30,7 @@
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { exceedsCeiling, moneyToString, type MoneyInput } from "./money";
+import { rolesHeldBy } from "./grantRoles";
 
 /**
  * The closed vocabulary of authorised actions. Adding one means adding a seeded
@@ -56,6 +57,12 @@ export type AuthorityCheck = {
   action: AuthorityAction;
   /** The amount at stake. Omit for actions with no amount (e.g. gate_override). */
   amount?: MoneyInput;
+  /**
+   * The grant this concerns. Required for any rule held by a GRANT ROLE
+   * ("the grant's programme_finance"): without it those rules cannot match,
+   * and a check that should have passed is refused for want of context.
+   */
+  budgetId?: string | null;
   grantingUnitId?: string | null;
   domain?: string | null;
   /** The grantee org, for the conflict-of-interest check. */
@@ -107,6 +114,8 @@ export type AuthoritySnapshot = {
   policyReference: string | null;
   grantingUnitId: string | null;
   domain: string | null;
+  /** Set when the rule binds to a position on the grant rather than a person. */
+  grantRole: string | null;
   /** Set when the authority came via a delegation rather than directly. */
   viaDelegationId?: string;
   delegatedFromUserId?: string;
@@ -130,6 +139,7 @@ const RULE_SELECT = {
   excludeSubmitter: true,
   priority: true,
   policyReference: true,
+  grantRole: true,
 } as const;
 
 type RuleRow = Prisma.AuthorityRuleGetPayload<{ select: typeof RULE_SELECT }>;
@@ -144,6 +154,7 @@ function snapshotOf(rule: RuleRow, amount: MoneyInput, extra?: Partial<Authority
     policyReference: rule.policyReference,
     grantingUnitId: rule.grantingUnitId,
     domain: rule.domain,
+    grantRole: rule.grantRole,
     checkedAt: new Date().toISOString(),
     amount: amount === null || amount === undefined ? null : moneyToString(amount),
     ...extra,
@@ -236,6 +247,10 @@ export async function checkAuthority(
   }
 
   const roleIds = await resolveUserRoleIds(userId, session?.user?.role ?? null);
+  // Positions this person holds ON THIS GRANT. A rule bound to a grant role
+  // matches only through these, which is how "the grant's programme finance
+  // must approve" is expressed without naming anyone in the matrix.
+  const grantRoles = check.budgetId ? await rolesHeldBy(check.budgetId, userId) : [];
   const delegations = await liveDelegationsTo(userId);
   const delegatorIds = delegations
     .filter((d) => d.action === null || d.action === check.action)
@@ -255,6 +270,7 @@ export async function checkAuthority(
           OR: [
             { userId },
             ...(roleIds.length ? [{ roleId: { in: roleIds } }] : []),
+            ...(grantRoles.length ? [{ grantRole: { in: grantRoles } }] : []),
             ...(delegatorIds.length ? [{ userId: { in: delegatorIds } }] : []),
           ],
         },

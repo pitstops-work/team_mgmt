@@ -207,6 +207,10 @@ model User {
   proposalsAssigned         Proposal[]                     @relation("ProposalAssignee")
   proposalReviews           ProposalReview[]               @relation("ProposalReviewer")
   proposalEvents            ProposalEvent[]                @relation("ProposalEventActor")
+  grantRolesHeld            GrantRoleAssignment[]          @relation("GrantRoleHolder")
+  grantRolesAssigned        GrantRoleAssignment[]          @relation("GrantRoleAssigner")
+  grantAssessments          GrantAssessment[]              @relation("GrantAssessor")
+  orgFinancialsRecorded     OrgFinancialYear[]             @relation("OrgFinancialRecorder")
 }
 
 model Account {
@@ -2521,6 +2525,22 @@ model Budget {
   risks              Risk[]
   fundedGoals        Goal[]                  @relation("GoalFundingBudget")
   fundedActionPoints ActionPoint[]           @relation("ActionPointFundingBudget")
+  roleAssignments    GrantRoleAssignment[]
+  assessments        GrantAssessment[]
+
+  // ── Renewal lineage ───────────────────────────────────────────────────────
+  // The grant this one continues. Renewal is the normal shape of grant-making
+  // in a long-term portfolio, and without this every grant looks like a first
+  // grant — so an appraisal cannot see what already happened with this partner.
+  // Distinct from GrantClosure.adjustedIntoBudgetId: that carries MONEY
+  // forward, this carries the RELATIONSHIP forward, and they need not agree.
+  renewsBudgetId     String?                 @unique
+  renews             Budget?                 @relation("BudgetRenewal", fields: [renewsBudgetId], references: [id], onDelete: SetNull)
+  renewedBy          Budget?                 @relation("BudgetRenewal")
+  /// How this grant stands to what came before. Null on legacy rows, which is
+  /// honest: we do not know, and defaulting them to `new` would assert that
+  /// every historic grant was a first grant.
+  continuity         GrantContinuity?
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
@@ -2873,6 +2893,7 @@ model BudgetReportSlot {
   reminderLogs BudgetReportReminderLog[]
   tranches     GrantTranche[]
   resultValues GrantResultValue[]
+  assessments  GrantAssessment[]
 
   @@unique([budgetId, slotNumber])
   @@index([budgetId, grantYear])
@@ -3455,6 +3476,7 @@ model Org {
   compliance            OrgCompliance[]
   conflictDeclarations  ConflictDeclaration[]
   proposals             Proposal[]
+  financialYears        OrgFinancialYear[]
 }
 
 /// Name variants that resolve to one Org.
@@ -6373,11 +6395,18 @@ model AuthorityRule {
   grantingUnit   GrantingUnit? @relation(fields: [grantingUnitId], references: [id], onDelete: Cascade)
   domain         String?
 
-  /// Who holds it: a role, or a named person. Exactly one.
+  /// Who holds it: an app role, a named person, or a POSITION ON THE GRANT
+  /// ITSELF. Exactly one.
+  ///
+  /// `grantRole` is what makes a genuine two-person rule expressible: "the
+  /// grant's programme_finance must approve" binds to whoever holds that role
+  /// on the grant in question, so the matrix never has to name individuals and
+  /// does not go stale when someone moves on.
   roleId String?
   role   Role?   @relation(fields: [roleId], references: [id], onDelete: Cascade)
   userId String?
   user   User?   @relation("AuthorityHolder", fields: [userId], references: [id], onDelete: Cascade)
+  grantRole GrantRole?
 
   /// Inclusive rupee ceiling. Null = unlimited.
   maxAmount Decimal? @db.Decimal(14, 2)
@@ -6588,6 +6617,9 @@ model Proposal {
   city            String?
 
   answers   Json @default("{}")
+  /// Whether the applicant is asking for a first grant or a continuation.
+  /// Carried onto the Budget at linkProposalToBudget().
+  continuity GrantContinuity?
   stage     ProposalStage @default(received)
   /// Required on ineligible / withdrawn, so a decline is never unexplained.
   declineReasonCode String?
@@ -6742,4 +6774,143 @@ model BudgetReportNarrative {
   deviationsNote String?
   submittedAt    DateTime?
   updatedAt      DateTime  @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GRANT LIFECYCLE — second pass
+//
+// Four additions, each closing a gap found by reading what the organisation
+// already captures in the system this replaces (docs/fluxx-read-across.md).
+// They are domain facts, not an imported design: the legacy system's own
+// object model, state machine and terminology were deliberately left behind.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Who holds which responsibility on a grant.
+///
+/// `Budget.grantLeadId` names one person. In practice a grant has five, and the
+/// split matters: programme judgement and financial judgement sit with
+/// different people, which is what makes maker-checker more than a formality.
+/// An authority rule can therefore require "the grant's programme_finance"
+/// without naming an individual in the matrix (AuthorityRule.grantRole).
+enum GrantRole {
+  programme_lead
+  programme_finance
+  effects_and_learning
+  location_team
+  consultant
+  /// Kept open: the set has grown before and will again.
+  other
+}
+
+/// A join rather than five columns on Budget: people change mid-grant, the set
+/// grows, and only a join keeps the history of who held what when.
+model GrantRoleAssignment {
+  id       String @id @default(cuid())
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  role   GrantRole
+  userId String
+  user   User      @relation("GrantRoleHolder", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Null = still holding it. A past holder is kept, not deleted: an approval
+  /// they gave must remain explicable afterwards.
+  startedOn DateTime  @db.Date
+  endedOn   DateTime? @db.Date
+  note      String?
+
+  assignedById String?
+  assignedBy   User?    @relation("GrantRoleAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  /// One live holder per role per grant is enforced in code, not here — a
+  /// partial unique index cannot be expressed in Prisma, and a handover needs
+  /// both rows to exist for the instant between them.
+  @@index([budgetId, role, endedOn])
+  @@index([userId, endedOn])
+}
+
+enum Rag {
+  red
+  amber
+  green
+}
+
+/// A reviewer's judgement of a grant's health for one reporting period.
+///
+/// Reports say what was spent and what was delivered. Nothing said what anyone
+/// CONCLUDED — and a grant can be entirely compliant on paper and still be in
+/// trouble. Two axes rather than one, because the programme view and the
+/// finance view diverge often enough that averaging them hides the problem.
+model GrantAssessment {
+  id       String @id @default(cuid())
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  /// The reporting period assessed. Null for an off-cycle assessment, e.g.
+  /// after a site visit that raised something.
+  slotId   String?
+  slot     BudgetReportSlot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
+
+  programmeRag       Rag
+  /// Required unless the rating is green — a colour with no reason is the
+  /// field people learn to scroll past.
+  programmeRationale String?
+  financeRag         Rag
+  financeRationale   String?
+  /// Not derived from the two above: a reviewer may weigh them, and recording
+  /// the weighing is the point.
+  overallRag         Rag
+  overallNote        String?
+
+  assessedOn   DateTime @db.Date
+  assessedById String?
+  assessedBy   User?    @relation("GrantAssessor", fields: [assessedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([budgetId, slotId])
+  @@index([budgetId, assessedOn])
+  @@index([overallRag, assessedOn])
+}
+
+/// How this grant stands in relation to what came before it for the same
+/// partner. Renewal is the normal shape of grant-making in a long-term
+/// portfolio; modelling every grant as a first grant loses the history that
+/// makes an appraisal quick.
+enum GrantContinuity {
+  new
+  continuing
+  scale_up
+  deepening
+}
+
+/// One financial year of a grantee's own accounts.
+///
+/// Needed for the dependency ratio — this grant as a share of what the
+/// organisation spends in a year — which is a real appraisal measure and
+/// cannot be computed from anything we held. Also feeds the "average annual
+/// expenditure" and dependency lines the approvals wizard already renders.
+model OrgFinancialYear {
+  id    String @id @default(cuid())
+  orgId String
+  org   Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  /// The year ENDING in this calendar year, e.g. 2026 for FY ending March 2026.
+  /// Indian FYs end in March, so a single year label is unambiguous here in a
+  /// way a start year would not be.
+  yearEnding  Int
+  expenditure Decimal  @db.Decimal(14, 2)
+  income      Decimal? @db.Decimal(14, 2)
+  /// Whether these figures come from audited accounts or from a declaration.
+  /// A ratio computed from unaudited figures is worth less and should say so.
+  isAudited   Boolean  @default(false)
+  source      String?
+
+  recordedById String?
+  recordedBy   User?    @relation("OrgFinancialRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([orgId, yearEnding])
+  @@index([orgId, yearEnding])
 }

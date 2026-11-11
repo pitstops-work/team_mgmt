@@ -160,6 +160,7 @@ export async function approveDisbursementRequest(
     // gate can be held by fewer people than the right to approve a release.
     await requireAuthority(session, {
       action: "gate_override",
+      budgetId: request.tranche.budgetId,
       grantingUnitId: request.tranche.budget.grantingUnitId,
       domain: request.tranche.budget.domains[0] ?? null,
       orgId: request.tranche.budget.grantPartner?.orgId ?? null,
@@ -177,6 +178,7 @@ export async function approveDisbursementRequest(
   const verdict = await requireAuthority(session, {
     action: "disbursement_approve",
     amount: request.requestedAmount,
+    budgetId: request.tranche.budgetId,
     grantingUnitId: request.tranche.budget.grantingUnitId,
     domain: request.tranche.budget.domains[0] ?? null,
     orgId: request.tranche.budget.grantPartner?.orgId ?? null,

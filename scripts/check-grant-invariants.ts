@@ -26,6 +26,7 @@ import {
 } from "../lib/budget/money";
 import { splitYearAmount, buildTrancheSchedule, PERIODS_PER_YEAR } from "../lib/budget/tranches";
 import { canTransition } from "../lib/budget/proposals";
+import { sharePct } from "../lib/budget/orgFinancials";
 import { diffAgainstSnapshot, type BudgetSnapshot, type SnapshotLine } from "../lib/budget/baselineDiff";
 
 let passed = 0;
@@ -224,6 +225,21 @@ eq("even though the total is unchanged", reprofiled.delta, "0.00");
 const emptySnapshot = { v: 1, takenAt: "", budgetId: "b1", horizonMonths: 12, lines: [], total: "0.00" } as BudgetSnapshot;
 const vsEmpty = diffAgainstSnapshot(emptySnapshot, [line("a", "100000.00")]);
 eq("an empty baseline reports additions, not a silent pass", vsEmpty.changes.length, 1);
+
+// ── Dependency ratio ────────────────────────────────────────────────────────
+//
+// The error this guards: a multi-year grant compared against ONE year of the
+// grantee's spending. The raw number looks precise and is wrong by the number
+// of years.
+
+eq("a one-year grant at half their annual spend", sharePct(50_00_000, 1_00_00_000), 50);
+eq("a grant larger than their annual spend", sharePct(1_50_00_000, 1_00_00_000), 150);
+// Same money, spread over three years: 50%, not 150%.
+eq("three years annualises to a third", sharePct(1_50_00_000, 1_00_00_000, 36), 50);
+eq("18 months annualises correctly", sharePct(1_50_00_000, 1_00_00_000, 18), 100);
+eq("months of zero is ignored, not divided by", sharePct(50_00_000, 1_00_00_000, 0), 50);
+eq("no expenditure yields no ratio, not Infinity", sharePct(50_00_000, 0), null);
+eq("rounds to one decimal", sharePct(33_33_333, 1_00_00_000), 33.3);
 
 // ── Report ──────────────────────────────────────────────────────────────────
 

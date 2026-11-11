@@ -297,6 +297,7 @@ export async function closeGrant(
   await requireAuthority(session, {
     action: "closure_close",
     amount: figures.totalReleased,
+    budgetId,
     grantingUnitId: budget.grantingUnitId,
     domain: budget.domains[0] ?? null,
     orgId: budget.grantPartner?.orgId ?? null,

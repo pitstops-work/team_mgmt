@@ -19,6 +19,8 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import type {
+  GrantContinuity,
+  GrantRole,
   GrantConditionTiming,
   GrantDecisionForum,
   GrantDecisionOutcome,
@@ -48,6 +50,26 @@ import {
   type SettlementMode,
 } from "@/lib/budget/closure";
 import { AuthorityError, checkAuthority, authorityHoldersFor, type AuthorityAction } from "@/lib/budget/authority";
+import {
+  assignGrantRole,
+  endGrantRole,
+  grantRoleHolders,
+  unfilledRoles,
+} from "@/lib/budget/grantRoles";
+import {
+  recordAssessment,
+  assessmentHistory,
+  portfolioHealth,
+  unassessedPeriods,
+  type AssessmentInput,
+} from "@/lib/budget/assessment";
+import { linkRenewal, renewalChain, partnerGrantHistory } from "@/lib/budget/renewal";
+import {
+  recordFinancialYear,
+  dependencyRatio,
+  financialHistory,
+  staleFinancials,
+} from "@/lib/budget/orgFinancials";
 import { logGrant } from "@/lib/budget/audit";
 import { moneyToString } from "@/lib/budget/money";
 
@@ -605,4 +627,137 @@ export async function canIApprove(input: {
     : [];
 
   return { ok: false as const, reason: verdict.reason, message: verdict.message, canInstead: { users, roles } };
+}
+
+// ── Second pass: roles, assessment, renewal, grantee financials ──────────────
+
+export async function setGrantRole(input: {
+  budgetId: string;
+  role: GrantRole;
+  userId: string;
+  note?: string;
+}) {
+  const session = await requireSession();
+  try {
+    const result = await assignGrantRole(session, input);
+    revalidatePath(`/budget/${input.budgetId}`);
+    return { ok: true as const, ...result };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
+
+export async function clearGrantRole(assignmentId: string, budgetId: string, note?: string) {
+  const session = await requireSession();
+  try {
+    await endGrantRole(session, assignmentId, note);
+    revalidatePath(`/budget/${budgetId}`);
+    return { ok: true as const };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
+
+export async function getGrantRoles(budgetId: string) {
+  await requireSession();
+  const [holders, unfilled] = await Promise.all([
+    grantRoleHolders(budgetId),
+    unfilledRoles(budgetId),
+  ]);
+  return { holders, unfilled };
+}
+
+export async function saveAssessment(input: AssessmentInput) {
+  const session = await requireSession();
+  try {
+    const row = await recordAssessment(session, input);
+    revalidatePath(`/budget/${input.budgetId}`);
+    revalidatePath("/budget/dashboard");
+    return { ok: true as const, assessmentId: row.id };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
+
+export async function getAssessments(budgetId: string) {
+  await requireSession();
+  return assessmentHistory(budgetId);
+}
+
+export async function getPortfolioHealth(grantingUnitId?: string) {
+  await requireSession();
+  const [rows, unassessed] = await Promise.all([
+    portfolioHealth(grantingUnitId ? { grantingUnitId } : undefined),
+    unassessedPeriods(),
+  ]);
+  return { rows, unassessed };
+}
+
+export async function setRenewal(input: {
+  budgetId: string;
+  renewsBudgetId: string;
+  continuity?: GrantContinuity;
+}) {
+  const session = await requireSession();
+  try {
+    await linkRenewal(session, input.budgetId, input.renewsBudgetId, input.continuity);
+    revalidatePath(`/budget/${input.budgetId}`);
+    return { ok: true as const };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
+
+export async function getRenewalContext(budgetId: string) {
+  await requireSession();
+  const budget = await prisma.budget.findUnique({
+    where: { id: budgetId },
+    select: { grantPartnerId: true },
+  });
+  const [chain, history] = await Promise.all([
+    renewalChain(budgetId),
+    budget?.grantPartnerId ? partnerGrantHistory(budget.grantPartnerId) : null,
+  ]);
+  return { chain, history };
+}
+
+export async function saveOrgFinancialYear(input: {
+  orgId: string;
+  yearEnding: number;
+  expenditure: number;
+  income?: number;
+  isAudited?: boolean;
+  source?: string;
+}) {
+  const session = await requireSession();
+  try {
+    const row = await recordFinancialYear(session, input);
+    return { ok: true as const, id: row.id };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
+
+/**
+ * The appraisal panel's dependency figure: this grant against what the
+ * organisation spends in a year. `months` matters — for a multi-year grant the
+ * annualised share is the comparable number, and the raw ratio would wrongly
+ * make a sound partner look dependent.
+ */
+export async function getDependencyRatio(input: {
+  orgId: string;
+  amount: number;
+  months?: number;
+}) {
+  await requireSession();
+  const [ratio, history] = await Promise.all([
+    dependencyRatio(input.orgId, input.amount, { months: input.months }),
+    financialHistory(input.orgId),
+  ]);
+  return { ratio, history };
+}
+
+export async function getStaleFinancials() {
+  await requireSession();
+  return staleFinancials();
 }
