@@ -15,10 +15,17 @@
  * encodes the written finance policy, clause by clause, with
  * `policyReference` filled in on every row.
  *
- * The two tiers below ARE a guess at the threshold's shape, and the open
- * question is whether ₹1 Cr applies to the grant or to the annual outflow —
- * they differ for a multi-year grant and the difference decides which grants
- * reach the board. Do not treat these rows as policy until that is confirmed.
+ * The BANDS below are read from the legacy system's own workflow states, which
+ * name them outright: "Debrief (for under 1 Cr)" and "Board Review (above
+ * ₹10 Cr)", with a GC Review step between. So there are THREE bands, not two —
+ * an earlier draft of this script had ₹1 Cr as the board threshold, which is
+ * the BOTTOM of the middle band rather than the top.
+ *
+ * The open question remains whether a band applies to the grant total or to the
+ * annual outflow. They differ for a multi-year grant and the difference decides
+ * which grants reach the board, so do not treat these rows as settled policy
+ * until that is confirmed and `policyReference` is filled in from the written
+ * finance policy.
  *
  * Run (dry run first, always — .env.local points at PRODUCTION):
  *   set -a && source .env.local && set +a && npx tsx scripts/seed-authority-rules.ts
@@ -27,8 +34,13 @@
 
 import { AUTHORITY_ACTIONS, type AuthorityAction } from "../lib/budget/authority";
 
-/** ₹1 Cr — the board threshold the 'gc' / 'under_1cr' appraisal tiers imply. */
-const BOARD_THRESHOLD = 1_00_00_000;
+/**
+ * Band ceilings, from the legacy workflow's own state names (see the header).
+ * DELEGATED_CEILING is where "under 1 Cr" stops; above BOARD_THRESHOLD the
+ * board sees it; between the two sits the grants committee.
+ */
+const DELEGATED_CEILING = 1_00_00_000; // ₹1 Cr
+const BOARD_THRESHOLD = 10_00_00_000; // ₹10 Cr
 
 type SeedRule = {
   action: AuthorityAction;
@@ -58,11 +70,11 @@ const SEED_RULES: SeedRule[] = [
   {
     action: "grant_decision",
     roleName: "budget-admin",
-    maxAmount: BOARD_THRESHOLD,
+    maxAmount: DELEGATED_CEILING,
     approvalsRequired: 1,
     excludeSubmitter: false,
     priority: 20,
-    note: "PLACEHOLDER: the under-₹1-Cr tier. Confirm whether the threshold is per grant or per year.",
+    note: "PLACEHOLDER: the delegated band, under ₹1 Cr. Above this the grants committee sees it, and above ₹10 Cr the board does — neither forum is seeded here, because neither is a role in this app yet. Confirm per grant vs per year.",
   },
   ...(["budget_finalise", "report_approve", "reallocation_approve"] as const).flatMap(
     (action): SeedRule[] => [
@@ -102,7 +114,7 @@ const SEED_RULES: SeedRule[] = [
     approvalsRequired: 1,
     excludeSubmitter: true,
     priority: 20,
-    note: "NEW capability. Maker-checker on: whoever raised the request cannot approve it.",
+    note: "NEW capability. Maker-checker on: whoever raised the request cannot approve it. Releasing against an already-approved grant is not a second approval of the grant, so this ceiling is the board threshold rather than the delegated one.",
   },
   {
     action: "condition_waive",
