@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import SignOutButton from "@/components/SignOutButton";
 
 export const metadata: Metadata = {
-  title: "Budget Builder",
+  title: "Grants",
   description: "Grant proposal budget generator for partners",
 };
 
@@ -40,12 +40,13 @@ export default async function BudgetLayout({ children }: { children: React.React
       <header className="border-b border-stone-200 bg-white">
         <div className="px-4 py-3 flex items-center gap-3">
           <a href="/portal" className={dimLinkClass}>← Portal</a>
-          <span className="text-sm font-semibold text-stone-800 tracking-wide">Budget Builder</span>
+          <span className="text-sm font-semibold text-stone-800 tracking-wide">Grants</span>
           {budgetOnly && <div className="ml-auto"><SignOutButton /></div>}
         </div>
         <nav className="px-4 pb-2 -mt-1 flex items-center gap-4 overflow-x-auto sm:justify-end">
-          <a href="/budget" className={navLinkClass}>Budgets</a>
+          <a href="/budget" className={navLinkClass}>Grants</a>
           <a href="/budget/dashboard" className={navLinkClass}>Dashboard</a>
+          {(superAdmin || budgetOnly) && <a href="/budget/disbursements" className={navLinkClass}>Releases</a>}
           {(superAdmin || budgetOnly) && <a href="/admin/partners" className={navLinkClass}>Partners</a>}
           {(superAdmin || budgetOnly) && <a href="/admin/granting-units" className={navLinkClass}>Units</a>}
           {(superAdmin || budgetOnly) && <a href="/admin/budgets" className={navLinkClass}>Approve</a>}

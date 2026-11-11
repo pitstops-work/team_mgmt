@@ -214,7 +214,7 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
 
       {detail.role.name === "budget-admin" && (
         <div className="mb-6 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-800 leading-relaxed">
-          This role also unlocks the <span className="font-medium">Budget</span> and{" "}
+          This role also unlocks the <span className="font-medium">Grants</span> and{" "}
           <span className="font-medium">Seeding</span> portals — access controlled in code, not by the permissions
           below. A person&apos;s working role inside Seeding is set in <span className="font-medium">Seeding → Members</span>.
         </div>

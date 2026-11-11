@@ -83,7 +83,7 @@ export default async function PortalPage() {
         </>
         )}
 
-        {/* Budget */}
+        {/* Grants */}
         <Link
           href="/budget"
           className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md"
@@ -92,8 +92,8 @@ export default async function PortalPage() {
             <BarChart3 className="w-5 h-5 text-emerald-600" />
           </div>
           <div>
-            <p className="text-stone-800 font-semibold text-base">Budget</p>
-            <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Programme budgets · Cost registry · Multi-year planning</p>
+            <p className="text-stone-800 font-semibold text-base">Grants</p>
+            <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Proposals · Budgets · Approvals · Releases · Reporting</p>
           </div>
         </Link>
 
