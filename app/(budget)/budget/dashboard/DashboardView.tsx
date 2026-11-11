@@ -88,6 +88,7 @@ export default function DashboardView({
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <Link href="/budget/reports" className="text-sm text-sky-600 hover:underline">Report queue →</Link>
+          <Link href="/budget/disbursements" className="text-sm text-sky-600 hover:underline">Release queue →</Link>
           <Link href="/budget/lapse" className="text-sm text-sky-600 hover:underline">Lapse record →</Link>
           <Link href="/budget/borrowings" className="text-sm text-sky-600 hover:underline">Manage borrowings →</Link>
         </div>

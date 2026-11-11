@@ -56,6 +56,11 @@ function partnerAllowedPath(pathname: string): boolean {
   if (/^\/budget\/[^/]+\/reports(\/[^/]*)?$/.test(pathname)) return true;
   // A draft the lead shared for their input. Server actions POST to the same path.
   if (/^\/budget\/[^/]+\/draft$/.test(pathname)) return true;
+  // The release schedule for their own grant, read-only: what is coming, what is
+  // blocking the next tranche, and the bank references to match against their
+  // statement. The page itself re-checks access per budget; this entry only lets
+  // the request reach it. Without BOTH, the click silently redirects.
+  if (/^\/budget\/[^/]+\/disbursements$/.test(pathname)) return true;
   if (/^\/api\/budget\/[^/]+\/reports\//.test(pathname)) return true;
   if (pathname === "/api/budget/parse-bank-statement") return true;
   if (pathname === "/api/budget/declaration-upload") return true;
