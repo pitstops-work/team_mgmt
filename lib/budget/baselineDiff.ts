@@ -229,7 +229,15 @@ function parseSnapshot(value: Prisma.JsonValue | null): BudgetSnapshot | null {
 export async function activeBaseline(budgetId: string) {
   const decisions = await prisma.grantDecision.findMany({
     where: { budgetId, outcome: { in: ["approved", "approved_with_conditions"] } },
-    select: { id: true, decidedOn: true, approvedAmount: true, budgetSnapshot: true, supersedesId: true },
+    select: {
+      id: true,
+      decidedOn: true,
+      approvedAmount: true,
+      budgetSnapshot: true,
+      supersedesId: true,
+      baselineIsReconstructed: true,
+      reconstructionNote: true,
+    },
     orderBy: { decidedOn: "desc" },
   });
   // The head is the one nothing supersedes.
@@ -264,11 +272,24 @@ export async function baselineForDate(budgetId: string, on: Date) {
 export async function baselineVarianceFor(budgetId: string): Promise<
   | { status: "no_decision" }
   | { status: "no_snapshot"; decisionId: string }
+  | { status: "reconstructed"; decisionId: string; approvedAmount: string; note: string | null }
   | { status: "ok"; decisionId: string; approvedAmount: string; diff: BaselineDiff }
 > {
   const baseline = await activeBaseline(budgetId);
   if (!baseline) return { status: "no_decision" };
   if (!baseline.snapshot) return { status: "no_snapshot", decisionId: baseline.id };
+  // Deliberately refuses to compute. A reconstructed baseline froze TODAY's
+  // lines, so a diff against them would read as "nothing has changed since
+  // approval" — the most misleading answer available, because it looks like
+  // reassurance.
+  if (baseline.baselineIsReconstructed) {
+    return {
+      status: "reconstructed",
+      decisionId: baseline.id,
+      approvedAmount: moneyToString(baseline.approvedAmount as MoneyInput),
+      note: baseline.reconstructionNote,
+    };
+  }
   const live = await liveSnapshotLines(budgetId);
   return {
     status: "ok",

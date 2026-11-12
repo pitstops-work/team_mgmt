@@ -173,6 +173,12 @@ export default function BudgetEditor({ budget, notes }: { budget: Budget; notes:
         </div>
         <div className="flex flex-wrap gap-2">
           {budget.status === "approved" && (
+            <a href={`/budget/${budget.id}/decision`}
+              className="text-sm border border-stone-300 text-stone-700 px-3 py-1.5 rounded-lg hover:bg-stone-50">
+              Decision
+            </a>
+          )}
+          {budget.status === "approved" && (
             <a href={`/budget/${budget.id}/disbursements`}
               className="text-sm border border-stone-300 text-stone-700 px-3 py-1.5 rounded-lg hover:bg-stone-50">
               Releases

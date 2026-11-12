@@ -47,6 +47,13 @@ export type RecordDecisionInput = {
   assemblyId?: string | null;
   meetingId?: string | null;
   conditions?: ConditionInput[];
+  /**
+   * Set when writing up a decision taken before this system existed. The
+   * snapshot then holds today's lines rather than the approved ones, so the
+   * baseline is marked unusable for variance instead of silently wrong.
+   */
+  baselineIsReconstructed?: boolean;
+  reconstructionNote?: string;
   /** Set when this decision replaces an earlier one (a re-presentation). */
   supersedesId?: string | null;
   votes?: { userId?: string | null; voterName?: string | null; vote: "for" | "against" | "abstained" | "recused"; note?: string }[];
@@ -89,6 +96,13 @@ export async function recordDecision(session: SessionLike, input: RecordDecision
   }
   if (OUTCOMES_NEEDING_REASON.includes(input.outcome) && !input.reasonCode) {
     throw new Error("A deferral, decline or withdrawal needs a reason code.");
+  }
+  // A reconstructed baseline has to say where its figures came from. Without
+  // that, the record asserts an approved amount with nothing behind it.
+  if (input.baselineIsReconstructed && !input.reconstructionNote?.trim()) {
+    throw new Error(
+      "Say where these figures came from — minutes, the signed agreement, an email.",
+    );
   }
 
   const budget = await prisma.budget.findUnique({
@@ -145,6 +159,8 @@ export async function recordDecision(session: SessionLike, input: RecordDecision
         variationNote: input.variationNote ?? null,
         approvedMonths: input.approvedMonths ?? null,
         budgetSnapshot: (snapshot ?? {}) as unknown as Prisma.InputJsonValue,
+        baselineIsReconstructed: input.baselineIsReconstructed ?? false,
+        reconstructionNote: input.reconstructionNote?.trim() || null,
         reasonCode: input.reasonCode ?? null,
         reasonNote: input.reasonNote ?? null,
         assemblyId: input.assemblyId ?? null,

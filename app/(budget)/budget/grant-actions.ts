@@ -108,6 +108,8 @@ export async function recordGrantDecision(input: {
   meetingId?: string | null;
   conditions?: { text: string; timing: GrantConditionTiming; blocksTrancheNumber?: number | null; dueOn?: string | null }[];
   supersedesId?: string | null;
+  baselineIsReconstructed?: boolean;
+  reconstructionNote?: string;
 }) {
   const session = await requireSession();
   try {

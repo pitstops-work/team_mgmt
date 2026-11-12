@@ -5811,6 +5811,18 @@ model GrantDecision {
   /// of them are @unique, so a clone would split one grant's reporting history.
   budgetSnapshot Json @default("{}")
 
+  /// True when the snapshot above was taken LONG AFTER the decision it records
+  /// — a grant approved before this system existed, written up retrospectively.
+  ///
+  /// It matters because the snapshot then holds TODAY's budget lines, not the
+  /// ones the committee actually saw, so any snapshot-vs-live variance computed
+  /// from it is fiction. Readers must refuse to report variance rather than
+  /// present a plausible number nobody can source.
+  baselineIsReconstructed Boolean @default(false)
+  /// Where the figures came from, when reconstructed: minutes, an email, a
+  /// signed agreement. Required by the recording path when the flag is set.
+  reconstructionNote      String?
+
   /// Required on deferred / declined / withdrawn.
   reasonCode String?
   reasonNote String?
