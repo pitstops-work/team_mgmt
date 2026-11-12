@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { isPartner } from "@/lib/roleGuard";
 import { getPartnerAccess } from "@/lib/budget/partnerAccess";
 import PartnerBudgetHome from "./PartnerBudgetHome";
+import GranteeGrantStages from "./GranteeGrantStages";
 import PendingApprovalsBanner from "./PendingApprovalsBanner";
 import { listGrantingUnits } from "@/lib/budget/grantingUnits";
 
@@ -50,6 +51,7 @@ export default async function BudgetCityLandingPage() {
     return (
       <>
         <PendingApprovalsBanner />
+        <GranteeGrantStages budgetIds={safe.map((b) => b.id)} />
         <PartnerBudgetHome budgets={JSON.parse(JSON.stringify(safe))} linked={access.grantPartnerIds.length > 0} />
       </>
     );
@@ -79,10 +81,15 @@ export default async function BudgetCityLandingPage() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-xl font-semibold text-stone-900">Budgets</h1>
-        <Link href="/budget/dashboard" className="bg-sky-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-sky-700">
-          Grant dashboard →
-        </Link>
+        <h1 className="text-xl font-semibold text-stone-900">Grants</h1>
+        <div className="flex items-center gap-2">
+          <Link href="/budget/pipeline" className="border border-stone-300 bg-white text-stone-700 text-sm px-4 py-2 rounded-lg hover:border-stone-400">
+            Pipeline
+          </Link>
+          <Link href="/budget/dashboard" className="bg-sky-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-sky-700">
+            Grant dashboard →
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

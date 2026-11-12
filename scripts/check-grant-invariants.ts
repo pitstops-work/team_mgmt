@@ -28,6 +28,14 @@ import { splitYearAmount, buildTrancheSchedule, PERIODS_PER_YEAR } from "../lib/
 import { canTransition } from "../lib/budget/proposals";
 import { sharePct } from "../lib/budget/orgFinancials";
 import { diffAgainstSnapshot, type BudgetSnapshot, type SnapshotLine } from "../lib/budget/baselineDiff";
+import {
+  buildStageStates,
+  currentStage,
+  PARTNER_VISIBLE,
+  STAGE_LABELS,
+  STAGE_ORDER,
+  type StageSignals,
+} from "../lib/budget/stageRules";
 
 let passed = 0;
 const failures: string[] = [];
@@ -240,6 +248,282 @@ eq("18 months annualises correctly", sharePct(1_50_00_000, 1_00_00_000, 18), 100
 eq("months of zero is ignored, not divided by", sharePct(50_00_000, 1_00_00_000, 0), 50);
 eq("no expenditure yields no ratio, not Infinity", sharePct(50_00_000, 0), null);
 eq("rounds to one decimal", sharePct(33_33_333, 1_00_00_000), 33.3);
+
+
+// ── Stage rules ─────────────────────────────────────────────────────────────
+//
+// These decide what the pipeline board and every grant page say about where a
+// grant stands, and — in PARTNER_VISIBLE — which modules a grantee can see at
+// all. The second is an access decision, so it is checked by name rather than
+// by shape: a new stage that defaults to visible would otherwise ship an
+// internal judgement to the organisation it is about.
+
+const INTERNAL_ONLY = ["appraisal", "review", "assessment"] as const;
+
+eq(
+  "exactly three stages are internal-only",
+  STAGE_ORDER.filter((k) => !PARTNER_VISIBLE[k]).join(","),
+  INTERNAL_ONLY.join(","),
+);
+check(
+  "every stage has a visibility decision",
+  STAGE_ORDER.every((k) => typeof PARTNER_VISIBLE[k] === "boolean"),
+);
+check("every stage has a label", STAGE_ORDER.every((k) => Boolean(STAGE_LABELS[k])));
+eq("no stage is listed twice", new Set(STAGE_ORDER).size, STAGE_ORDER.length);
+
+/** A grant at its very beginning: nothing done, nothing known. */
+function signals(over: Partial<StageSignals> = {}): StageSignals {
+  return {
+    hasGrantee: true,
+    hasProposal: false,
+    proposalDecided: false,
+    reviewReachable: true,
+    granteeMirrored: true,
+    ddSectionsComplete: null,
+    lineCount: 0,
+    budgetApproved: false,
+    budgetClosed: false,
+    hasAssembly: false,
+    assemblyRendered: false,
+    judgementRecorded: false,
+    hasDecision: false,
+    openPreDisbursementConditions: 0,
+    hasAgreement: false,
+    agreementExecuted: false,
+    documentCount: 0,
+    trancheCount: 0,
+    tranchesReleased: 0,
+    slotCount: 0,
+    slotsSubmitted: 0,
+    slotsOverdue: 0,
+    hasAssessment: false,
+    closureStatus: null,
+    ...over,
+  };
+}
+
+// An unreachable second database must not be reported as an unstarted step.
+// This is the one that would read as a fact while being a lie.
+const offline = buildStageStates(signals({ reviewReachable: false }));
+eq("unreachable review db: due diligence is unknown", offline.due_diligence.state, "unknown");
+eq("unreachable review db: appraisal is unknown", offline.appraisal.state, "unknown");
+eq("unreachable review db: review is unknown", offline.review.state, "unknown");
+// And it must not take out the stages that live in this database.
+eq("unreachable review db: budget still resolves", offline.budget.state, "pending");
+
+// A grantee org that exists but has no due-diligence row IS a real "not
+// started"; one we could not look up at all is not.
+eq(
+  "no dd record is pending, not unknown",
+  buildStageStates(signals({ ddSectionsComplete: 0 })).due_diligence.state,
+  "pending",
+);
+eq(
+  "part-done dd is active",
+  buildStageStates(signals({ ddSectionsComplete: 3 })).due_diligence.state,
+  "active",
+);
+eq(
+  "all eight sections is done",
+  buildStageStates(signals({ ddSectionsComplete: 8 })).due_diligence.state,
+  "done",
+);
+// An org nobody mirrored is a setup gap, not an appraiser's backlog, and it
+// says so rather than reading as work not yet done. 17 of 18 funded orgs were
+// in this state when the board first ran, and nothing had ever surfaced it.
+const unmirrored = buildStageStates(signals({ granteeMirrored: false }));
+eq("an unmirrored grantee is pending", unmirrored.due_diligence.state, "pending");
+check(
+  "and says no record can be started",
+  unmirrored.due_diligence.blockers.some((b) => b.includes("not linked")),
+);
+check(
+  "a mirrored grantee with nothing done carries no blocker",
+  buildStageStates(signals({ ddSectionsComplete: 0 })).due_diligence.blockers.length === 0,
+);
+
+eq(
+  "no grantee blocks due diligence",
+  buildStageStates(signals({ hasGrantee: false })).due_diligence.state,
+  "blocked",
+);
+
+// The state every pre-existing grant is in. Reporting it as done is what made
+// the whole lifecycle look finished when nothing behind it existed.
+const legacy = buildStageStates(signals({ budgetApproved: true, lineCount: 40 }));
+eq("approved with no decision is blocked", legacy.decision.state, "blocked");
+check("and says why", legacy.decision.blockers.length > 0);
+eq("the budget itself is done", legacy.budget.state, "done");
+// With no decision there is nothing to draft an agreement from, and nothing to
+// release — stated as blockers rather than as an unexplained grey.
+eq("no decision blocks the agreement", legacy.agreement.state, "blocked");
+eq("no decision blocks releases", legacy.releases.state, "blocked");
+check(
+  "the release blocker names the decision",
+  legacy.releases.blockers.some((b) => b.toLowerCase().includes("decision")),
+);
+
+// A legacy grant has no proposal and never will. `pending` would park every
+// historic grant permanently at the first stage.
+eq("no proposal is skipped", legacy.proposal.state, "skipped");
+check(
+  "and a skipped first stage is not where the grant sits",
+  currentStage(legacy) !== "proposal",
+);
+
+// The release gate, blocker by blocker.
+const unexecuted = buildStageStates(
+  signals({ hasDecision: true, hasAgreement: true, agreementExecuted: false, trancheCount: 4 }),
+);
+eq("a drafted-but-unexecuted agreement blocks releases", unexecuted.releases.state, "blocked");
+check(
+  "and names the agreement",
+  unexecuted.releases.blockers.some((b) => b.toLowerCase().includes("agreement")),
+);
+
+const conditioned = buildStageStates(
+  signals({
+    hasDecision: true,
+    hasAgreement: true,
+    agreementExecuted: true,
+    trancheCount: 4,
+    openPreDisbursementConditions: 2,
+  }),
+);
+eq("an open pre-disbursement condition blocks releases", conditioned.releases.state, "blocked");
+check(
+  "and counts them",
+  conditioned.releases.blockers.some((b) => b.includes("2 pre-disbursement conditions")),
+);
+
+const releasable = buildStageStates(
+  signals({ hasDecision: true, hasAgreement: true, agreementExecuted: true, trancheCount: 4 }),
+);
+eq("a clear gate is active, not blocked", releasable.releases.state, "active");
+eq("with no blockers", releasable.releases.blockers.length, 0);
+
+// Zero tranches is not "all released". Treating an empty schedule as complete
+// would mark an unfunded grant fully paid.
+const noSchedule = buildStageStates(
+  signals({ hasDecision: true, hasAgreement: true, agreementExecuted: true, trancheCount: 0 }),
+);
+eq("an empty schedule is pending, not done", noSchedule.releases.state, "pending");
+
+eq(
+  "every tranche released is done",
+  buildStageStates(
+    signals({
+      hasDecision: true,
+      hasAgreement: true,
+      agreementExecuted: true,
+      trancheCount: 4,
+      tranchesReleased: 4,
+    }),
+  ).releases.state,
+  "done",
+);
+
+// Reporting.
+eq(
+  "an overdue report blocks reporting",
+  buildStageStates(signals({ slotCount: 4, slotsSubmitted: 1, slotsOverdue: 1 })).reporting.state,
+  "blocked",
+);
+eq(
+  "no schedule is pending, not done",
+  buildStageStates(signals({ slotCount: 0 })).reporting.state,
+  "pending",
+);
+
+// Nothing to assess until there is a period to assess against, so a grant with
+// no schedule is skipped rather than permanently overdue.
+eq("no reporting schedule means no assessment is owed", buildStageStates(signals()).assessment.state, "skipped");
+eq(
+  "a schedule makes an assessment owed",
+  buildStageStates(signals({ slotCount: 2 })).assessment.state,
+  "pending",
+);
+
+eq(
+  "closed with no closure record is blocked",
+  buildStageStates(signals({ budgetClosed: true })).closure.state,
+  "blocked",
+);
+eq(
+  "a closed closure is done",
+  buildStageStates(signals({ closureStatus: "closed" })).closure.state,
+  "done",
+);
+eq(
+  "closed with exception is still closed",
+  buildStageStates(signals({ closureStatus: "closed_with_exception" })).closure.state,
+  "done",
+);
+
+// ── Which stage a person is sent to ─────────────────────────────────────────
+
+// Earliest live or stuck stage wins over an earlier merely-pending one: a
+// pending stage late in the lifecycle is not "now", it is simply not its turn.
+const midGrant = buildStageStates(
+  signals({
+    ddSectionsComplete: 8,
+    lineCount: 30,
+    budgetApproved: true,
+    hasAssembly: true,
+    assemblyRendered: true,
+    judgementRecorded: true,
+    hasDecision: true,
+    hasAgreement: true,
+    agreementExecuted: true,
+    documentCount: 3,
+    trancheCount: 4,
+    tranchesReleased: 1,
+    slotCount: 4,
+    slotsSubmitted: 1,
+  }),
+);
+eq("a grant mid-release sits at releases", currentStage(midGrant), "releases");
+
+// A grantee must never be pointed at a stage they cannot see. If this fails,
+// the grantee's own "where does my grant stand" line names the appraisal note.
+for (const states of [buildStageStates(signals()), legacy, midGrant, offline]) {
+  const key = currentStage(states, { audience: "partner" });
+  check(
+    `a grantee is never sent to an internal-only stage (got ${key})`,
+    key === null || PARTNER_VISIBLE[key],
+  );
+}
+
+// A grant with nothing outstanding has no current stage at all — which is what
+// puts it in the board's "nothing outstanding" column rather than at stage one.
+const finished = buildStageStates(
+  signals({
+    hasProposal: true,
+    proposalDecided: true,
+    ddSectionsComplete: 8,
+    lineCount: 30,
+    budgetClosed: true,
+    hasAssembly: true,
+    assemblyRendered: true,
+    judgementRecorded: true,
+    hasDecision: true,
+    hasAgreement: true,
+    agreementExecuted: true,
+    documentCount: 5,
+    trancheCount: 4,
+    tranchesReleased: 4,
+    slotCount: 4,
+    slotsSubmitted: 4,
+    hasAssessment: true,
+    closureStatus: "closed",
+  }),
+);
+eq("a finished grant has no outstanding stage", currentStage(finished), null);
+check(
+  "and every stage of it reads done",
+  STAGE_ORDER.every((k) => finished[k].state === "done"),
+);
 
 // ── Report ──────────────────────────────────────────────────────────────────
 
