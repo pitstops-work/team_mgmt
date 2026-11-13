@@ -24,10 +24,16 @@ import {
   moneyToString,
   formatMoneyShort,
 } from "../lib/budget/money";
-import { splitYearAmount, buildTrancheSchedule, PERIODS_PER_YEAR } from "../lib/budget/tranches";
+import { splitYearAmount, buildTrancheSchedule } from "../lib/budget/tranches";
 import { canTransition } from "../lib/budget/proposals";
 import { sharePct } from "../lib/budget/orgFinancials";
 import { diffAgainstSnapshot, type BudgetSnapshot, type SnapshotLine } from "../lib/budget/baselineDiff";
+import {
+  AGREEMENT_TRANSITIONS,
+  canTransitionAgreement,
+  termsAreFrozen,
+} from "../lib/budget/agreement";
+import { PERIODS_PER_YEAR, TRANCHE_FREQUENCY_LABELS } from "../lib/budget/trancheFrequency";
 import {
   buildStageStates,
   currentStage,
@@ -523,6 +529,66 @@ eq("a finished grant has no outstanding stage", currentStage(finished), null);
 check(
   "and every stage of it reads done",
   STAGE_ORDER.every((k) => finished[k].state === "done"),
+);
+
+
+// ── Agreement status machine ────────────────────────────────────────────────
+//
+// The agreement is the release gate: releaseGate() refuses every tranche whose
+// agreement is not `executed`. So these transitions are the shortest path
+// between a committee saying yes and money leaving the organisation, and the
+// one rule that matters most is what CANNOT happen.
+
+// A contract both sides have signed is not editable. The only way out is
+// termination; varying it means a fresh decision and re-execution.
+eq("executed goes only to terminated", AGREEMENT_TRANSITIONS.executed.join(","), "terminated");
+eq("terminated is terminal", AGREEMENT_TRANSITIONS.terminated.length, 0);
+eq("an executed agreement cannot go back to drafting", canTransitionAgreement("executed", "drafting"), false);
+eq("an executed agreement cannot be re-executed", canTransitionAgreement("executed", "executed"), false);
+eq("a terminated agreement cannot be executed", canTransitionAgreement("terminated", "executed"), false);
+
+// Execution cannot be reached without the draft having gone out for signature,
+// which is what forces the internal sign-off to happen first.
+eq("drafting cannot jump to executed", canTransitionAgreement("drafting", "executed"), false);
+eq("drafting goes out for signature", canTransitionAgreement("drafting", "sent_for_signature"), true);
+eq("and from there is executed", canTransitionAgreement("sent_for_signature", "executed"), true);
+// A draft does come back for redrafting; pretending otherwise makes people work
+// around the status rather than in it.
+eq("sent can come back to drafting", canTransitionAgreement("sent_for_signature", "drafting"), true);
+
+check(
+  "every status has a transition list",
+  (["drafting", "sent_for_signature", "executed", "terminated"] as const).every(
+    (k) => Array.isArray(AGREEMENT_TRANSITIONS[k]),
+  ),
+);
+check(
+  "no status transitions to itself",
+  (["drafting", "sent_for_signature", "executed", "terminated"] as const).every(
+    (k) => !AGREEMENT_TRANSITIONS[k].includes(k),
+  ),
+);
+// Termination is always available from a live agreement — grants do end early.
+check(
+  "a live agreement can always be terminated",
+  (["drafting", "sent_for_signature", "executed"] as const).every((k) =>
+    AGREEMENT_TRANSITIONS[k].includes("terminated"),
+  ),
+);
+
+eq("executed terms are frozen", termsAreFrozen("executed"), true);
+eq("terminated terms are frozen", termsAreFrozen("terminated"), true);
+eq("a draft is editable", termsAreFrozen("drafting"), false);
+eq("one out for signature is still editable", termsAreFrozen("sent_for_signature"), false);
+
+// Every frequency the database accepts can be split into periods AND shown in
+// a picker. A frequency with no label would be missing from the agreement
+// screen while still being storable; one with no period count would divide a
+// year's money by undefined.
+eq(
+  "every frequency has a period count and a label",
+  Object.keys(PERIODS_PER_YEAR).sort().join(","),
+  Object.keys(TRANCHE_FREQUENCY_LABELS).sort().join(","),
 );
 
 // ── Report ──────────────────────────────────────────────────────────────────

@@ -70,6 +70,18 @@ import {
   financialHistory,
   staleFinancials,
 } from "@/lib/budget/orgFinancials";
+import {
+  agreementFor,
+  agreementGate,
+  saveAgreementTerms,
+  recordAgreementSignoff,
+  sendAgreementForSignature,
+  returnAgreementToDraft,
+  executeAgreement,
+  terminateAgreement,
+} from "@/lib/budget/agreement";
+import { isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
+import { canAccessBudget } from "@/lib/budget/budgetAccess";
 import { logGrant } from "@/lib/budget/audit";
 import { moneyToString } from "@/lib/budget/money";
 
@@ -85,6 +97,26 @@ async function requireSession() {
  * Actions throw on refusal so a caller cannot forget to check, but a UI needs
  * the message and the "ask one of these people" list rather than a stack trace.
  */
+/**
+ * The gate for an amount-bearing action on one grant.
+ *
+ * Two checks, not one. `canAccessBudget` alone is not enough: its `own` rule is
+ * what a GRANTEE login resolves to, so a grantee would pass it on their own
+ * grant — and the agreement actions are what open the release gate. The role
+ * check is therefore first and explicit, matching the decision screen's gate.
+ */
+async function requireGrantReviewer(budgetId: string) {
+  const session = await requireSession();
+  if (!(isSuperAdmin(session) || isBudgetAdmin(session))) throw new Error("Forbidden");
+  const budget = await prisma.budget.findUnique({
+    where: { id: budgetId },
+    select: { partnerId: true, grantPartnerId: true },
+  });
+  if (!budget) throw new Error("Not found");
+  if (!(await canAccessBudget(session, budget, "update"))) throw new Error("Forbidden");
+  return session;
+}
+
 function asFormError(err: unknown): { ok: false; error: string; reason?: string } {
   if (err instanceof AuthorityError) {
     return { ok: false, error: err.message, reason: err.reason };
@@ -169,53 +201,77 @@ export async function getGrantDecision(budgetId: string) {
 
 // ── 1.2 Agreement and documents ──────────────────────────────────────────────
 
-export async function upsertGrantAgreement(input: {
+export async function getAgreement(budgetId: string) {
+  await requireGrantReviewer(budgetId);
+  const [view, blockers] = await Promise.all([agreementFor(budgetId), agreementGate(budgetId)]);
+  return { view, blockers };
+}
+
+export async function saveAgreement(input: {
   budgetId: string;
   decisionId?: string | null;
-  reference?: string;
+  reference?: string | null;
   trancheFrequency?: TrancheFrequency;
   effectiveFrom?: string | null;
   effectiveTo?: string | null;
-  granteeSignatoryName?: string;
-  granteeSignatoryRole?: string;
-  funderSignatoryName?: string;
-  funderSignatoryRole?: string;
+  granteeSignatoryName?: string | null;
+  granteeSignatoryRole?: string | null;
+  funderSignatoryName?: string | null;
+  funderSignatoryRole?: string | null;
 }) {
-  const session = await requireSession();
-  const data = {
-    decisionId: input.decisionId ?? null,
-    reference: input.reference ?? null,
-    trancheFrequency: input.trancheFrequency ?? undefined,
-    effectiveFrom: input.effectiveFrom ? new Date(input.effectiveFrom) : null,
-    effectiveTo: input.effectiveTo ? new Date(input.effectiveTo) : null,
-    granteeSignatoryName: input.granteeSignatoryName ?? null,
-    granteeSignatoryRole: input.granteeSignatoryRole ?? null,
-    funderSignatoryName: input.funderSignatoryName ?? null,
-    funderSignatoryRole: input.funderSignatoryRole ?? null,
-  };
+  try {
+    const session = await requireGrantReviewer(input.budgetId);
+    const r = await saveAgreementTerms(session, input);
+    revalidatePath(`/budget/${input.budgetId}/agreement`);
+    revalidatePath(`/budget/${input.budgetId}`);
+    return { ok: true as const, agreementId: r.agreementId };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
 
-  const agreement = await prisma.grantAgreement.upsert({
-    where: { budgetId: input.budgetId },
-    create: { budgetId: input.budgetId, ...data },
-    update: data,
-    select: { id: true },
-  });
+export async function signOffAgreement(input: {
+  budgetId: string;
+  step: "prepared" | "reviewed" | "approved";
+  note?: string;
+}) {
+  try {
+    const session = await requireGrantReviewer(input.budgetId);
+    await recordAgreementSignoff(session, input);
+    revalidatePath(`/budget/${input.budgetId}/agreement`);
+    return { ok: true as const };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
 
-  logGrant("GrantAgreement", agreement.id, session.user!.id!, "saved", {
-    field: input.reference ?? "agreement",
-    to: input.trancheFrequency ?? null,
-  });
-  revalidatePath(`/budget/${input.budgetId}`);
-  return { ok: true as const, agreementId: agreement.id };
+export async function sendAgreement(budgetId: string) {
+  try {
+    const session = await requireGrantReviewer(budgetId);
+    await sendAgreementForSignature(session, budgetId);
+    revalidatePath(`/budget/${budgetId}/agreement`);
+    return { ok: true as const };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
+
+export async function recallAgreement(budgetId: string, reason: string) {
+  try {
+    const session = await requireGrantReviewer(budgetId);
+    await returnAgreementToDraft(session, budgetId, reason);
+    revalidatePath(`/budget/${budgetId}/agreement`);
+    return { ok: true as const };
+  } catch (err) {
+    return asFormError(err);
+  }
 }
 
 /**
- * Mark the agreement executed.
- *
- * This is the gate everything downstream hangs off — no money moves without it
- * — so both signature dates are required rather than assumed. An "executed"
- * agreement that nobody signed is the sort of record that only becomes a
- * problem during an audit.
+ * Mark the agreement executed. This is the action that opens the release gate,
+ * so it revalidates the releases screen too — a stale "blocked by the
+ * agreement" banner there would send someone looking for a problem that no
+ * longer exists.
  */
 export async function executeGrantAgreement(input: {
   budgetId: string;
@@ -223,33 +279,32 @@ export async function executeGrantAgreement(input: {
   funderSignedOn: string;
   executedOn: string;
 }) {
-  const session = await requireSession();
-  const existing = await prisma.grantAgreement.findUnique({
-    where: { budgetId: input.budgetId },
-    select: { id: true, status: true, granteeSignatoryName: true, funderSignatoryName: true },
-  });
-  if (!existing) return { ok: false as const, error: "Create the agreement first." };
-  if (!existing.granteeSignatoryName || !existing.funderSignatoryName) {
-    return { ok: false as const, error: "Record who signed on each side before marking it executed." };
+  try {
+    const session = await requireGrantReviewer(input.budgetId);
+    const r = await executeAgreement(session, input);
+    revalidatePath(`/budget/${input.budgetId}/agreement`);
+    revalidatePath(`/budget/${input.budgetId}/disbursements`);
+    revalidatePath(`/budget/${input.budgetId}`);
+    return { ok: true as const, executedOn: r.executedOn };
+  } catch (err) {
+    return asFormError(err);
   }
+}
 
-  await prisma.grantAgreement.update({
-    where: { budgetId: input.budgetId },
-    data: {
-      status: "executed",
-      granteeSignedOn: new Date(input.granteeSignedOn),
-      funderSignedOn: new Date(input.funderSignedOn),
-      executedOn: new Date(input.executedOn),
-    },
-  });
-
-  logGrant("GrantAgreement", existing.id, session.user!.id!, "executed", {
-    field: "status",
-    from: existing.status,
-    to: "executed",
-  });
-  revalidatePath(`/budget/${input.budgetId}`);
-  return { ok: true as const };
+export async function terminateGrantAgreement(input: {
+  budgetId: string;
+  terminatedOn: string;
+  reason: string;
+}) {
+  try {
+    const session = await requireGrantReviewer(input.budgetId);
+    const r = await terminateAgreement(session, input);
+    revalidatePath(`/budget/${input.budgetId}/agreement`);
+    revalidatePath(`/budget/${input.budgetId}/disbursements`);
+    return { ok: true as const, releasedBefore: r.releasedBefore };
+  } catch (err) {
+    return asFormError(err);
+  }
 }
 
 export async function attachGrantDocument(input: {

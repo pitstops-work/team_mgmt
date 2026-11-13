@@ -32,12 +32,12 @@ import type { TrancheFrequency } from "@/app/generated/prisma/client";
 import { toDecimal, moneyToString, sumMoney, type MoneyInput } from "./money";
 import { logGrant } from "./audit";
 
-/** How many releases a year holds at each frequency. */
-export const PERIODS_PER_YEAR: Record<TrancheFrequency, number> = {
-  annual: 1,
-  half_yearly: 2,
-  quarterly: 4,
-};
+// Periods per year and the picker labels live in a prisma-free module: the
+// agreement screen is a client component, and a value import from this file
+// drags fs/net/tls into the browser bundle. Re-exported so callers keep their
+// import path.
+import { PERIODS_PER_YEAR, TRANCHE_FREQUENCY_LABELS } from "./trancheFrequency";
+export { PERIODS_PER_YEAR, TRANCHE_FREQUENCY_LABELS };
 
 export type PlannedTranche = {
   trancheNumber: number;

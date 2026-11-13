@@ -415,7 +415,7 @@ export async function resolveGrantSpine(
     appraisal: review.assembly ? `/approvals/${review.assembly.id}` : "/approvals/new",
     review: review.assembly ? `/approvals/${review.assembly.id}` : null,
     decision: audience === "internal" ? `/budget/${budgetId}/decision` : null,
-    agreement: null,
+    agreement: `/budget/${budgetId}/agreement`,
     documents: null,
     releases: `/budget/${budgetId}/disbursements`,
     reporting: `/budget/${budgetId}/reports`,

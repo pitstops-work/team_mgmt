@@ -61,6 +61,11 @@ function partnerAllowedPath(pathname: string): boolean {
   // statement. The page itself re-checks access per budget; this entry only lets
   // the request reach it. Without BOTH, the click silently redirects.
   if (/^\/budget\/[^/]+\/disbursements$/.test(pathname)) return true;
+  // The agreement on their own grant, read-only: reference, term, who signed
+  // and when. The page renders a facts-only view for a grantee and every write
+  // re-checks the role server-side, so this entry only lets the request
+  // through. Without BOTH, the click silently redirects to /budget.
+  if (/^\/budget\/[^/]+\/agreement$/.test(pathname)) return true;
   if (/^\/api\/budget\/[^/]+\/reports\//.test(pathname)) return true;
   if (pathname === "/api/budget/parse-bank-statement") return true;
   if (pathname === "/api/budget/declaration-upload") return true;
