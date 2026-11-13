@@ -70,6 +70,10 @@ function partnerAllowedPath(pathname: string): boolean {
   // Both routes re-check the viewer against the grant AND the document KIND,
   // so a grantee reaching them still cannot read or attach an appraisal note.
   if (/^\/budget\/[^/]+\/documents$/.test(pathname)) return true;
+  // Closure on their own grant: the four numbers the commonest closure dispute
+  // is about, plus what is still wanted from them. The page renders a
+  // facts-only view for a grantee — no exit decision, no exception note.
+  if (/^\/budget\/[^/]+\/closure$/.test(pathname)) return true;
   if (pathname === "/api/grants/documents/upload") return true;
   if (/^\/api\/grants\/documents\/[^/]+\/file$/.test(pathname)) return true;
   if (/^\/api\/budget\/[^/]+\/reports\//.test(pathname)) return true;

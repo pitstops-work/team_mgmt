@@ -44,6 +44,9 @@ import {
   initiateClosure,
   setSettlement,
   closeGrant,
+  addClosureAsset,
+  removeClosureAsset,
+  closureAssets,
   closureGate,
   closureFigures,
   overdueForClosure,
@@ -82,6 +85,7 @@ import {
 } from "@/lib/budget/agreement";
 import { isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
 import { canAccessBudget } from "@/lib/budget/budgetAccess";
+import { getPartnerAccess, partnerCanAccessBudget } from "@/lib/budget/partnerAccess";
 import { logGrant } from "@/lib/budget/audit";
 import { moneyToString } from "@/lib/budget/money";
 
@@ -115,6 +119,28 @@ async function requireGrantReviewer(budgetId: string) {
   if (!budget) throw new Error("Not found");
   if (!(await canAccessBudget(session, budget, "update"))) throw new Error("Forbidden");
   return session;
+}
+
+/**
+ * Read access to one grant, for the views a grantee legitimately sees.
+ *
+ * Wider than `requireGrantReviewer` on purpose — a grantee should be able to
+ * read their own closing figures — but narrower than `requireSession()`, which
+ * is what `getClosureView` had and which let any logged-in user read any
+ * grant's released, utilised and unspent totals.
+ */
+async function requireGrantReader(budgetId: string) {
+  const session = await requireSession();
+  const budget = await prisma.budget.findUnique({
+    where: { id: budgetId },
+    select: { partnerId: true, grantPartnerId: true },
+  });
+  if (!budget) throw new Error("Not found");
+  if (isSuperAdmin(session) || isBudgetAdmin(session)) return session;
+  if (budget.partnerId === session.user!.id) return session;
+  const access = await getPartnerAccess(session);
+  if (partnerCanAccessBudget(access, budget)) return session;
+  throw new Error("Forbidden");
 }
 
 function asFormError(err: unknown): { ok: false; error: string; reason?: string } {
@@ -552,9 +578,10 @@ export async function getApprovedUnpaid(budgetId?: string) {
 // ── 1.4 Closure ──────────────────────────────────────────────────────────────
 
 export async function startClosure(budgetId: string) {
-  const session = await requireSession();
   try {
+    const session = await requireGrantReviewer(budgetId);
     const result = await initiateClosure(session, budgetId);
+    revalidatePath(`/budget/${budgetId}/closure`);
     revalidatePath(`/budget/${budgetId}`);
     return { ok: true as const, ...result };
   } catch (err) {
@@ -571,8 +598,8 @@ export async function recordSettlement(input: {
   refundReference?: string | null;
   writeOffNote?: string | null;
 }) {
-  const session = await requireSession();
   try {
+    const session = await requireGrantReviewer(input.budgetId);
     await setSettlement(session, input.budgetId, {
       mode: input.mode,
       adjustedIntoBudgetId: input.adjustedIntoBudgetId,
@@ -581,6 +608,7 @@ export async function recordSettlement(input: {
       refundReference: input.refundReference,
       writeOffNote: input.writeOffNote,
     });
+    revalidatePath(`/budget/${input.budgetId}/closure`);
     revalidatePath(`/budget/${input.budgetId}`);
     return { ok: true as const };
   } catch (err) {
@@ -594,11 +622,17 @@ export async function closeOutGrant(input: {
   exitNote?: string;
   exceptionNote?: string;
 }) {
-  const session = await requireSession();
   try {
+    // `closeGrant` already goes through requireAuthority("closure_close"), which
+    // refuses when no rule matches. This adds the record-access question that
+    // authority rules do not ask: an admin of another granting unit can hold the
+    // authority and still have no business closing this grant.
+    const session = await requireGrantReviewer(input.budgetId);
     const result = await closeGrant(session, input.budgetId, input);
+    revalidatePath(`/budget/${input.budgetId}/closure`);
     revalidatePath(`/budget/${input.budgetId}`);
     revalidatePath("/budget/dashboard");
+    revalidatePath("/budget/pipeline");
     return { ok: true as const, ...result };
   } catch (err) {
     return asFormError(err);
@@ -606,7 +640,7 @@ export async function closeOutGrant(input: {
 }
 
 export async function getClosureView(budgetId: string) {
-  await requireSession();
+  await requireGrantReader(budgetId);
   const [gate, figures, closure] = await Promise.all([
     closureGate(budgetId),
     closureFigures(budgetId),
@@ -645,6 +679,48 @@ export async function getClosureView(budgetId: string) {
         }
       : null,
   };
+}
+
+export async function recordClosureAsset(input: {
+  budgetId: string;
+  description: string;
+  quantity?: number;
+  cost: number;
+  acquiredOn?: string | null;
+  disposition: string;
+  dispositionNote?: string | null;
+}) {
+  try {
+    const session = await requireGrantReviewer(input.budgetId);
+    const r = await addClosureAsset(session, input.budgetId, {
+      description: input.description,
+      quantity: input.quantity,
+      cost: input.cost,
+      acquiredOn: input.acquiredOn ? new Date(input.acquiredOn) : null,
+      disposition: input.disposition,
+      dispositionNote: input.dispositionNote,
+    });
+    revalidatePath(`/budget/${input.budgetId}/closure`);
+    return { ok: true as const, ...r };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
+
+export async function deleteClosureAsset(input: { budgetId: string; assetId: string }) {
+  try {
+    const session = await requireGrantReviewer(input.budgetId);
+    await removeClosureAsset(session, input.budgetId, input.assetId);
+    revalidatePath(`/budget/${input.budgetId}/closure`);
+    return { ok: true as const };
+  } catch (err) {
+    return asFormError(err);
+  }
+}
+
+export async function getClosureAssets(budgetId: string) {
+  await requireGrantReader(budgetId);
+  return closureAssets(budgetId);
 }
 
 export async function getOverdueClosures() {

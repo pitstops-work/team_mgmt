@@ -34,7 +34,18 @@ import {
   termsAreFrozen,
 } from "../lib/budget/agreement";
 import { PERIODS_PER_YEAR, TRANCHE_FREQUENCY_LABELS } from "../lib/budget/trancheFrequency";
-import { GrantDocumentKind } from "../app/generated/prisma/enums";
+import { GrantDocumentKind, GrantExitDecision } from "../app/generated/prisma/enums";
+import { SETTLEMENT_MODES } from "../lib/budget/closure";
+import {
+  ASSET_DISPOSITIONS,
+  ASSET_DISPOSITION_LABELS,
+  DISPOSITIONS_NEEDING_NOTE,
+  EXIT_DECISIONS,
+  EXIT_DECISION_LABELS,
+  SETTLEMENT_MODES_UI,
+  SETTLEMENT_MODE_LABELS,
+  isAssetDisposition,
+} from "../lib/budget/closureVocabulary";
 import {
   DOCUMENT_KINDS,
   DOCUMENT_KIND_LIST,
@@ -716,6 +727,66 @@ check(
 // than a pathname that ends in a slash.
 check("a dots-only filename still yields a name", documentPathname("other", "...").endsWith("/file"));
 check("an empty filename still yields a name", documentPathname("other", "").endsWith("/file"));
+
+
+// ── Closure vocabulary ──────────────────────────────────────────────────────
+//
+// Closure freezes a grant's figures for good, and the settlement mode is the
+// financial position the organisation takes on money it gave away and did not
+// get spent. Both lists therefore exist twice — once where the value is
+// written to the database, once where a form renders it — because the screen
+// is a client component and the writer imports prisma. Twice means they can
+// drift, so this is the check that says they have not.
+
+eq(
+  "the settlement modes the form offers are the ones the database stores",
+  SETTLEMENT_MODES_UI.slice().sort().join(","),
+  SETTLEMENT_MODES.slice().sort().join(","),
+);
+check(
+  "every settlement mode has a label",
+  SETTLEMENT_MODES_UI.every((m) => Boolean(SETTLEMENT_MODE_LABELS[m])),
+);
+
+// The exit decision is a Prisma enum, so a value added there without a label
+// would render as a raw identifier in a closed grant's record.
+eq(
+  "every exit decision in the enum can be offered",
+  Object.keys(GrantExitDecision).sort().join(","),
+  EXIT_DECISIONS.slice().sort().join(","),
+);
+check(
+  "every exit decision has a label",
+  EXIT_DECISIONS.every((d) => Boolean(EXIT_DECISION_LABELS[d])),
+);
+// `undecided` is the column default, so it has to be a choosable value rather
+// than a state only the database can be in.
+check("undecided is an offerable exit decision", EXIT_DECISIONS.includes("undecided"));
+
+// GrantAsset.disposition is a free String in the schema — nothing stops a typo
+// becoming a category — so this list and its validator are the only thing
+// keeping the asset register answerable across a portfolio.
+check(
+  "every disposition has a label",
+  ASSET_DISPOSITIONS.every((d) => Boolean(ASSET_DISPOSITION_LABELS[d])),
+);
+check("the validator accepts every disposition", ASSET_DISPOSITIONS.every((d) => isAssetDisposition(d)));
+eq("and rejects anything else", isAssetDisposition("given_away"), false);
+eq("including an empty string", isAssetDisposition(""), false);
+check(
+  "dispositions needing a note are real dispositions",
+  DISPOSITIONS_NEEDING_NOTE.every((d) => (ASSET_DISPOSITIONS as readonly string[]).includes(d)),
+);
+// "Sold" without saying for how much, and "written off" without saying why,
+// are the two that record nothing at all on their own. So is "undecided",
+// which otherwise sits in the register for ever with no owner.
+for (const d of ["sold", "written_off", "undecided"] as const) {
+  check(`${d.replace(/_/g, " ")} requires a note`, DISPOSITIONS_NEEDING_NOTE.includes(d));
+}
+check(
+  "retention by the grantee needs no note",
+  !DISPOSITIONS_NEEDING_NOTE.includes("retained_by_grantee"),
+);
 
 // ── Report ──────────────────────────────────────────────────────────────────
 

@@ -420,7 +420,7 @@ export async function resolveGrantSpine(
     releases: `/budget/${budgetId}/disbursements`,
     reporting: `/budget/${budgetId}/reports`,
     assessment: null,
-    closure: null,
+    closure: `/budget/${budgetId}/closure`,
   };
 
   const badges: Record<StageKey, number | null> = {
