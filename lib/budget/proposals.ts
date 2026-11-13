@@ -25,6 +25,14 @@ import type { ProposalStage } from "@/app/generated/prisma/client";
 import { createHash, randomBytes } from "node:crypto";
 import { toDecimal, moneyToString } from "./money";
 import { logGrant } from "./audit";
+import { liveConflictFor } from "./authority";
+import {
+  TERMINAL_PROPOSAL_STAGES,
+  STAGES_NEEDING_REASON,
+  isDeclineReason,
+  declineReasonNeedsNote,
+  declineReasonLabel,
+} from "./proposalVocabulary";
 
 type SessionLike = { user?: { id?: string | null; role?: string | null } | null } | null;
 
@@ -43,9 +51,13 @@ const STAGE_TRANSITIONS: Record<ProposalStage, ProposalStage[]> = {
   withdrawn: [],
 };
 
-const TERMINAL_STAGES: ProposalStage[] = ["ineligible", "decided", "withdrawn"];
-/** Stages whose exit needs a recorded reason. */
-const STAGES_NEEDING_REASON: ProposalStage[] = ["ineligible", "withdrawn"];
+/**
+ * Both of these used to be declared here. They now come from
+ * `proposalVocabulary.ts` so the stage picker and the applicant's status page
+ * read the SAME lists — a hand-maintained second copy drifts, and the way this
+ * one would drift is by offering a transition the server then refuses.
+ */
+const TERMINAL_STAGES = TERMINAL_PROPOSAL_STAGES;
 
 export function canTransition(from: ProposalStage, to: ProposalStage): boolean {
   return STAGE_TRANSITIONS[from]?.includes(to) ?? false;
@@ -72,6 +84,8 @@ function hashToken(token: string): string {
 export async function createPublicProposal(input: {
   windowId?: string | null;
   publicRef?: string;
+  /** Required whenever `publicRef` is given — see the guard below. */
+  resumeToken?: string;
   applicantOrgName: string;
   contactName: string;
   contactEmail: string;
@@ -98,6 +112,46 @@ export async function createPublicProposal(input: {
     if (window.status !== "open") throw new Error(`${window.name} is not open for submissions.`);
     if (window.closesOn && window.closesOn < new Date()) {
       throw new Error(`${window.name} closed on ${window.closesOn.toISOString().slice(0, 10)}.`);
+    }
+  }
+
+  // ── The hole this closes ──────────────────────────────────────────────────
+  // `publicRef` is an INPUT, and the write below is an upsert on it. So a
+  // caller who knew or guessed another applicant's reference could overwrite
+  // that applicant's entire proposal — org name, contact, amount, every answer
+  // — with no token, on a public endpoint. `resumeProposal` takes the token
+  // seriously and then refuses to return an editable form once the proposal is
+  // submitted; the save path ignored both facts.
+  //
+  // Continuing an existing proposal therefore needs the resume token, and the
+  // proposal has to still be open. Once it is submitted, or once a human has
+  // started working on it, the applicant's own route is to talk to us — not to
+  // rewrite the document under the person reading it.
+  if (input.publicRef) {
+    const existing = await prisma.proposal.findUnique({
+      where: { publicRef: input.publicRef },
+      select: {
+        resumeTokenHash: true,
+        resumeExpiresAt: true,
+        submittedAt: true,
+        stage: true,
+      },
+    });
+    if (!existing) throw new Error("We could not find that application.");
+    if (!input.resumeToken || !existing.resumeTokenHash) {
+      throw new Error("Open your application from the link we emailed you.");
+    }
+    if (existing.resumeTokenHash !== hashToken(input.resumeToken)) {
+      throw new Error("Open your application from the link we emailed you.");
+    }
+    if (existing.resumeExpiresAt && existing.resumeExpiresAt < new Date()) {
+      throw new Error("That link has expired. Ask us for a new one.");
+    }
+    if (existing.submittedAt) {
+      throw new Error("This application has already been submitted and cannot be changed.");
+    }
+    if (existing.stage !== "received") {
+      throw new Error("This application is already being assessed and cannot be changed.");
     }
   }
 
@@ -256,8 +310,21 @@ export async function moveProposalStage(
       `A proposal cannot go from ${proposal.stage.replace(/_/g, " ")} to ${to.replace(/_/g, " ")}.`,
     );
   }
-  if (STAGES_NEEDING_REASON.includes(to) && !opts?.reasonCode) {
-    throw new Error("Record why — a decline with no reason tells nobody anything later.");
+  if (STAGES_NEEDING_REASON.includes(to)) {
+    if (!opts?.reasonCode) {
+      throw new Error("Record why — a decline with no reason tells nobody anything later.");
+    }
+    // The code has to come from the fixed list. `declineReasonSummary()` groups
+    // by this column, and free text through a group-by turns "no fit", "No Fit"
+    // and "not a fit" into three separate findings.
+    if (!isDeclineReason(opts.reasonCode)) {
+      throw new Error("Choose one of the recorded decline reasons.");
+    }
+    if (declineReasonNeedsNote(opts.reasonCode) && !opts.reasonNote?.trim()) {
+      throw new Error(
+        `"${declineReasonLabel(opts.reasonCode)}" says nothing on its own — add the detail.`,
+      );
+    }
   }
 
   await prisma.$transaction([
@@ -308,25 +375,99 @@ export async function scoreProposal(
   const userId = session?.user?.id;
   if (!userId) throw new Error("Not authenticated");
 
-  const rubric = await prisma.proposalRubric.findUnique({
-    where: { id: input.rubricId },
-    select: { id: true, criteria: true, name: true, version: true },
-  });
+  const [proposal, rubric, existing] = await Promise.all([
+    prisma.proposal.findUnique({
+      where: { id: input.proposalId },
+      select: { id: true, stage: true, windowId: true, orgId: true, publicRef: true },
+    }),
+    prisma.proposalRubric.findUnique({
+      where: { id: input.rubricId },
+      select: { id: true, criteria: true, name: true, version: true, windowId: true, isActive: true },
+    }),
+    prisma.proposalReview.findUnique({
+      where: {
+        proposalId_reviewerId_level: {
+          proposalId: input.proposalId,
+          reviewerId: userId,
+          level: input.level ?? 1,
+        },
+      },
+      select: { id: true, rubricId: true },
+    }),
+  ]);
+  if (!proposal) throw new Error("Not found");
   if (!rubric) throw new Error("Rubric not found");
+
+  // A proposal that has left the pipeline is not scoreable. A score arriving
+  // after a decline reads, later, as though the decline was taken against it.
+  if (TERMINAL_STAGES.includes(proposal.stage)) {
+    throw new Error(
+      `This proposal is ${proposal.stage.replace(/_/g, " ")} — scoring it now would backdate the record.`,
+    );
+  }
+
+  // The rubric has to belong to this call, or be a global one. Scoring two
+  // proposals in the same window against different rubrics produces two totals
+  // that are then ranked against each other, which is the one thing a score is
+  // for and the one thing it cannot survive.
+  if (rubric.windowId && rubric.windowId !== proposal.windowId) {
+    throw new Error("That scoring sheet belongs to a different call for proposals.");
+  }
+  if (!rubric.isActive && existing?.rubricId !== rubric.id) {
+    throw new Error("That scoring sheet has been retired.");
+  }
+
+  // The rubric is frozen onto the review at creation. Letting an EXISTING
+  // review switch rubric would change the scores while `rubricSnapshot` kept
+  // describing the old sheet — a total whose own record of how it was computed
+  // is wrong.
+  if (existing && existing.rubricId && existing.rubricId !== rubric.id) {
+    throw new Error(
+      "This review was scored against a different sheet. Start a new review rather than re-pointing this one.",
+    );
+  }
+
+  // A declared conflict requiring recusal stops the score, not just the
+  // decision. The person who stood aside from the vote should not be writing
+  // the number the vote is taken on.
+  const conflict = await liveConflictFor(userId, proposal.orgId);
+  if (conflict?.disposition === "recuse") {
+    throw new Error(
+      "You have declared a conflict requiring recusal on this organisation, so you cannot score its proposal.",
+    );
+  }
 
   const criteria = Array.isArray(rubric.criteria)
     ? (rubric.criteria as unknown as { key: string; weight?: number; maxScore?: number }[])
     : [];
 
+  if (!criteria.length) throw new Error("That scoring sheet has no criteria on it.");
+
+  // Every criterion, not the ones that were filled in.
+  //
+  // The original skipped a missing score and carried on. A weighted total over
+  // four of six criteria is simply a smaller number than one over all six —
+  // and nothing downstream knows the difference, so the half-scored proposal
+  // ranks below the fully-scored one for a reason that has nothing to do with
+  // its merit. Refusing is the only version of this that stays comparable.
+  const missing = criteria.filter((c) => input.scores[c.key] === undefined).map((c) => c.key);
+  if (missing.length) {
+    throw new Error(
+      `Score every criterion — a partial total ranks below a complete one for no reason. Missing: ${missing.join(", ")}.`,
+    );
+  }
+
   let total = 0;
+  let maxPossible = 0;
   for (const c of criteria) {
     const raw = input.scores[c.key];
-    if (raw === undefined) continue;
     const max = c.maxScore ?? 10;
+    if (!Number.isFinite(raw)) throw new Error(`Score for ${c.key} is not a number.`);
     if (raw < 0 || raw > max) {
       throw new Error(`Score for ${c.key} must be between 0 and ${max}.`);
     }
     total += raw * (c.weight ?? 1);
+    maxPossible += max * (c.weight ?? 1);
   }
 
   const level = input.level ?? 1;
@@ -354,7 +495,25 @@ export async function scoreProposal(
     select: { id: true, totalScore: true },
   });
 
-  return review;
+  await prisma.proposalEvent.create({
+    data: {
+      proposalId: input.proposalId,
+      kind: "scored",
+      actorId: userId,
+      detail: {
+        level,
+        total,
+        maxPossible,
+        rubric: `${rubric.name} v${rubric.version}`,
+        ...(conflict ? { disclosureId: conflict.id } : {}),
+      } as unknown as Prisma.InputJsonValue,
+      // The applicant is not shown a score. The whole point of candour in a
+      // review is that it is not written to be read by its subject.
+      isPublic: false,
+    },
+  });
+
+  return { ...review, maxPossible };
 }
 
 /**
@@ -368,29 +527,266 @@ export async function linkProposalToBudget(session: SessionLike, proposalId: str
   const userId = session?.user?.id;
   if (!userId) throw new Error("Not authenticated");
 
-  const [proposal, existing] = await Promise.all([
-    prisma.proposal.findUnique({ where: { id: proposalId }, select: { budgetId: true, stage: true } }),
-    prisma.proposal.findUnique({ where: { budgetId }, select: { id: true } }),
+  const [proposal, existing, budget] = await Promise.all([
+    prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        budgetId: true,
+        stage: true,
+        continuity: true,
+        publicRef: true,
+        declineReasonCode: true,
+      },
+    }),
+    prisma.proposal.findUnique({ where: { budgetId }, select: { id: true, publicRef: true } }),
+    prisma.budget.findUnique({ where: { id: budgetId }, select: { id: true, name: true } }),
   ]);
   if (!proposal) throw new Error("Not found");
+  if (!budget) throw new Error("That grant does not exist.");
   if (proposal.budgetId) throw new Error("This proposal is already linked to a grant.");
-  if (existing) throw new Error("That grant already came from another proposal.");
+  if (existing) throw new Error(`That grant already came from proposal ${existing.publicRef}.`);
+
+  // ── The stage check this never had ────────────────────────────────────────
+  // This is the join from intake to the rest of the lifecycle, and it accepted
+  // ANY stage. A proposal marked `ineligible` — declined, with the reason on
+  // the record — could be turned into a grant, and the spine would then read
+  // "Proposal: declined" above a live grant with a budget and a release
+  // schedule. So could one still at `received`, which nobody had read.
+  if (TERMINAL_STAGES.includes(proposal.stage) && proposal.stage !== "decided") {
+    throw new Error(
+      proposal.declineReasonCode
+        ? `${proposal.publicRef} was declined (${declineReasonLabel(proposal.declineReasonCode)}). A declined proposal cannot become a grant.`
+        : `${proposal.publicRef} is ${proposal.stage.replace(/_/g, " ")} and cannot become a grant.`,
+    );
+  }
+  if (proposal.stage === "received" || proposal.stage === "screening") {
+    throw new Error(
+      `${proposal.publicRef} has not been screened yet. Take it to eligible first — a grant built now has nothing behind it.`,
+    );
+  }
 
   // Carry the applicant's own framing forward. A grant that the applicant
   // described as a continuation should not arrive on the grant side looking
   // like a first grant, which is the context an appraisal leans on.
-  const continuity = await prisma.proposal.findUnique({
-    where: { id: proposalId },
-    select: { continuity: true },
-  });
-
   await prisma.$transaction([
     prisma.proposal.update({ where: { id: proposalId }, data: { budgetId } }),
-    ...(continuity?.continuity
-      ? [prisma.budget.update({ where: { id: budgetId }, data: { continuity: continuity.continuity } })]
+    ...(proposal.continuity
+      ? [prisma.budget.update({ where: { id: budgetId }, data: { continuity: proposal.continuity } })]
       : []),
+    prisma.proposalEvent.create({
+      data: {
+        proposalId,
+        kind: "linked_to_grant",
+        actorId: userId,
+        detail: { budgetId, budgetName: budget.name } as unknown as Prisma.InputJsonValue,
+        isPublic: true,
+      },
+    }),
   ]);
   logGrant("Proposal", proposalId, userId, "linked_to_budget", { field: "budgetId", to: budgetId });
+}
+
+/**
+ * Attach a proposal to an organisation in the registry.
+ *
+ * Kept separate from intake, and audited, because a near-match on an
+ * organisation name is a JUDGEMENT rather than a lookup — the alias registry
+ * exists because this project has already watched the app agree with itself on
+ * a misspelt partner name. `applicantOrgName` stays exactly as typed, so the
+ * two can always be compared afterwards.
+ */
+export async function matchProposalToOrg(
+  session: SessionLike,
+  proposalId: string,
+  orgId: string | null,
+) {
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  const proposal = await prisma.proposal.findUnique({
+    where: { id: proposalId },
+    select: { orgId: true, publicRef: true, applicantOrgName: true, budgetId: true },
+  });
+  if (!proposal) throw new Error("Not found");
+  // Once the proposal is a grant, the org on it is what due diligence,
+  // authority and the conflict checks all read. Re-pointing it here would move
+  // those silently.
+  if (proposal.budgetId) {
+    throw new Error("This proposal is already a grant — change the organisation on the grant instead.");
+  }
+
+  if (orgId) {
+    const org = await prisma.org.findUnique({ where: { id: orgId }, select: { id: true, name: true } });
+    if (!org) throw new Error("That organisation does not exist.");
+  }
+
+  await prisma.$transaction([
+    prisma.proposal.update({ where: { id: proposalId }, data: { orgId } }),
+    prisma.proposalEvent.create({
+      data: {
+        proposalId,
+        kind: orgId ? "org_matched" : "org_unmatched",
+        actorId: userId,
+        detail: { typedAs: proposal.applicantOrgName, orgId } as unknown as Prisma.InputJsonValue,
+        isPublic: false,
+      },
+    }),
+  ]);
+  logGrant("Proposal", proposalId, userId, orgId ? "org_matched" : "org_unmatched", {
+    field: "orgId",
+    from: proposal.orgId ?? undefined,
+    to: orgId ?? undefined,
+  });
+}
+
+/** Who is carrying this one. Audited so "nobody owns it" is answerable. */
+export async function assignProposal(
+  session: SessionLike,
+  proposalId: string,
+  assigneeId: string | null,
+) {
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  const proposal = await prisma.proposal.findUnique({
+    where: { id: proposalId },
+    select: { assignedToId: true },
+  });
+  if (!proposal) throw new Error("Not found");
+  if (assigneeId) {
+    const user = await prisma.user.findUnique({ where: { id: assigneeId }, select: { id: true } });
+    if (!user) throw new Error("That person does not exist.");
+  }
+
+  await prisma.proposal.update({ where: { id: proposalId }, data: { assignedToId: assigneeId } });
+  logGrant("Proposal", proposalId, userId, "assigned", {
+    field: "assignedToId",
+    from: proposal.assignedToId ?? undefined,
+    to: assigneeId ?? undefined,
+  });
+}
+
+/**
+ * One proposal, whole.
+ *
+ * Returns the stages it may legitimately move to rather than letting the screen
+ * work that out — the picker and the server then cannot disagree about what is
+ * offered, which is how a UI ends up presenting a button that always errors.
+ */
+export async function proposalDetail(proposalId: string) {
+  const proposal = await prisma.proposal.findUnique({
+    where: { id: proposalId },
+    select: {
+      id: true,
+      publicRef: true,
+      stage: true,
+      applicantOrgName: true,
+      contactName: true,
+      contactEmail: true,
+      contactPhone: true,
+      title: true,
+      summary: true,
+      requestedAmount: true,
+      requestedMonths: true,
+      domains: true,
+      city: true,
+      answers: true,
+      continuity: true,
+      declineReasonCode: true,
+      declineReasonNote: true,
+      submittedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      budgetId: true,
+      budget: { select: { id: true, name: true, status: true } },
+      org: { select: { id: true, name: true } },
+      window: { select: { id: true, name: true, ceilingAmount: true, questions: true } },
+      assignedTo: { select: { id: true, name: true, email: true } },
+      reviews: {
+        select: {
+          id: true,
+          level: true,
+          totalScore: true,
+          recommendation: true,
+          note: true,
+          submittedAt: true,
+          rubricSnapshot: true,
+          scores: true,
+          reviewer: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: [{ level: "asc" }, { createdAt: "asc" }],
+      },
+      events: {
+        select: { id: true, kind: true, detail: true, isPublic: true, createdAt: true, actor: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      },
+      documents: { select: { id: true, kind: true, title: true, createdAt: true } },
+    },
+  });
+  if (!proposal) return null;
+
+  return {
+    ...proposal,
+    requestedAmount: proposal.requestedAmount ? moneyToString(proposal.requestedAmount) : null,
+    ceilingAmount: proposal.window?.ceilingAmount
+      ? moneyToString(proposal.window.ceilingAmount)
+      : null,
+    nextStages: STAGE_TRANSITIONS[proposal.stage] ?? [],
+  };
+}
+
+export type ProposalDetail = NonNullable<Awaited<ReturnType<typeof proposalDetail>>>;
+
+/**
+ * The applicant's own view, by reference and resume token.
+ *
+ * Shaped by what it must NOT carry. There is no session here — this is read by
+ * someone who holds a link — so it is built by naming each field rather than
+ * spreading the row, and it contains no score, no reviewer, no internal note,
+ * and no event that was not marked public when it was written.
+ */
+export async function publicProposalStatus(publicRef: string, token: string) {
+  const proposal = await prisma.proposal.findUnique({
+    where: { publicRef },
+    select: {
+      publicRef: true,
+      resumeTokenHash: true,
+      resumeExpiresAt: true,
+      stage: true,
+      title: true,
+      applicantOrgName: true,
+      contactName: true,
+      requestedAmount: true,
+      declineReasonCode: true,
+      submittedAt: true,
+      createdAt: true,
+      window: { select: { name: true, closesOn: true } },
+      events: {
+        where: { isPublic: true },
+        select: { kind: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+  if (!proposal?.resumeTokenHash) return null;
+  if (proposal.resumeTokenHash !== hashToken(token)) return null;
+  if (proposal.resumeExpiresAt && proposal.resumeExpiresAt < new Date()) return null;
+
+  return {
+    publicRef: proposal.publicRef,
+    stage: proposal.stage,
+    title: proposal.title,
+    orgName: proposal.applicantOrgName,
+    contactName: proposal.contactName,
+    requestedAmount: proposal.requestedAmount ? moneyToString(proposal.requestedAmount) : null,
+    declineReasonCode: proposal.declineReasonCode,
+    submittedAt: proposal.submittedAt,
+    createdAt: proposal.createdAt,
+    windowName: proposal.window?.name ?? null,
+    timeline: proposal.events.map((e) => ({ kind: e.kind, at: e.createdAt })),
+    editable: !proposal.submittedAt && proposal.stage === "received",
+  };
 }
 
 /**

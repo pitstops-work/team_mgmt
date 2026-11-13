@@ -46,6 +46,7 @@ import {
   type StageSignals,
   type StageState,
 } from "./stageRules";
+import { PUBLIC_STAGE_LABELS } from "./proposalVocabulary";
 
 export type { StageKey, StageState } from "./stageRules";
 export { STAGE_LABELS, STAGE_ORDER, PARTNER_VISIBLE } from "./stageRules";
@@ -251,7 +252,7 @@ export async function resolveGrantSpine(
       grantPartner: { select: { name: true, orgId: true } },
       agreement: { select: { status: true, executedOn: true } },
       closure: { select: { status: true, unspentAmount: true, settlementMode: true } },
-      proposal: { select: { publicRef: true, stage: true } },
+      proposal: { select: { id: true, publicRef: true, stage: true } },
       _count: { select: { lines: true, documents: true } },
     },
   });
@@ -322,8 +323,16 @@ export async function resolveGrantSpine(
   // sentence is a presentation choice, and the rules have to stay testable
   // without a database.
   const summaries: Record<StageKey, string | null> = {
+    // The stage name differs by audience on purpose. "Due diligence" to an
+    // applicant reads as a decision already taken, and "not eligible" is an
+    // assessment of them rather than a statement about our decision —
+    // `PUBLIC_STAGE_LABELS` carries the wording we can stand behind.
     proposal: budget.proposal
-      ? `${budget.proposal.publicRef} · ${budget.proposal.stage.replace(/_/g, " ")}`
+      ? `${budget.proposal.publicRef} · ${
+          audience === "internal"
+            ? budget.proposal.stage.replace(/_/g, " ")
+            : PUBLIC_STAGE_LABELS[budget.proposal.stage]
+        }`
       : "No proposal on record — this grant was set up directly.",
     due_diligence: !signals.hasGrantee
       ? "No grantee organisation assigned."
@@ -399,7 +408,13 @@ export async function resolveGrantSpine(
   // grantee reach — a link to /budget/<id> would silently redirect them to
   // /budget, which reads as the app losing their place.
   const hrefs: Record<StageKey, string | null> = {
-    proposal: null,
+    // Internal only. `PARTNER_VISIBLE.proposal` is true — a grantee may see
+    // THAT their proposal exists and where it got to — but the desk behind
+    // this link carries scores, decline reasons and reviewers' notes.
+    proposal:
+      audience === "internal" && budget.proposal
+        ? `/budget/proposals/${budget.proposal.id}`
+        : null,
     due_diligence:
       audience === "internal" && review.reviewOrgId
         ? `/due-diligence/${review.reviewOrgId}`

@@ -46,6 +46,7 @@ export default async function BudgetLayout({ children }: { children: React.React
         <nav className="px-4 pb-2 -mt-1 flex items-center gap-4 overflow-x-auto sm:justify-end">
           <a href="/budget" className={navLinkClass}>Grants</a>
           <a href="/budget/pipeline" className={navLinkClass}>Pipeline</a>
+          {(superAdmin || budgetOnly) && <a href="/budget/proposals" className={navLinkClass}>Intake</a>}
           <a href="/budget/dashboard" className={navLinkClass}>Dashboard</a>
           {(superAdmin || budgetOnly) && <a href="/budget/disbursements" className={navLinkClass}>Releases</a>}
           {(superAdmin || budgetOnly) && <a href="/admin/partners" className={navLinkClass}>Partners</a>}

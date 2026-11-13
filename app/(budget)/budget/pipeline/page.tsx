@@ -72,9 +72,9 @@ export default async function PipelinePage() {
       <section className="rounded-lg border border-stone-200 bg-white">
         <div className="flex items-baseline justify-between border-b border-stone-200 px-4 py-2">
           <h3 className="text-sm font-medium text-stone-700">Intake</h3>
-          <span className="text-xs text-stone-400">
-            Proposals with no grant attached yet
-          </span>
+          <Link href="/budget/proposals" className="text-xs text-sky-600 hover:underline">
+            The intake desk →
+          </Link>
         </div>
         {unlinked.length === 0 ? (
           <p className="px-4 py-6 text-center text-xs text-stone-400">
@@ -86,7 +86,12 @@ export default async function PipelinePage() {
             {unlinked.map((p) => (
               <li key={p.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2">
                 <span className="font-mono text-xs text-stone-400">{p.publicRef}</span>
-                <span className="text-sm text-stone-800">{p.orgName}</span>
+                <Link
+                  href={`/budget/proposals/${p.id}`}
+                  className="text-sm text-stone-800 hover:underline"
+                >
+                  {p.orgName}
+                </Link>
                 <span className="text-xs text-stone-500">{p.title}</span>
                 <span className="ml-auto flex items-baseline gap-3 text-xs">
                   <span className="rounded bg-stone-100 px-1.5 py-0.5 text-stone-600">

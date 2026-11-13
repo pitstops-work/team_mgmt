@@ -36,7 +36,9 @@ export type AuditEntityType =
   | "GrantClosure"      // the terminal state
   | "Authority"         // AuthorityRule / AuthorityDelegation edits
   | "Compliance"        // OrgCompliance registration windows
-  | "Proposal";         // intake and pipeline
+  | "Proposal"          // intake and pipeline
+  | "FundingWindow"     // a call for proposals: its dates, guidance and question set
+  | "ProposalRubric";   // a scoring sheet, versioned rather than edited in place
 
 export type AuditEntry = {
   entityType: AuditEntityType;

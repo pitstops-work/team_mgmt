@@ -26,6 +26,29 @@ import {
 } from "../lib/budget/money";
 import { splitYearAmount, buildTrancheSchedule } from "../lib/budget/tranches";
 import { canTransition } from "../lib/budget/proposals";
+import {
+  PROPOSAL_STAGE_LABELS,
+  PROPOSAL_DESK_ORDER,
+  PUBLIC_STAGE_LABELS,
+  PUBLIC_STAGE_NOTES,
+  TERMINAL_PROPOSAL_STAGES,
+  STAGES_NEEDING_REASON,
+  DECLINE_REASONS,
+  PUBLICLY_STATED_REASONS,
+  WINDOW_STATUS_LABELS,
+  QUESTION_TYPES,
+  isDeclineReason,
+  declineReasonNeedsNote,
+  declineReasonLabel,
+  publicDeclineLine,
+  isQuestionType,
+} from "../lib/budget/proposalVocabulary";
+import {
+  WINDOW_TRANSITIONS,
+  canTransitionWindow,
+  parseQuestions,
+} from "../lib/budget/fundingWindows";
+import { ProposalStage, FundingWindowStatus } from "../app/generated/prisma/enums";
 import { sharePct } from "../lib/budget/orgFinancials";
 import { diffAgainstSnapshot, type BudgetSnapshot, type SnapshotLine } from "../lib/budget/baselineDiff";
 import {
@@ -787,6 +810,208 @@ check(
   "retention by the grantee needs no note",
   !DISPOSITIONS_NEEDING_NOTE.includes("retained_by_grantee"),
 );
+
+
+// ── Intake: the stage machine ────────────────────────────────────────────────
+
+const ALL_PROPOSAL_STAGES = Object.values(ProposalStage);
+
+check(
+  "every proposal stage has an internal label",
+  ALL_PROPOSAL_STAGES.every((s) => Boolean(PROPOSAL_STAGE_LABELS[s])),
+);
+check(
+  "every proposal stage has an applicant-facing label",
+  ALL_PROPOSAL_STAGES.every((s) => Boolean(PUBLIC_STAGE_LABELS[s])),
+);
+check(
+  "every proposal stage has an applicant-facing explanation",
+  ALL_PROPOSAL_STAGES.every((s) => Boolean(PUBLIC_STAGE_NOTES[s])),
+);
+// The desk is the only list of stages a screener sees. A stage missing from it
+// is a proposal nobody can find.
+check(
+  "the desk order covers every stage exactly once",
+  PROPOSAL_DESK_ORDER.length === ALL_PROPOSAL_STAGES.length &&
+    new Set(PROPOSAL_DESK_ORDER).size === PROPOSAL_DESK_ORDER.length &&
+    ALL_PROPOSAL_STAGES.every((s) => PROPOSAL_DESK_ORDER.includes(s)),
+);
+
+// Two labels MUST differ from the internal wording. "Due diligence" to an
+// applicant reads as a decision already taken; "not eligible" is an assessment
+// of them rather than a statement about our decision.
+check(
+  "the applicant is not told the raw stage name for due diligence",
+  PUBLIC_STAGE_LABELS.due_diligence !== PROPOSAL_STAGE_LABELS.due_diligence,
+);
+check(
+  "nor for a decline",
+  PUBLIC_STAGE_LABELS.ineligible !== PROPOSAL_STAGE_LABELS.ineligible,
+);
+// Due diligence and appraisal both read as "under assessment" on purpose: the
+// difference between them is internal workload, not anything the applicant can
+// act on, and distinguishing them invites them to read progress into a move
+// that is not progress.
+eq(
+  "due diligence and appraisal look the same to an applicant",
+  PUBLIC_STAGE_LABELS.due_diligence,
+  PUBLIC_STAGE_LABELS.appraisal,
+);
+
+// Terminal means terminal: nothing may lead out.
+for (const stage of TERMINAL_PROPOSAL_STAGES) {
+  check(
+    `${stage} leads nowhere`,
+    ALL_PROPOSAL_STAGES.every((to) => !canTransition(stage, to)),
+  );
+}
+check(
+  "no stage can skip straight from received to decided",
+  !canTransition("received", "decided"),
+);
+check("received cannot jump to appraisal", !canTransition("received", "appraisal"));
+check("screening follows received", canTransition("received", "screening"));
+check("eligible follows screening", canTransition("screening", "eligible"));
+check("appraisal follows due diligence", canTransition("due_diligence", "appraisal"));
+check("decided follows appraisal", canTransition("appraisal", "decided"));
+// Every live stage must have an exit that is not a decline. A stage you can
+// only leave by saying no is a dead end wearing a pipeline's clothes.
+for (const stage of ALL_PROPOSAL_STAGES.filter((s) => !TERMINAL_PROPOSAL_STAGES.includes(s))) {
+  check(
+    `${stage} has a way forward, not only a way out`,
+    ALL_PROPOSAL_STAGES.some(
+      (to) => canTransition(stage, to) && !STAGES_NEEDING_REASON.includes(to),
+    ),
+  );
+}
+// A decline is reachable from every live stage. Saying no late is the normal
+// case, not an exception.
+for (const stage of ALL_PROPOSAL_STAGES.filter((s) => !TERMINAL_PROPOSAL_STAGES.includes(s))) {
+  check(`${stage} can be declined`, canTransition(stage, "ineligible"));
+  check(`${stage} can be withdrawn`, canTransition(stage, "withdrawn"));
+}
+eq("a stage does not transition to itself", canTransition("screening", "screening"), false);
+
+// ── Intake: decline reasons ──────────────────────────────────────────────────
+// `declineReasonCode` is a free String that `declineReasonSummary()` GROUPS BY.
+// Free text through a group-by turns one finding into three, which is the same
+// failure as an unconstrained asset disposition.
+
+check("every decline reason has a label", DECLINE_REASONS.every((r) => Boolean(r.label)));
+check(
+  "decline reason codes are unique",
+  new Set(DECLINE_REASONS.map((r) => r.code)).size === DECLINE_REASONS.length,
+);
+check("the validator accepts every decline reason", DECLINE_REASONS.every((r) => isDeclineReason(r.code)));
+eq("and rejects free text", isDeclineReason("not a fit"), false);
+eq("and rejects a near-miss on casing", isDeclineReason("Out_Of_Scope"), false);
+eq("and rejects an empty string", isDeclineReason(""), false);
+// The three that say nothing on their own.
+for (const code of ["duplicate", "governance_concern", "other"] as const) {
+  check(`${code.replace(/_/g, " ")} requires a note`, declineReasonNeedsNote(code));
+}
+check("a clear reason needs no note", !declineReasonNeedsNote("out_of_scope"));
+eq("an unknown code is reported as itself, not as undefined", declineReasonLabel("mystery"), "mystery");
+eq("no reason gives no label", declineReasonLabel(null), null);
+
+check(
+  "every publicly stated reason is a real reason",
+  PUBLICLY_STATED_REASONS.every((c) => isDeclineReason(c)),
+);
+// The one that must never be published. It is a judgement about named people,
+// recorded for our own file; that conversation is had by a person or not at all.
+check(
+  "a governance concern is never stated on the public page",
+  !PUBLICLY_STATED_REASONS.includes("governance_concern"),
+);
+check(
+  "nor is 'assessed as weaker than the pool'",
+  !PUBLICLY_STATED_REASONS.includes("weak_proposal"),
+);
+check(
+  "a withheld reason still produces a complete sentence",
+  publicDeclineLine("governance_concern").length > 20 &&
+    !publicDeclineLine("governance_concern").includes("governance"),
+);
+check("a stated reason reaches the applicant", publicDeclineLine("out_of_scope").includes("scope"));
+check("no reason at all still says something", publicDeclineLine(null).length > 10);
+
+// ── Intake: calls for proposals ──────────────────────────────────────────────
+
+const ALL_WINDOW_STATUSES = Object.values(FundingWindowStatus);
+
+check(
+  "every window status has a label",
+  ALL_WINDOW_STATUSES.every((s) => Boolean(WINDOW_STATUS_LABELS[s])),
+);
+check(
+  "archived leads nowhere",
+  ALL_WINDOW_STATUSES.every((to) => !canTransitionWindow("archived", to)),
+);
+check("a draft can be opened", canTransitionWindow("draft", "open"));
+check("an open call can be closed", canTransitionWindow("open", "closed"));
+// A deadline gets extended in real life. The alternative to allowing it is
+// someone editing the row by hand.
+check("a closed call can be reopened", canTransitionWindow("closed", "open"));
+check("a draft cannot be closed — it never opened", !canTransitionWindow("draft", "closed"));
+check("an open call cannot be archived while live", !canTransitionWindow("open", "archived"));
+check(
+  "every status except archived has somewhere to go",
+  ALL_WINDOW_STATUSES.filter((s) => s !== "archived").every(
+    (s) => (WINDOW_TRANSITIONS[s] ?? []).length > 0,
+  ),
+);
+
+// ── Intake: question keys ────────────────────────────────────────────────────
+// `Proposal.answers` is keyed by question key. A duplicate key means the second
+// answer silently overwrites the first, and nothing anywhere shows that it did.
+
+function questionsRefuse(label: string, raw: unknown) {
+  let threw = false;
+  try {
+    parseQuestions(raw);
+  } catch {
+    threw = true;
+  }
+  check(label, threw);
+}
+
+eq("no questions is a valid question set", parseQuestions(undefined).length, 0);
+eq("an empty list is too", parseQuestions([]).length, 0);
+questionsRefuse("a question set that is not a list is refused", { a: 1 });
+questionsRefuse(
+  "two questions sharing a key are refused — the silent overwrite",
+  [
+    { key: "beneficiaries", label: "How many?", type: "number" },
+    { key: "beneficiaries", label: "Who?", type: "text" },
+  ],
+);
+questionsRefuse("a question with no key is refused", [{ label: "How many?", type: "number" }]);
+questionsRefuse(
+  "a key that is not a data column is refused",
+  [{ key: "How many?", label: "How many?", type: "number" }],
+);
+questionsRefuse("a question with no label is refused", [{ key: "x", label: "", type: "text" }]);
+questionsRefuse("an unknown question type is refused", [{ key: "x", label: "X", type: "file" }]);
+questionsRefuse(
+  "a choice with one option is refused",
+  [{ key: "x", label: "X", type: "select", options: ["only"] }],
+);
+eq(
+  "a valid question set survives intact",
+  parseQuestions([
+    { key: "beneficiaries", label: "How many children?", type: "number", required: true },
+    { key: "model", label: "Which model?", type: "select", options: ["creche", "centre"] },
+  ]).length,
+  2,
+);
+eq(
+  "required defaults to false rather than to true",
+  parseQuestions([{ key: "x", label: "X", type: "text" }])[0].required,
+  false,
+);
+check("every question type is accepted by its own validator", QUESTION_TYPES.every((t) => isQuestionType(t)));
+eq("and nothing else is", isQuestionType("file"), false);
 
 // ── Report ──────────────────────────────────────────────────────────────────
 

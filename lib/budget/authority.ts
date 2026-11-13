@@ -202,8 +202,13 @@ async function liveDelegationsTo(userId: string) {
  * A live `recuse` declaration refuses the action outright; a live `disclose`
  * passes but its id is carried into the snapshot, so the decision records the
  * disclosure rather than relying on someone remembering to mention it.
+ *
+ * Exported because scoring a proposal is not an authority action — it moves no
+ * money — and so never reached this check, yet it is exactly where a declared
+ * conflict bites: the person who recused themselves from the decision could
+ * still write the score the decision rests on.
  */
-async function conflictFor(userId: string, orgId: string | null | undefined) {
+export async function liveConflictFor(userId: string, orgId: string | null | undefined) {
   if (!orgId) return null;
   return prisma.conflictDeclaration.findFirst({
     where: { userId, orgId, endedOn: null },
@@ -229,7 +234,7 @@ export async function checkAuthority(
     return { ok: false, reason: "no_session", message: "Not authenticated." };
   }
 
-  const conflict = await conflictFor(userId, check.orgId);
+  const conflict = await liveConflictFor(userId, check.orgId);
   if (conflict?.disposition === "recuse") {
     return {
       ok: false,

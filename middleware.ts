@@ -16,6 +16,12 @@ const PUBLIC_PREFIXES = [
   // SCREENING_INTAKE_TOKEN, not a session.
   "/api/seeding/screening/intake",
   "/api/debug/",
+  // The applicant's own view of their proposal. An applicant is not a grantee:
+  // they have no login and no grant, so there is no session for middleware to
+  // check. The page authenticates on a reference plus a resume-token hash and
+  // 404s on anything else — telling someone that a reference exists is itself
+  // the disclosure.
+  "/apply/",
   // Vercel Blob client uploader. The endpoint itself uses handleUpload from
   // @vercel/blob/client, which signs short-lived tokens server-side and
   // restricts allowed content types + max size. Safe to expose without
