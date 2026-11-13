@@ -6642,6 +6642,12 @@ model Proposal {
   resumeExpiresAt DateTime?
   submittedAt     DateTime?
 
+  /// SHA-256 of the submitting IP, salted with NEXTAUTH_SECRET. Not the IP:
+  /// this exists to throttle an UNAUTHENTICATED endpoint and to answer "where
+  /// did this come from", neither of which needs the address itself, and an
+  /// applicant's address in a table nobody prunes is a liability.
+  createdIpHash String?
+
   /// Set when the proposal becomes a budget — the join from intake to grant.
   budgetId String? @unique
   budget   Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
@@ -6658,6 +6664,8 @@ model Proposal {
   @@index([stage, createdAt])
   @@index([windowId, stage])
   @@index([orgId])
+  /// The throttle reads this on every public submission.
+  @@index([createdIpHash, createdAt])
 }
 
 /// A versioned scoring sheet. The rubric is COPIED onto each review, so editing

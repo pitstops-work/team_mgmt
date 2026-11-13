@@ -98,6 +98,8 @@ export async function createPublicProposal(input: {
   city?: string | null;
   answers?: Record<string, unknown>;
   submit?: boolean;
+  /** Salted hash of the submitting IP. Written once, on creation only. */
+  createdIpHash?: string;
 }): Promise<{ proposalId: string; publicRef: string; resumeToken?: string }> {
   if (!input.applicantOrgName?.trim()) throw new Error("Tell us the organisation's name.");
   if (!input.contactEmail?.trim()) throw new Error("We need an email to reply to.");
@@ -138,14 +140,16 @@ export async function createPublicProposal(input: {
       },
     });
     if (!existing) throw new Error("We could not find that application.");
-    if (!input.resumeToken || !existing.resumeTokenHash) {
-      throw new Error("Open your application from the link we emailed you.");
-    }
-    if (existing.resumeTokenHash !== hashToken(input.resumeToken)) {
-      throw new Error("Open your application from the link we emailed you.");
-    }
+    // One message for a missing token, a wrong token and a wrong reference.
+    // Distinguishing them would turn this into an oracle for which references
+    // exist. It does NOT say "the link we emailed you": no sending domain is
+    // verified on this account, so every message the app tries to send is
+    // refused by the provider — pointing someone at an inbox would strand them.
+    const wrongLink = "Open your application from the link you saved when you started it.";
+    if (!input.resumeToken || !existing.resumeTokenHash) throw new Error(wrongLink);
+    if (existing.resumeTokenHash !== hashToken(input.resumeToken)) throw new Error(wrongLink);
     if (existing.resumeExpiresAt && existing.resumeExpiresAt < new Date()) {
-      throw new Error("That link has expired. Ask us for a new one.");
+      throw new Error("That link has expired. Write to us and we will reopen the application.");
     }
     if (existing.submittedAt) {
       throw new Error("This application has already been submitted and cannot be changed.");
@@ -174,7 +178,6 @@ export async function createPublicProposal(input: {
     domains: input.domains ?? [],
     city: input.city ?? null,
     answers: (input.answers ?? {}) as unknown as Prisma.InputJsonValue,
-    ...(input.submit ? { submittedAt: new Date() } : {}),
     ...(token
       ? {
           resumeTokenHash: hashToken(token),
@@ -183,11 +186,28 @@ export async function createPublicProposal(input: {
           resumeExpiresAt: new Date(Date.now() + 30 * 86_400_000),
         }
       : {}),
+    // ── Why submitting clears the expiry ──────────────────────────────────
+    // The same token is the applicant's editing link AND their status link.
+    // Expiring it in 30 days is right for editing and wrong for status: a
+    // funding decision takes months, so the applicant would be locked out of
+    // their own record long before there was anything to see — silently, with
+    // the page reading as a 404. Submitting already removes the token's power
+    // to change anything (`createPublicProposal` refuses a submitted proposal
+    // and `draftForForm` will not reopen one), so what is left is a read key
+    // with no reason to lapse.
+    //
+    // Ordered after the token clause so this wins when an application is
+    // started and submitted in one sitting.
+    ...(input.submit ? { submittedAt: new Date(), resumeExpiresAt: null } : {}),
   };
 
   const proposal = await prisma.proposal.upsert({
     where: { publicRef },
-    create: { publicRef, ...data },
+    // `createdIpHash` is in the create branch only. On the update branch it
+    // would move with whoever last opened the draft — which both loses the
+    // provenance it exists to record and lets the throttle be reset by
+    // continuing an application from somewhere else.
+    create: { publicRef, ...data, createdIpHash: input.createdIpHash ?? null },
     update: data,
     select: { id: true, stage: true },
   });

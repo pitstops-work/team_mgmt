@@ -48,6 +48,14 @@ import {
   canTransitionWindow,
   parseQuestions,
 } from "../lib/budget/fundingWindows";
+import {
+  validateAnswers,
+  validateApplicantFields,
+  clientIpFrom,
+  hashIp,
+} from "../lib/budget/publicIntake";
+import { INTAKE_LIMITS } from "../lib/budget/intakeLimits";
+import type { WindowQuestion } from "../lib/budget/proposalVocabulary";
 import { ProposalStage, FundingWindowStatus } from "../app/generated/prisma/enums";
 import { sharePct } from "../lib/budget/orgFinancials";
 import { diffAgainstSnapshot, type BudgetSnapshot, type SnapshotLine } from "../lib/budget/baselineDiff";
@@ -1012,6 +1020,251 @@ eq(
 );
 check("every question type is accepted by its own validator", QUESTION_TYPES.every((t) => isQuestionType(t)));
 eq("and nothing else is", isQuestionType("file"), false);
+
+
+// ── The public form: validation is the only validation ──────────────────────
+// The browser form is a convenience. Every check below is the only thing
+// standing between an open endpoint and the proposal table.
+
+const Q: WindowQuestion[] = [
+  { key: "children", label: "How many children?", type: "number", required: true },
+  { key: "model", label: "Which model?", type: "select", required: true, options: ["creche", "centre"] },
+  { key: "note", label: "Anything else", type: "textarea", required: false },
+  { key: "fcra", label: "Do you hold FCRA?", type: "boolean", required: false },
+  { key: "start", label: "When would you start?", type: "date", required: false },
+];
+
+function answersOf(raw: unknown, enforceRequired = true) {
+  return validateAnswers(Q, raw, { enforceRequired });
+}
+
+// A key the call does not ask about is DROPPED, not stored. Otherwise `answers`
+// is a public JSON bucket that anyone can write to.
+{
+  const r = answersOf({ children: 20, model: "creche", sneaky: "x".repeat(50) });
+  check("an unasked key is dropped", !("sneaky" in r.answers));
+  eq("while the real answers survive", r.answers.children, 20);
+  eq("and it is not reported as an error", r.errors.length, 0);
+}
+
+// A select's options ARE the question. A value outside them would sit in the
+// column with no report able to count it.
+{
+  const r = answersOf({ children: 1, model: "something else" });
+  check("an off-menu choice is refused", r.errors.some((e) => e.field === "model"));
+  check("and is not stored anyway", !("model" in r.answers));
+}
+
+// Required means required on submit, and NOT while saving a draft — a form that
+// refuses to save until it is finished is a form people abandon with everything
+// typed and nothing kept.
+{
+  const strict = answersOf({}, true);
+  check("submitting without a required answer is refused", strict.errors.length >= 2);
+  const draft = answersOf({}, false);
+  eq("saving a draft without it is fine", draft.errors.length, 0);
+}
+
+// Numbers.
+{
+  eq("a number arrives as a number", answersOf({ children: 40, model: "creche" }).answers.children, 40);
+  eq(
+    "and so does one typed with commas",
+    answersOf({ children: "1,200", model: "creche" }).answers.children,
+    1200,
+  );
+  check(
+    "text in a number field is refused",
+    answersOf({ children: "about forty", model: "creche" }).errors.some((e) => e.field === "children"),
+  );
+  check(
+    "a negative count is refused",
+    answersOf({ children: -5, model: "creche" }).errors.some((e) => e.field === "children"),
+  );
+  check(
+    "Infinity is refused",
+    answersOf({ children: Number.POSITIVE_INFINITY, model: "creche" }).errors.some(
+      (e) => e.field === "children",
+    ),
+  );
+  check(
+    "NaN is refused",
+    answersOf({ children: Number.NaN, model: "creche" }).errors.some((e) => e.field === "children"),
+  );
+}
+
+// A checkbox is never an error — an unchecked box and a missing field are the
+// same thing to a browser, so a boolean that refuses is a boolean that blocks
+// submission with nothing the applicant can do about it.
+{
+  const r = answersOf({ children: 1, model: "creche", fcra: "on" });
+  eq("a checked box becomes true", r.answers.fcra, true);
+  eq("an odd value becomes false rather than an error", answersOf({ children: 1, model: "creche", fcra: "maybe" }).answers.fcra, false);
+}
+
+// Dates are normalised, so two applicants' answers are comparable.
+{
+  const r = answersOf({ children: 1, model: "creche", start: "2027-04-01" });
+  eq("a date is stored as a plain day", r.answers.start, "2027-04-01");
+  check(
+    "a non-date is refused",
+    answersOf({ children: 1, model: "creche", start: "next spring" }).errors.some(
+      (e) => e.field === "start",
+    ),
+  );
+}
+
+// Size is a security property on an open endpoint.
+{
+  const r = answersOf({ children: 1, model: "creche", note: "x".repeat(INTAKE_LIMITS.longText + 1) });
+  check("an over-long answer is refused", r.errors.some((e) => e.field === "note"));
+  check(
+    "an answer at the cap is accepted",
+    answersOf({ children: 1, model: "creche", note: "x".repeat(INTAKE_LIMITS.longText) }).errors.length === 0,
+  );
+}
+// Every individual answer within its cap, and the whole thing still too big.
+{
+  const many: WindowQuestion[] = Array.from({ length: 40 }, (_, i) => ({
+    key: `q${i}`,
+    label: `Q${i}`,
+    type: "textarea" as const,
+    required: false,
+  }));
+  const raw = Object.fromEntries(many.map((q) => [q.key, "x".repeat(INTAKE_LIMITS.longText)]));
+  const r = validateAnswers(many, raw, { enforceRequired: false });
+  check("answers that are individually fine and jointly huge are refused", r.errors.some((e) => e.field === "_answers"));
+}
+// A POST carrying something that is not an object at all.
+eq("a non-object payload yields no answers", answersOf("not an object", false).answers.children, undefined);
+eq("and no crash", answersOf(null, false).errors.length, 0);
+eq("nor for an array", answersOf([1, 2, 3], false).errors.length, 0);
+
+// ── The public form: the standard fields ────────────────────────────────────
+
+function fieldsOf(input: Parameters<typeof validateApplicantFields>[0], enforceRequired = true) {
+  return validateApplicantFields(input, { enforceRequired });
+}
+
+const GOOD = {
+  applicantOrgName: "  Asha Trust  ",
+  contactName: "R Iyer",
+  contactEmail: "  R.Iyer@Example.ORG ",
+  title: "Creche expansion",
+  summary: "Two more centres.",
+  requestedAmount: "12,00,000",
+  requestedMonths: "24",
+  city: "Bengaluru",
+  domains: ["creche", "creche", " "],
+};
+
+{
+  const r = fieldsOf(GOOD);
+  eq("no errors on a good application", r.errors.length, 0);
+  eq("the organisation name is trimmed", r.clean.applicantOrgName, "Asha Trust");
+  eq("the email is lowercased", r.clean.contactEmail, "r.iyer@example.org");
+  eq("an Indian-formatted amount parses", r.clean.requestedAmount, 1200000);
+  eq("months parse as a whole number", r.clean.requestedMonths, 24);
+  eq("blank domains are dropped", r.clean.domains.length, 2);
+}
+
+// Three fields are needed to create the row at all, draft or not: without a
+// name and an email there is nothing to come back to and nobody to come back
+// to it.
+for (const field of ["applicantOrgName", "contactEmail", "title"] as const) {
+  const r = fieldsOf({ ...GOOD, [field]: "" }, false);
+  check(`${field} is needed even to save a draft`, r.errors.some((e) => e.field === field));
+}
+// And two more only on submit.
+{
+  const draft = fieldsOf({ ...GOOD, contactName: "", summary: "" }, false);
+  eq("a draft may have no contact name or summary", draft.errors.length, 0);
+  const submit = fieldsOf({ ...GOOD, contactName: "", summary: "" }, true);
+  eq("submitting may not", submit.errors.length, 2);
+}
+
+check("a malformed email is refused", fieldsOf({ ...GOOD, contactEmail: "r.iyer" }).errors.some((e) => e.field === "contactEmail"));
+check("as is one with a space", fieldsOf({ ...GOOD, contactEmail: "r iyer@example.org" }).errors.some((e) => e.field === "contactEmail"));
+check("as is one with no top-level domain", fieldsOf({ ...GOOD, contactEmail: "r@example" }).errors.some((e) => e.field === "contactEmail"));
+
+// An amount two orders of magnitude out skews every pipeline total it lands in,
+// and is almost always a typo rather than an ask.
+check(
+  "an absurd amount is refused",
+  fieldsOf({ ...GOOD, requestedAmount: String(INTAKE_LIMITS.maxRequestedAmount + 1) }).errors.some(
+    (e) => e.field === "requestedAmount",
+  ),
+);
+eq(
+  "but no amount at all is allowed — an applicant may not know yet",
+  fieldsOf({ ...GOOD, requestedAmount: "" }).clean.requestedAmount,
+  null,
+);
+check(
+  "a fractional duration is refused",
+  fieldsOf({ ...GOOD, requestedMonths: "18.5" }).errors.some((e) => e.field === "requestedMonths"),
+);
+check(
+  "a zero duration is refused",
+  fieldsOf({ ...GOOD, requestedMonths: "0" }).errors.some((e) => e.field === "requestedMonths"),
+);
+check(
+  "a duration beyond the cap is refused",
+  fieldsOf({ ...GOOD, requestedMonths: String(INTAKE_LIMITS.maxMonths + 1) }).errors.some(
+    (e) => e.field === "requestedMonths",
+  ),
+);
+check(
+  "an over-long organisation name is refused",
+  fieldsOf({ ...GOOD, applicantOrgName: "x".repeat(INTAKE_LIMITS.shortText + 1) }).errors.some(
+    (e) => e.field === "applicantOrgName",
+  ),
+);
+eq(
+  "a flood of domains is truncated rather than refused",
+  fieldsOf({ ...GOOD, domains: Array.from({ length: 50 }, (_, i) => `d${i}`) }).clean.domains.length,
+  INTAKE_LIMITS.domains,
+);
+
+// ── The public form: the throttle's inputs ──────────────────────────────────
+
+// The FIRST address in x-forwarded-for is the client as the edge saw it. Taking
+// the last one — the common mistake — throttles the platform's own proxy, so
+// every applicant shares one bucket.
+eq("the client address is the first in the chain", clientIpFrom("203.0.113.7, 70.41.3.18, 150.172.238.178"), "203.0.113.7");
+eq("a single address works", clientIpFrom("203.0.113.7"), "203.0.113.7");
+eq("whitespace is trimmed", clientIpFrom("  203.0.113.7 , 10.0.0.1"), "203.0.113.7");
+eq("no header is no address", clientIpFrom(null), null);
+eq("an empty header is no address", clientIpFrom(""), null);
+eq("a header of only commas is no address", clientIpFrom(", ,"), null);
+
+{
+  const before = process.env.NEXTAUTH_SECRET;
+  process.env.NEXTAUTH_SECRET = "test-salt";
+  const a = hashIp("203.0.113.7");
+  const b = hashIp("203.0.113.7");
+  const c = hashIp("203.0.113.8");
+  eq("the same address hashes the same way", a, b);
+  check("a different address does not", a !== c);
+  check("the address itself is not in the hash", !String(a).includes("203"));
+  eq("a hash is a full sha-256", String(a).length, 64);
+  eq("no address is no hash", hashIp(null), null);
+  // No salt means no usable hash. Writing a bare sha-256 of an IPv4 address is
+  // writing the address: the whole 2^32 space is enumerable in seconds.
+  process.env.NEXTAUTH_SECRET = "";
+  eq("no salt means no hash rather than an unsalted one", hashIp("203.0.113.7"), null);
+  process.env.NEXTAUTH_SECRET = "   ";
+  eq("and whitespace is not a salt", hashIp("203.0.113.7"), null);
+  if (before === undefined) delete process.env.NEXTAUTH_SECRET;
+  else process.env.NEXTAUTH_SECRET = before;
+}
+
+// The form shows a character count; the server enforces a cap. Two numbers
+// meant to be equal and maintained separately are two numbers that will differ,
+// which is why there is one module.
+check("the summary cap is below the long-text cap", INTAKE_LIMITS.summary < INTAKE_LIMITS.longText);
+check("the hourly start limit is below the daily one", INTAKE_LIMITS.startsPerHour < INTAKE_LIMITS.startsPerDay);
+check("every limit is a positive number", Object.values(INTAKE_LIMITS).every((v) => typeof v === "number" && v > 0));
 
 // ── Report ──────────────────────────────────────────────────────────────────
 

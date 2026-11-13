@@ -145,6 +145,28 @@ export default function WindowPanel({
         )}
       </section>
 
+      {/* ── The public address ───────────────────────────────────────────── */}
+      <section className="rounded-lg border border-stone-200 p-4 space-y-2">
+        <div className="text-xs uppercase tracking-wide text-stone-400">
+          Where applicants go
+        </div>
+        <code className="block break-all rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs text-stone-700">
+          /apply/{w.slug}
+        </code>
+        {w.status === "open" ? (
+          <p className="text-xs text-stone-500">
+            Live. The form serves this call&rsquo;s guidance and question set, and submissions
+            land in intake.
+          </p>
+        ) : (
+          <p className="text-xs text-amber-700">
+            Not serving a form: the call is {w.status}. The address answers with a page
+            saying so, and with the closing date where there is one — an applicant who
+            follows a stale link gets an explanation rather than a 404.
+          </p>
+        )}
+      </section>
+
       {/* ── The call itself ──────────────────────────────────────────────── */}
       <section className="rounded-lg border border-stone-200 p-4 space-y-3">
         <div className="text-xs uppercase tracking-wide text-stone-400">The call</div>

@@ -16,11 +16,15 @@ const PUBLIC_PREFIXES = [
   // SCREENING_INTAKE_TOKEN, not a session.
   "/api/seeding/screening/intake",
   "/api/debug/",
-  // The applicant's own view of their proposal. An applicant is not a grantee:
-  // they have no login and no grant, so there is no session for middleware to
-  // check. The page authenticates on a reference plus a resume-token hash and
-  // 404s on anything else — telling someone that a reference exists is itself
-  // the disclosure.
+  // The public application portal: the form at /apply/<slug>, its server
+  // actions (which POST to the same path), and the applicant's own status page
+  // at /apply/status/<ref>. An applicant is not a grantee — no login, no grant,
+  // nothing for a session check to reason about — so these authenticate on a
+  // reference plus a resume-token hash, compared rather than looked up, and a
+  // wrong token is indistinguishable from a wrong reference. The writes behind
+  // this prefix are the only unauthenticated writes in the app; the validation,
+  // size caps and throttle that stand in for a session live in
+  // lib/budget/publicIntake.ts.
   "/apply/",
   // Vercel Blob client uploader. The endpoint itself uses handleUpload from
   // @vercel/blob/client, which signs short-lived tokens server-side and
