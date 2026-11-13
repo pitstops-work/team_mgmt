@@ -66,6 +66,12 @@ function partnerAllowedPath(pathname: string): boolean {
   // re-checks the role server-side, so this entry only lets the request
   // through. Without BOTH, the click silently redirects to /budget.
   if (/^\/budget\/[^/]+\/agreement$/.test(pathname)) return true;
+  // Their own grant's document repository, plus the upload and file routes.
+  // Both routes re-check the viewer against the grant AND the document KIND,
+  // so a grantee reaching them still cannot read or attach an appraisal note.
+  if (/^\/budget\/[^/]+\/documents$/.test(pathname)) return true;
+  if (pathname === "/api/grants/documents/upload") return true;
+  if (/^\/api\/grants\/documents\/[^/]+\/file$/.test(pathname)) return true;
   if (/^\/api\/budget\/[^/]+\/reports\//.test(pathname)) return true;
   if (pathname === "/api/budget/parse-bank-statement") return true;
   if (pathname === "/api/budget/declaration-upload") return true;

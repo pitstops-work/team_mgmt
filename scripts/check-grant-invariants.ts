@@ -34,6 +34,18 @@ import {
   termsAreFrozen,
 } from "../lib/budget/agreement";
 import { PERIODS_PER_YEAR, TRANCHE_FREQUENCY_LABELS } from "../lib/budget/trancheFrequency";
+import { GrantDocumentKind } from "../app/generated/prisma/enums";
+import {
+  DOCUMENT_KINDS,
+  DOCUMENT_KIND_LIST,
+  DOCUMENT_STAGE_LABELS,
+  GRANTEE_UPLOADABLE_KINDS,
+  INTERNAL_ONLY_KINDS,
+  STAGE_ORDER_FOR_DOCUMENTS,
+  granteeMaySee,
+  granteeMayUpload,
+} from "../lib/budget/documentKinds";
+import { documentHref, documentPathname, isExternalUrl } from "../lib/budget/documents";
 import {
   buildStageStates,
   currentStage,
@@ -590,6 +602,120 @@ eq(
   Object.keys(PERIODS_PER_YEAR).sort().join(","),
   Object.keys(TRANCHE_FREQUENCY_LABELS).sort().join(","),
 );
+
+
+// ── Document kinds: who may see and send what ───────────────────────────────
+//
+// This table IS the access decision for the document repository, which holds
+// audited accounts, FCRA returns, bank statements, a signed contract and the
+// committee's own minutes. "Attached to this grant" is not permission to read:
+// the appraisal note hangs off the same budget as the grantee's own utilisation
+// certificate.
+
+// The one that matters most. A kind added to the enum by a migration without a
+// visibility decision would otherwise reach the screen with whatever the
+// lookup happened to return.
+eq(
+  "every document kind in the enum has a rule",
+  Object.keys(GrantDocumentKind).sort().join(","),
+  DOCUMENT_KIND_LIST.slice().sort().join(","),
+);
+
+// Internal-only kinds, checked BY NAME rather than by count: a change here is
+// a policy change and should have to be made deliberately in two places.
+eq(
+  "exactly the appraisal note and committee minutes are internal-only",
+  INTERNAL_ONLY_KINDS.slice().sort().join(","),
+  "appraisal_note,board_minutes",
+);
+eq("a grantee cannot see the appraisal note", granteeMaySee("appraisal_note"), false);
+eq("a grantee cannot see committee minutes", granteeMaySee("board_minutes"), false);
+// Nor attach one — that would write into our internal record, in a kind they
+// cannot read back.
+eq("a grantee cannot upload an appraisal note", granteeMayUpload("appraisal_note"), false);
+eq("a grantee cannot upload committee minutes", granteeMayUpload("board_minutes"), false);
+
+// You must be able to read back what you were asked to send. A kind that is
+// uploadable but invisible would let a grantee file a document and then be
+// told it does not exist.
+check(
+  "nothing is grantee-uploadable without being grantee-visible",
+  GRANTEE_UPLOADABLE_KINDS.every((k) => granteeMaySee(k)),
+);
+
+// The things a grantee actually provides, spot-checked: these are what the
+// reporting and closure stages chase them for.
+for (const k of [
+  "utilisation_certificate",
+  "financial_report",
+  "narrative_report",
+  "audited_accounts",
+  "fcra_return",
+  "condition_evidence",
+] as const) {
+  check(`a grantee can send their ${k.replace(/_/g, " ")}`, granteeMayUpload(k));
+}
+// And the things we issue, which they may read but not replace.
+for (const k of ["agreement_executed", "agreement_draft", "disbursement_advice"] as const) {
+  check(`a grantee cannot overwrite the ${k.replace(/_/g, " ")}`, !granteeMayUpload(k));
+  check(`but can read the ${k.replace(/_/g, " ")}`, granteeMaySee(k));
+}
+
+check(
+  "every kind is grouped under a stage that has a label",
+  DOCUMENT_KIND_LIST.every(
+    (k) =>
+      STAGE_ORDER_FOR_DOCUMENTS.includes(DOCUMENT_KINDS[k].stage) &&
+      Boolean(DOCUMENT_STAGE_LABELS[DOCUMENT_KINDS[k].stage]),
+  ),
+);
+
+// ── Storage convention ──────────────────────────────────────────────────────
+//
+// `GrantDocument.fileUrl` holds a blob PATHNAME for privately stored documents
+// and a URL for external ones. Misreading one as the other is the whole failure
+// mode: a pathname treated as a URL redirects the browser nowhere, and a URL
+// treated as a pathname is fetched from the blob store and 404s.
+
+eq("an https url is external", isExternalUrl("https://example.com/a.pdf"), true);
+eq("an http url is external", isExternalUrl("http://example.com/a.pdf"), true);
+eq("a blob pathname is not", isExternalUrl("grant-documents/proposal/abc/x.pdf"), false);
+// A pathname that merely mentions http is still a pathname.
+eq("a pathname containing 'http' is not a url", isExternalUrl("grant-documents/other/id/http-notes.pdf"), false);
+
+eq(
+  "a private document is served through our route",
+  documentHref({ id: "doc1", fileUrl: "grant-documents/proposal/abc/x.pdf" }),
+  "/api/grants/documents/doc1/file",
+);
+eq(
+  "an external document is linked straight through",
+  documentHref({ id: "doc1", fileUrl: "https://example.com/a.pdf" }),
+  "https://example.com/a.pdf",
+);
+
+// The pathname must not announce whose grant it is: private blobs are only
+// reachable through our route, but pathnames appear in store listings and logs.
+const path1 = documentPathname("audited_accounts", "APSA accounts FY24.pdf");
+check("the pathname is namespaced", path1.startsWith("grant-documents/audited_accounts/"));
+check("and carries no spaces", !path1.includes(" "));
+check("and sanitises the original name", path1.endsWith("APSA_accounts_FY24.pdf"));
+check(
+  "two uploads of the same file do not collide",
+  documentPathname("audited_accounts", "a.pdf") !== documentPathname("audited_accounts", "a.pdf"),
+);
+// A traversal attempt in a filename must not escape the namespace.
+const nasty = documentPathname("other", "../../etc/passwd");
+check("a path traversal in the filename is neutralised", !nasty.includes(".."));
+check("and it stays inside the namespace", nasty.startsWith("grant-documents/other/"));
+check(
+  "no separator from the original name survives",
+  nasty.split("/").length === documentPathname("other", "plain.pdf").split("/").length,
+);
+// An empty or dots-only name must still produce a usable object name rather
+// than a pathname that ends in a slash.
+check("a dots-only filename still yields a name", documentPathname("other", "...").endsWith("/file"));
+check("an empty filename still yields a name", documentPathname("other", "").endsWith("/file"));
 
 // ── Report ──────────────────────────────────────────────────────────────────
 
