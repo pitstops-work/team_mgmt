@@ -17,11 +17,17 @@
 import prisma from "@/lib/prisma";
 import type { Rag } from "@/app/generated/prisma/client";
 import { logGrant } from "./audit";
+import { RAG_ORDER, worstRag } from "./ragScale";
 
 type SessionLike = { user?: { id?: string | null } | null } | null;
 
-/** Worst-first, so a sort gives the attention order. */
-export const RAG_ORDER: Record<Rag, number> = { red: 0, amber: 1, green: 2 };
+/**
+ * Re-exported from `ragScale.ts`, which is prisma-free so the screen can import
+ * the same ordering the sort uses. Two orderings maintained separately are two
+ * orderings that will disagree, and the way they disagree is that the worst
+ * grant stops being at the top.
+ */
+export { RAG_ORDER };
 
 export type AssessmentInput = {
   budgetId: string;
@@ -54,7 +60,58 @@ export async function recordAssessment(session: SessionLike, input: AssessmentIn
     throw new Error("Say why the finance assessment is not green.");
   }
 
+  // ── The override needs a reason too ───────────────────────────────────────
+  // `overallRag` is deliberately not derived — a reviewer may weigh the two
+  // axes, and recording the weighing is the whole point. But that only works
+  // if the weighing is written down. An overall GREEN sitting above a red
+  // finance axis is the single most interesting judgement this table can hold
+  // and, unexplained, the least defensible: six months later it reads as
+  // someone not having looked.
+  const worst = worstRag(input.programmeRag, input.financeRag);
+  if (input.overallRag !== worst && !input.overallNote?.trim()) {
+    throw new Error(
+      `The two axes are ${input.programmeRag} and ${input.financeRag}, and you have called it ${input.overallRag} overall. Say why — an unexplained override is the one rating nobody can stand behind later.`,
+    );
+  }
+
+  // ── The grant ─────────────────────────────────────────────────────────────
+  const budget = await prisma.budget.findUnique({
+    where: { id: input.budgetId },
+    select: { id: true, status: true, name: true },
+  });
+  if (!budget) throw new Error("Not found");
+  // Nothing has happened yet on a grant that was never approved, so there is
+  // nothing to form a view about — and a rating on it would show up in the
+  // portfolio health view as though it were live money.
+  if (budget.status === "draft" || budget.status === "final") {
+    throw new Error("This grant has not been approved, so there is nothing to assess yet.");
+  }
+
+  // ── The period ────────────────────────────────────────────────────────────
+  // The slot has to belong to THIS grant. Nothing checked, and the consequence
+  // was not a wrong row on this grant — `@@unique([budgetId, slotId])` would
+  // have allowed it quietly — but a wrong answer on the OTHER one:
+  // `unassessedPeriods()` asks each slot whether it has any assessment at all,
+  // so attaching this judgement to another grant's period marks that period
+  // assessed and drops it off the list of work nobody has done.
+  if (input.slotId) {
+    const slot = await prisma.budgetReportSlot.findUnique({
+      where: { id: input.slotId },
+      select: { budgetId: true, slotNumber: true },
+    });
+    if (!slot) throw new Error("That reporting period does not exist.");
+    if (slot.budgetId !== input.budgetId) {
+      throw new Error("That reporting period belongs to a different grant.");
+    }
+  }
+
   const assessedOn = input.assessedOn ?? new Date();
+  // A rating dated in the future sorts to the top of the history and of the
+  // portfolio view and stays there, so every later assessment reads as stale
+  // against one that has not happened.
+  const todayEnd = new Date();
+  todayEnd.setUTCHours(23, 59, 59, 999);
+  if (assessedOn > todayEnd) throw new Error("An assessment cannot be dated in the future.");
   const data = {
     programmeRag: input.programmeRag,
     programmeRationale: input.programmeRationale?.trim() || null,
@@ -75,9 +132,37 @@ export async function recordAssessment(session: SessionLike, input: AssessmentIn
       })
     : null;
 
-  // A slot-linked assessment is unique per period and updates in place; an
-  // off-cycle one (slotId null) is always a new row, because two site visits in
-  // a year are two separate judgements, not a correction of the first.
+  // An off-cycle assessment is always a new row — two site visits in a year are
+  // two separate judgements, not a correction of the first — which in Postgres
+  // works because `@@unique([budgetId, slotId])` does not constrain NULLs
+  // against each other. The cost of that is a double-click making two identical
+  // judgements, so the same person on the same day is treated as the submit
+  // landing twice and updates instead.
+  if (!input.slotId) {
+    const sameDay = await prisma.grantAssessment.findFirst({
+      where: {
+        budgetId: input.budgetId,
+        slotId: null,
+        assessedById: userId,
+        assessedOn: data.assessedOn,
+      },
+      select: { id: true },
+    });
+    if (sameDay) {
+      const updated = await prisma.grantAssessment.update({
+        where: { id: sameDay.id },
+        data,
+        select: { id: true },
+      });
+      logGrant("Budget", input.budgetId, userId, "assessed", {
+        field: `programme ${input.programmeRag} / finance ${input.financeRag}`,
+        to: input.overallRag,
+      });
+      return updated;
+    }
+  }
+
+  // A slot-linked assessment is unique per period and updates in place.
   const row = input.slotId
     ? await prisma.grantAssessment.upsert({
         where: { budgetId_slotId: { budgetId: input.budgetId, slotId: input.slotId } },

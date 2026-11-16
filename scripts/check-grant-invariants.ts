@@ -55,6 +55,19 @@ import {
   hashIp,
 } from "../lib/budget/publicIntake";
 import { INTAKE_LIMITS } from "../lib/budget/intakeLimits";
+import {
+  RAGS,
+  RAG_ORDER,
+  RAG_LABELS,
+  RAG_MEANINGS,
+  RAG_CLASSES,
+  isRag,
+  worstRag,
+  isOptimisticOverride,
+  ASSESSMENT_WARN_DAYS,
+  ASSESSMENT_STALE_DAYS,
+} from "../lib/budget/ragScale";
+import { Rag } from "../app/generated/prisma/enums";
 import type { WindowQuestion } from "../lib/budget/proposalVocabulary";
 import { ProposalStage, FundingWindowStatus } from "../app/generated/prisma/enums";
 import { sharePct } from "../lib/budget/orgFinancials";
@@ -1265,6 +1278,86 @@ eq("a header of only commas is no address", clientIpFrom(", ,"), null);
 check("the summary cap is below the long-text cap", INTAKE_LIMITS.summary < INTAKE_LIMITS.longText);
 check("the hourly start limit is below the daily one", INTAKE_LIMITS.startsPerHour < INTAKE_LIMITS.startsPerDay);
 check("every limit is a positive number", Object.values(INTAKE_LIMITS).every((v) => typeof v === "number" && v > 0));
+
+
+// ── Assessment: the RAG scale ───────────────────────────────────────────────
+
+const ALL_RAGS = Object.values(Rag);
+
+check("the scale covers the enum exactly", RAGS.length === ALL_RAGS.length && ALL_RAGS.every((r) => RAGS.includes(r)));
+check("every rating has a label", ALL_RAGS.every((r) => Boolean(RAG_LABELS[r])));
+check("every rating has a colour", ALL_RAGS.every((r) => Boolean(RAG_CLASSES[r])));
+check("the validator accepts every rating", ALL_RAGS.every((r) => isRag(r)));
+eq("and rejects anything else", isRag("orange"), false);
+eq("and rejects an empty string", isRag(""), false);
+
+// A RAG scale with no written definitions is three people using three scales.
+// These are about ACTION rather than feeling, because "I am a bit worried"
+// cannot be audited and "needs a conversation before the next release" can.
+check("every rating says what it is claiming", ALL_RAGS.every((r) => RAG_MEANINGS[r].length > 25));
+check(
+  "the definitions are distinct",
+  new Set(ALL_RAGS.map((r) => RAG_MEANINGS[r])).size === ALL_RAGS.length,
+);
+
+// Worst FIRST. The order is what makes the portfolio view an attention queue;
+// reversed, it is a list of the grants that need nobody.
+eq("red sorts before amber", RAG_ORDER.red < RAG_ORDER.amber, true);
+eq("amber sorts before green", RAG_ORDER.amber < RAG_ORDER.green, true);
+check("the order is a total order with no ties", new Set(Object.values(RAG_ORDER)).size === ALL_RAGS.length);
+
+// ── Assessment: the override rule ───────────────────────────────────────────
+// `overallRag` is not derived — the weighing is the judgement. `worstRag` is
+// only used to decide whether the overall rating is an OVERRIDE of the axes and
+// so needs its reason written down.
+
+eq("the worse of red and green is red", worstRag("red", "green"), "red");
+eq("the worse of amber and green is amber", worstRag("amber", "green"), "amber");
+eq("the worse of red and amber is red", worstRag("red", "amber"), "red");
+eq("two greens are green", worstRag("green", "green"), "green");
+check("it is symmetric", ALL_RAGS.every((a) => ALL_RAGS.every((b) => worstRag(a, b) === worstRag(b, a))));
+
+// The sentence that matters: an overall GREEN above a RED axis. Unexplained, it
+// reads later as someone not having looked.
+eq("green overall with a red axis is an optimistic override", isOptimisticOverride("red", "green", "green"), true);
+eq("green overall with an amber axis is too", isOptimisticOverride("green", "amber", "green"), true);
+eq("amber overall with a red axis is too", isOptimisticOverride("red", "green", "amber"), true);
+// Matching the worst axis is not an override, so it needs no note.
+eq("red overall with a red axis is not", isOptimisticOverride("red", "green", "red"), false);
+eq("green overall with two green axes is not", isOptimisticOverride("green", "green", "green"), false);
+// Rating it WORSE than either axis is still an override and still needs a
+// reason — the reviewer knows something the two axes do not say.
+eq("red overall with two green axes is not optimistic", isOptimisticOverride("green", "green", "red"), false);
+check(
+  "but it is still a departure from the axes",
+  worstRag("green", "green") !== "red",
+);
+// Every combination is either a match on the worst axis or a departure that
+// needs a note. Nothing falls between the two.
+for (const p of ALL_RAGS) {
+  for (const f of ALL_RAGS) {
+    for (const o of ALL_RAGS) {
+      const matches = o === worstRag(p, f);
+      const optimistic = isOptimisticOverride(p, f, o);
+      check(
+        `programme ${p} / finance ${f} / overall ${o} is classified exactly once`,
+        matches ? !optimistic : true,
+      );
+    }
+  }
+}
+
+// ── Assessment: what a grantee may see ──────────────────────────────────────
+// The access table is the policy; the actions behind it were the hole. This is
+// the assertion that the policy itself has not quietly been relaxed.
+eq("a grantee never sees the assessment stage", PARTNER_VISIBLE.assessment, false);
+check(
+  "nor the two other stages that hold a candid judgement",
+  !PARTNER_VISIBLE.appraisal && !PARTNER_VISIBLE.review,
+);
+
+check("a rating goes stale after it goes amber-stale", ASSESSMENT_WARN_DAYS < ASSESSMENT_STALE_DAYS);
+check("and both are measured in months, not days", ASSESSMENT_WARN_DAYS > 30);
 
 // ── Report ──────────────────────────────────────────────────────────────────
 

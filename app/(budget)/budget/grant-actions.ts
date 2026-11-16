@@ -143,6 +143,29 @@ async function requireGrantReader(budgetId: string) {
   throw new Error("Forbidden");
 }
 
+/**
+ * Read access to a stage a grantee must never see.
+ *
+ * `requireGrantReader` is deliberately wider than the role — a grantee should
+ * be able to read their own closing figures — and that makes it the wrong gate
+ * for the three stages `PARTNER_VISIBLE` marks internal-only. An assessment
+ * rationale says "budgeting badly, reporting late" about the organisation it is
+ * written about; it is candid precisely because it is not addressed to them,
+ * and `PARTNER_VISIBLE.assessment = false` is the policy that makes that true.
+ * So: the role first and explicitly, then record access.
+ */
+async function requireInternalGrantReader(budgetId: string) {
+  const session = await requireSession();
+  if (!(isSuperAdmin(session) || isBudgetAdmin(session))) throw new Error("Forbidden");
+  const budget = await prisma.budget.findUnique({
+    where: { id: budgetId },
+    select: { partnerId: true, grantPartnerId: true },
+  });
+  if (!budget) throw new Error("Not found");
+  if (!(await canAccessBudget(session, budget, "read"))) throw new Error("Forbidden");
+  return session;
+}
+
 function asFormError(err: unknown): { ok: false; error: string; reason?: string } {
   if (err instanceof AuthorityError) {
     return { ok: false, error: err.message, reason: err.reason };
@@ -800,8 +823,17 @@ export async function getGrantRoles(budgetId: string) {
   return { holders, unfilled };
 }
 
+/**
+ * Write the judgement.
+ *
+ * Was `requireSession()`, which on a stage the grantee cannot even SEE meant
+ * the grantee could WRITE it: three greens on their own grant, with their own
+ * name recorded as the assessor, feeding the portfolio health view that decides
+ * where attention goes. That is the sharpest form of this hole yet — the access
+ * table said `assessment: false` and the action behind it asked nothing.
+ */
 export async function saveAssessment(input: AssessmentInput) {
-  const session = await requireSession();
+  const session = await requireGrantReviewer(input.budgetId);
   try {
     const row = await recordAssessment(session, input);
     revalidatePath(`/budget/${input.budgetId}`);
@@ -813,12 +845,28 @@ export async function saveAssessment(input: AssessmentInput) {
 }
 
 export async function getAssessments(budgetId: string) {
-  await requireSession();
+  await requireInternalGrantReader(budgetId);
   return assessmentHistory(budgetId);
 }
 
+/**
+ * The portfolio health view.
+ *
+ * The worst of the read holes: `requireSession()` returned every approved
+ * grant's RAG ratings and rationales, across every grantee, to any logged-in
+ * user — including a grantee, who would have read what we think of their peers
+ * and of themselves.
+ *
+ * Role-gated rather than record-gated, because the question it answers is
+ * portfolio-wide and there is no single budget to scope it to. What it does NOT
+ * do is narrow the rows to the granting units this reviewer can reach; that is
+ * true of every portfolio view in this app, and it is a real limit rather than
+ * a decision — worth closing once unit-level read scoping exists anywhere else
+ * to copy.
+ */
 export async function getPortfolioHealth(grantingUnitId?: string) {
-  await requireSession();
+  const session = await requireSession();
+  if (!(isSuperAdmin(session) || isBudgetAdmin(session))) throw new Error("Forbidden");
   const [rows, unassessed] = await Promise.all([
     portfolioHealth(grantingUnitId ? { grantingUnitId } : undefined),
     unassessedPeriods(),

@@ -434,7 +434,11 @@ export async function resolveGrantSpine(
     documents: `/budget/${budgetId}/documents`,
     releases: `/budget/${budgetId}/disbursements`,
     reporting: `/budget/${budgetId}/reports`,
-    assessment: null,
+    // Internal only, and unlike the proposal stage a grantee does not reach a
+    // read-only version of this: `PARTNER_VISIBLE.assessment` is false, so the
+    // stage is filtered out of their spine entirely. The audience check here
+    // is the second lock on a link that should never be rendered for them.
+    assessment: audience === "internal" ? `/budget/${budgetId}/assessment` : null,
     closure: `/budget/${budgetId}/closure`,
   };
 
