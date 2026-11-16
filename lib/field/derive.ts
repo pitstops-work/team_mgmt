@@ -23,6 +23,7 @@
  * so the UI and the CLI can both preview before writing.
  */
 
+import { normalizeClosureType } from "./closure";
 import prisma from "@/lib/prisma";
 
 export type PlanSetupStep = {
@@ -45,6 +46,12 @@ export type PlanVisitStep = {
   mandatory: boolean;
   formKind: string | null;
   formSchema?: unknown;
+  /**
+   * Closure type carried from a legacy item that had one (catalog
+   * completionType). Seeds a NEW template only — a re-derive never overwrites
+   * a closure type an admin has since chosen in the backend.
+   */
+  closureType?: string;
   itemCount: number;
 };
 
@@ -220,7 +227,7 @@ export async function buildTemplatePlan(input: DeriveInput): Promise<TemplatePla
   for (const cat of liveGaveSteps ? [] : catalog?.categoryDefs ?? []) {
     for (const it of cat.items) {
       const isCaregiver = /caregiver/i.test(it.key) || /caregiver/i.test(it.text);
-      push({ stepKey: it.key, title: it.text, mandatory: it.blocksSignoff, formKind: isCaregiver ? "caregiver_practices" : null, itemCount: 0 });
+      push({ stepKey: it.key, title: it.text, mandatory: it.blocksSignoff, formKind: isCaregiver ? "caregiver_practices" : null, closureType: normalizeClosureType(it.completionType), itemCount: 0 });
     }
   }
 
@@ -295,7 +302,7 @@ export async function applyTemplatePlan(plan: TemplatePlan, opts: { prune?: bool
   for (const v of plan.visit) {
     await prisma.visitStepTemplate.upsert({
       where: { domain_stepKey: { domain, stepKey: v.stepKey } },
-      create: { domain, order: v.order, stepKey: v.stepKey, title: v.title, mandatory: v.mandatory, formKind: v.formKind, formSchema: (v.formSchema ?? undefined) as never },
+      create: { domain, order: v.order, stepKey: v.stepKey, title: v.title, mandatory: v.mandatory, formKind: v.formKind, formSchema: (v.formSchema ?? undefined) as never, ...(v.closureType ? { closureType: v.closureType } : {}) },
       update: { order: v.order, title: v.title, mandatory: v.mandatory, formKind: v.formKind, formSchema: (v.formSchema ?? undefined) as never, isActive: true },
     });
     res.visitUpserted++;

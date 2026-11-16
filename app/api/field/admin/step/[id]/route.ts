@@ -1,5 +1,5 @@
 // Edit or delete one step template (setup or visit). `kind` selects the table.
-//   PATCH { kind, title?, phaseTag?, slaDays?, startSlaDays?, blockedByKey?, formKind?, mandatory? }
+//   PATCH { kind, title?, phaseTag?, slaDays?, startSlaDays?, blockedByKey?, formKind?, mandatory?, closureType? }
 //   PATCH { kind, stepKey }  → RENAME (see renameStepKey below)
 //   DELETE ?kind=setup|visit
 import { NextRequest } from "next/server";
@@ -8,6 +8,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { requireFieldAdmin } from "@/lib/field/access";
 import { renameStepKey, slugStepKey } from "@/lib/field/templateKeys";
+import { CLOSURE_TYPES } from "@/lib/field/closure";
 
 function pickModel(kind: string) {
   return kind === "visit" ? prisma.visitStepTemplate : prisma.setupStepTemplate;
@@ -37,6 +38,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Prisma ignores `undefined`, so clearing needs DbNull — passing undefined
   // here meant a form schema could never actually be removed.
   if (b.formSchema !== undefined) data.formSchema = b.formSchema === null ? Prisma.DbNull : b.formSchema;
+  // How the step is evidenced when marked done. Both tables carry it.
+  if (b.closureType !== undefined) {
+    if (!CLOSURE_TYPES.includes(b.closureType)) return Response.json({ error: `closureType must be one of ${CLOSURE_TYPES.join(", ")}` }, { status: 400 });
+    data.closureType = b.closureType;
+  }
   // setup-only fields
   if (b.slaDays === null || Number.isFinite(b.slaDays)) data.slaDays = b.slaDays;
   if (b.startSlaDays === null || Number.isFinite(b.startSlaDays)) data.startSlaDays = b.startSlaDays;

@@ -143,6 +143,8 @@ export async function loadInterventions(userId: string, clusterId?: string): Pro
 }
 
 export type FormField = { key: string; label?: string; text?: string; type?: string; options?: string[] };
+/** A recorded voice note / photo that evidences a step's closure. Served via /api/attachment/:id. */
+export type ProofView = { id: string; name: string; mimeType: string | null; createdAt: Date };
 export type SetupStepView = {
   id: string;
   title: string;
@@ -154,6 +156,9 @@ export type SetupStepView = {
   formKind: string | null;
   formSchema: unknown;
   answers: unknown;
+  closureType: string;
+  proofs: ProofView[];
+  note: string | null; // voice-note transcript
 };
 export type VisitStepView = {
   id: string; // FieldStep(kind=Visit) recipe id
@@ -164,6 +169,9 @@ export type VisitStepView = {
   // Per-current-visit state (null until a visit is open / this step ticked)
   done: boolean;
   answers: unknown;
+  closureType: string;
+  proofs: ProofView[]; // this visit's occurrence only
+  note: string | null;
 };
 export type FollowupView = {
   id: string;
@@ -194,13 +202,15 @@ export type InterventionDetail = {
   followups: FollowupView[];
 };
 
+const PROOF_SELECT = { id: true, name: true, mimeType: true, createdAt: true } as const;
+
 /** Full detail for one intervention. Returns null if outside the active field domains. */
 export async function loadIntervention(goalId: string): Promise<InterventionDetail | null> {
   const domains = await activeFieldDomains();
   const goal = await prisma.goal.findFirst({
     where: { id: goalId, deletedAt: null, fieldAnchorAt: { not: null } },
     include: {
-      fieldSteps: { where: { deletedAt: null }, orderBy: { order: "asc" } },
+      fieldSteps: { where: { deletedAt: null }, orderBy: { order: "asc" }, include: { attachments: { select: PROOF_SELECT, orderBy: { createdAt: "asc" } } } },
       needsSettlement: { select: { name: true } },
       needsCluster: { select: { name: true } },
       linkedFacility: { select: { name: true, settlement: { select: { name: true } } } },
@@ -233,6 +243,9 @@ export async function loadIntervention(goalId: string): Promise<InterventionDeta
       formKind: s.formKind,
       formSchema: s.formSchema,
       answers: s.answers,
+      closureType: s.closureType,
+      proofs: s.attachments,
+      note: s.note,
     };
   });
 
@@ -244,7 +257,7 @@ export async function loadIntervention(goalId: string): Promise<InterventionDeta
   const cadence = goal.cadenceCount ? { count: goal.cadenceCount, period: (goal.cadencePeriod as "week" | "month") ?? "month" } : cfg?.cadenceCount ? { count: cfg.cadenceCount, period: (cfg.cadencePeriod as "week" | "month") ?? "month" } : null;
   const visitRequired = phase === "live" ? requiredVisitsForMonth(cadence, now) : 0;
   const visitDoneThisMonth = phase === "live" ? await prisma.fieldVisit.count({ where: { goalId, closedAt: { gte: start, lte: end } } }) : 0;
-  const openVisitRow = phase === "live" ? await prisma.fieldVisit.findFirst({ where: { goalId, closedAt: null }, orderBy: { createdAt: "desc" }, include: { steps: true } }) : null;
+  const openVisitRow = phase === "live" ? await prisma.fieldVisit.findFirst({ where: { goalId, closedAt: null }, orderBy: { createdAt: "desc" }, include: { steps: { include: { attachments: { select: PROOF_SELECT, orderBy: { createdAt: "asc" } } } } } }) : null;
   const stepStateByStepId = new Map((openVisitRow?.steps ?? []).map((vs) => [vs.stepId, vs]));
 
   const visitSteps: VisitStepView[] = visitRecipe.map((s) => {
@@ -257,6 +270,9 @@ export async function loadIntervention(goalId: string): Promise<InterventionDeta
       formSchema: s.formSchema,
       done: vs?.status === "Done",
       answers: vs?.answers ?? null,
+      closureType: s.closureType,
+      proofs: vs?.attachments ?? [],
+      note: vs?.note ?? null,
     };
   });
 

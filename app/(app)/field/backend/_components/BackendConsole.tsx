@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown, RefreshCw, Database, X, ListChecks, Users, MapPin, AlertTriangle, Wand2 } from "lucide-react";
 import { NewFacilityModal } from "./NewFacilityModal";
+import { CLOSURE_TYPES, CLOSURE_LABEL, normalizeClosureType } from "@/lib/field/closure";
 
-type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; phaseTag: string | null; formKind: string | null; formSchema: any };
-type VisitRow = { id: string; order: number; stepKey: string; title: string; mandatory: boolean; formKind: string | null; formSchema: any };
+type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; phaseTag: string | null; formKind: string | null; formSchema: any; closureType: string };
+type VisitRow = { id: string; order: number; stepKey: string; title: string; mandatory: boolean; formKind: string | null; formSchema: any; closureType: string };
 type Domain = {
   config: { domain: string; label: string; unit: string; overallSlaDays: number | null; cadenceCount: number | null; cadencePeriod: string | null; hasLivePhase: boolean; caregiverForm: boolean; isActive: boolean };
   setupSteps: SetupRow[]; visitSteps: VisitRow[];
@@ -173,7 +174,7 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-stone-100 text-left text-[11px] uppercase text-stone-400">
-              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">Key</th><th className="px-2">Phase</th><th className="px-2">SLA</th><th className="px-2">Start</th><th className="px-2">Blocked by</th><th className="px-2">Form</th><th className="px-2"></th>
+              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">Key</th><th className="px-2">Phase</th><th className="px-2">SLA</th><th className="px-2">Start</th><th className="px-2">Blocked by</th><th className="px-2">Form</th><th className="px-2" title="How the RP closes this step: a plain tick, a voice note, or a photo">Closure</th><th className="px-2"></th>
             </tr></thead>
             <tbody>
               {d.setupSteps.map((s, i) => (
@@ -209,6 +210,7 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
                     </select>
                   </td>
                   <td className="px-2"><FormCell value={s.formKind} schema={s.formSchema} options={BASE_FORM_KINDS} onChange={(v) => patchStep("setup", s.id, { formKind: v })} onEdit={() => setFormEditor({ kind: "setup", step: s })} /></td>
+                  <td className="px-2"><ClosureCell value={s.closureType} disabled={busy} onChange={(v) => patchStep("setup", s.id, { closureType: v })} /></td>
                   <td className="px-2"><button disabled={busy} onClick={() => confirm("Delete this step?") && delStep("setup", s.id)} className="text-stone-300 hover:text-red-500"><Trash2 size={14} /></button></td>
                 </tr>
               ))}
@@ -229,7 +231,7 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-stone-100 text-left text-[11px] uppercase text-stone-400">
-              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">Key</th><th className="px-2">Required</th><th className="px-2">Form</th><th className="px-2"></th>
+              <th className="px-2 py-2">#</th><th className="px-2">Title</th><th className="px-2">Key</th><th className="px-2">Required</th><th className="px-2">Form</th><th className="px-2" title="How the RP closes this step: a plain tick, a voice note, or a photo">Closure</th><th className="px-2"></th>
             </tr></thead>
             <tbody>
               {d.visitSteps.map((s, i) => (
@@ -251,6 +253,7 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
                   </td>
                   <td className="px-2"><input type="checkbox" defaultChecked={s.mandatory} onChange={(e) => patchStep("visit", s.id, { mandatory: e.target.checked })} /></td>
                   <td className="px-2"><FormCell value={s.formKind} schema={s.formSchema} options={visitFormKinds} onChange={(v) => patchStep("visit", s.id, { formKind: v })} onEdit={() => setFormEditor({ kind: "visit", step: s })} /></td>
+                  <td className="px-2"><ClosureCell value={s.closureType} disabled={busy} onChange={(v) => patchStep("visit", s.id, { closureType: v })} /></td>
                   <td className="px-2"><button disabled={busy} onClick={() => confirm("Delete this step?") && delStep("visit", s.id)} className="text-stone-300 hover:text-red-500"><Trash2 size={14} /></button></td>
                 </tr>
               ))}
@@ -299,6 +302,24 @@ export function BackendConsole({ domains, available, pickers }: { domains: Domai
 
       <style>{`.inp{height:2.25rem;width:100%;border:1px solid rgb(231 229 228);border-radius:0.5rem;padding:0 0.6rem;font-size:0.875rem;outline:none}.inp:focus{border-color:rgb(168 162 158)}`}</style>
     </div>
+  );
+}
+
+// How the RP closes a step. Saved on change; reaches live interventions on
+// "Resync to live", like every other template edit here.
+function ClosureCell({ value, disabled, onChange }: { value: string; disabled: boolean; onChange: (v: string) => void }) {
+  const v = normalizeClosureType(value);
+  return (
+    <select
+      key={v}
+      defaultValue={v}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      title="Applies to live interventions after Resync to live"
+      className={`rounded border border-transparent px-1 py-0.5 hover:border-stone-200 focus:border-stone-300 focus:outline-none ${v === "Activity" ? "text-stone-500" : "font-medium text-stone-800"}`}
+    >
+      {CLOSURE_TYPES.map((t) => <option key={t} value={t}>{CLOSURE_LABEL[t]}</option>)}
+    </select>
   );
 }
 

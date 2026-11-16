@@ -70,13 +70,13 @@ export async function createIntervention(opts: {
       goalId: goal.id, kind: "Setup", title: t.title, order: i, templateSlug: SETUP_MARKER, stepKey: t.stepKey,
       slaDays: t.slaDays, startSlaDays: t.startSlaDays, blockedByKey: t.blockedByKey, phaseTag: t.phaseTag,
       dueDate: t.slaDays != null ? addDays(opts.anchorAt, t.slaDays) : null,
-      formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, status: "Todo",
+      formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, closureType: t.closureType, status: "Todo",
     }));
   }
   // Visit recipe (materialised now; dormant until the intervention is live).
   visitTmpls.forEach((t, i) => rows.push({
     goalId: goal.id, kind: "Visit", title: t.title, order: i, templateSlug: VISIT_MARKER, stepKey: t.stepKey,
-    mandatory: t.mandatory, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never,
+    mandatory: t.mandatory, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, closureType: t.closureType,
   }));
   if (rows.length) await prisma.fieldStep.createMany({ data: rows });
 

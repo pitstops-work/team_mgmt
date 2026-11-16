@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { assertFieldGoalAccess } from "@/lib/field/access";
 import { checklistGate } from "@/lib/field/stepGate";
 import { logStepReversal } from "@/lib/field/audit";
+import { proofBlocker } from "@/lib/field/closure";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ stepId: string }> }) {
   const session = await auth();
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ste
   const body = await req.json().catch(() => ({}));
   const action: string = body?.action ?? "";
 
-  const step = await prisma.fieldStep.findFirst({ where: { id: stepId, kind: "Setup", deletedAt: null }, select: { id: true, goalId: true, title: true, formKind: true, formSchema: true, answers: true, completedById: true } });
+  const step = await prisma.fieldStep.findFirst({ where: { id: stepId, kind: "Setup", deletedAt: null }, select: { id: true, goalId: true, title: true, formKind: true, formSchema: true, answers: true, completedById: true, closureType: true, _count: { select: { attachments: true } } } });
   if (!step) return Response.json({ error: "Not found" }, { status: 404 });
   if (!(await assertFieldGoalAccess(userId, step.goalId))) return Response.json({ error: "Forbidden" }, { status: 403 });
 
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ste
       const answers = body.answers !== undefined ? body.answers : step.answers;
       const gate = checklistGate(step.formKind, step.formSchema, answers);
       if (!gate.canComplete) return Response.json({ error: gate.reason ?? "Not ready to complete" }, { status: 400 });
+      // A Voice / Upload step closes only with its proof recorded (/api/field/proof).
+      const noProof = proofBlocker(step.closureType, step._count.attachments);
+      if (noProof) return Response.json({ error: noProof }, { status: 400 });
       data.status = "Done";
       data.completedAt = now;
       data.completedById = userId;

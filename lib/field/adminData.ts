@@ -12,8 +12,8 @@ export type DomainBackend = {
   visitSteps: VisitRow[];
   counts: { interventions: number; legacyCandidates: number; setupSteps: number; visitRecipe: number; visits: number; openFollowups: number };
 };
-export type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; phaseTag: string | null; formKind: string | null; formSchema: unknown };
-export type VisitRow = { id: string; order: number; stepKey: string; title: string; mandatory: boolean; formKind: string | null; formSchema: unknown };
+export type SetupRow = { id: string; order: number; stepKey: string; title: string; slaDays: number | null; startSlaDays: number | null; blockedByKey: string | null; phaseTag: string | null; formKind: string | null; formSchema: unknown; closureType: string };
+export type VisitRow = { id: string; order: number; stepKey: string; title: string; mandatory: boolean; formKind: string | null; formSchema: unknown; closureType: string };
 
 /**
  * needsDomains that aren't yet configured for /field — candidates for "Add domain".
@@ -184,8 +184,8 @@ export async function loadFieldBackend(): Promise<DomainBackend[]> {
 
   return configs.map((c) => ({
     config: { domain: c.domain, label: c.label, unit: c.unit, overallSlaDays: c.overallSlaDays, cadenceCount: c.cadenceCount, cadencePeriod: c.cadencePeriod, hasLivePhase: c.hasLivePhase, caregiverForm: c.caregiverForm, isActive: c.isActive },
-    setupSteps: setupTmpls.filter((s) => s.domain === c.domain).map((s) => ({ id: s.id, order: s.order, stepKey: s.stepKey, title: s.title, slaDays: s.slaDays, startSlaDays: s.startSlaDays, blockedByKey: s.blockedByKey, phaseTag: s.phaseTag, formKind: s.formKind, formSchema: s.formSchema })),
-    visitSteps: visitTmpls.filter((s) => s.domain === c.domain).map((s) => ({ id: s.id, order: s.order, stepKey: s.stepKey, title: s.title, mandatory: s.mandatory, formKind: s.formKind, formSchema: s.formSchema })),
+    setupSteps: setupTmpls.filter((s) => s.domain === c.domain).map((s) => ({ id: s.id, order: s.order, stepKey: s.stepKey, title: s.title, slaDays: s.slaDays, startSlaDays: s.startSlaDays, blockedByKey: s.blockedByKey, phaseTag: s.phaseTag, formKind: s.formKind, formSchema: s.formSchema, closureType: s.closureType })),
+    visitSteps: visitTmpls.filter((s) => s.domain === c.domain).map((s) => ({ id: s.id, order: s.order, stepKey: s.stepKey, title: s.title, mandatory: s.mandatory, formKind: s.formKind, formSchema: s.formSchema, closureType: s.closureType })),
     counts: {
       interventions: nativeByDomain.get(c.domain) ?? 0,
       legacyCandidates: legacyByDomain.get(c.domain) ?? 0,

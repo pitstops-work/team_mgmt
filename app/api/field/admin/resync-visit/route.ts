@@ -34,10 +34,10 @@ export async function POST(req: NextRequest) {
     for (const [i, t] of templates.entries()) {
       const ex = byKey.get(t.stepKey);
       if (ex) {
-        await prisma.fieldStep.update({ where: { id: ex.id }, data: { title: t.title, order: i, mandatory: t.mandatory, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, deletedAt: null, templateSlug: MARKER } });
+        await prisma.fieldStep.update({ where: { id: ex.id }, data: { title: t.title, order: i, mandatory: t.mandatory, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, closureType: t.closureType, deletedAt: null, templateSlug: MARKER } });
         updated++;
       } else {
-        await prisma.fieldStep.create({ data: { goalId: g.id, kind: "Visit", title: t.title, order: i, stepKey: t.stepKey, mandatory: t.mandatory, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, templateSlug: MARKER } });
+        await prisma.fieldStep.create({ data: { goalId: g.id, kind: "Visit", title: t.title, order: i, stepKey: t.stepKey, mandatory: t.mandatory, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, closureType: t.closureType, templateSlug: MARKER } });
         added++;
       }
     }

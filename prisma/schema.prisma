@@ -333,13 +333,13 @@ model Goal {
   // ── Which grant pays for this work ────────────────────────────────────────
   // Delivery and grants were joined only by a human inferring partner +
   // geography. This is the join.
-  fundingBudgetId       String?
-  fundingBudget         Budget?                        @relation("GoalFundingBudget", fields: [fundingBudgetId], references: [id], onDelete: SetNull)
+  fundingBudgetId String?
+  fundingBudget   Budget? @relation("GoalFundingBudget", fields: [fundingBudgetId], references: [id], onDelete: SetNull)
   /// What share of this goal the grant funds, 0-100. REQUIRED IN CODE whenever
   /// fundingBudgetId is set (Prisma cannot express a conditional NOT NULL).
   /// Deliberately not defaulted: treating an unapportioned co-funded goal as
   /// 100% would make every cost-per-outcome figure quietly wrong.
-  fundingSharePct       Float?
+  fundingSharePct Float?
 }
 
 // One row per settlement that received actuals from a completed domain goal.
@@ -538,22 +538,31 @@ model Message {
 }
 
 model Attachment {
-  id              String         @id @default(cuid())
-  name            String
-  type            AttachmentType @default(File)
-  url             String
-  size            Int?
-  mimeType        String?
-  messageId       String?
-  pitstopId       String?
-  goalId          String?
-  checklistItemId String?
-  createdAt       DateTime       @default(now())
+  id               String         @id @default(cuid())
+  name             String
+  type             AttachmentType @default(File)
+  url              String
+  size             Int?
+  mimeType         String?
+  messageId        String?
+  pitstopId        String?
+  goalId           String?
+  checklistItemId  String?
+  // /field closure proof: a voice note or photo that closed a step. Setup
+  // steps carry it on the step; visit steps on the per-visit occurrence.
+  fieldStepId      String?
+  fieldVisitStepId String?
+  createdAt        DateTime       @default(now())
 
-  message       Message?       @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  pitstop       Pitstop?       @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
-  goal          Goal?          @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  checklistItem ChecklistItem? @relation(fields: [checklistItemId], references: [id], onDelete: SetNull)
+  fieldStep      FieldStep?      @relation(fields: [fieldStepId], references: [id], onDelete: SetNull)
+  fieldVisitStep FieldVisitStep? @relation(fields: [fieldVisitStepId], references: [id], onDelete: SetNull)
+  message        Message?        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pitstop        Pitstop?        @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  goal           Goal?           @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  checklistItem  ChecklistItem?  @relation(fields: [checklistItemId], references: [id], onDelete: SetNull)
+
+  @@index([fieldStepId])
+  @@index([fieldVisitStepId])
 }
 
 model Mention {
@@ -892,8 +901,8 @@ model Risk {
   // decision: recordDecision() copies the appraisal's RiskEntry rows here with
   // budgetId + sourceDecisionId set and a review date, so "what did we say the
   // risks were" has an answer after approval.
-  budgetId        String?
-  budget          Budget?        @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  budgetId         String?
+  budget           Budget?        @relation(fields: [budgetId], references: [id], onDelete: SetNull)
   sourceDecisionId String?
   sourceDecision   GrantDecision? @relation("RiskSourceDecision", fields: [sourceDecisionId], references: [id], onDelete: SetNull)
   reviewDueOn      DateTime?      @db.Date
@@ -2518,13 +2527,13 @@ model Budget {
   disbursements      Disbursement[]
   closure            GrantClosure?
   // Closures whose unspent balance was carried forward INTO this budget.
-  closureAdjustments GrantClosure[]          @relation("ClosureAdjustment")
+  closureAdjustments GrantClosure[]        @relation("ClosureAdjustment")
   documents          GrantDocument[]
   results            GrantResult[]
   proposal           Proposal?
   risks              Risk[]
-  fundedGoals        Goal[]                  @relation("GoalFundingBudget")
-  fundedActionPoints ActionPoint[]           @relation("ActionPointFundingBudget")
+  fundedGoals        Goal[]                @relation("GoalFundingBudget")
+  fundedActionPoints ActionPoint[]         @relation("ActionPointFundingBudget")
   roleAssignments    GrantRoleAssignment[]
   assessments        GrantAssessment[]
 
@@ -2534,15 +2543,15 @@ model Budget {
   // grant — so an appraisal cannot see what already happened with this partner.
   // Distinct from GrantClosure.adjustedIntoBudgetId: that carries MONEY
   // forward, this carries the RELATIONSHIP forward, and they need not agree.
-  renewsBudgetId     String?                 @unique
-  renews             Budget?                 @relation("BudgetRenewal", fields: [renewsBudgetId], references: [id], onDelete: SetNull)
-  renewedBy          Budget?                 @relation("BudgetRenewal")
+  renewsBudgetId String?          @unique
+  renews         Budget?          @relation("BudgetRenewal", fields: [renewsBudgetId], references: [id], onDelete: SetNull)
+  renewedBy      Budget?          @relation("BudgetRenewal")
   /// How this grant stands to what came before. Null on legacy rows, which is
   /// honest: we do not know, and defaulting them to `new` would assert that
   /// every historic grant was a first grant.
-  continuity         GrantContinuity?
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
+  continuity     GrantContinuity?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   // ── Portfolio-comparables metadata (approvals wizard, Step 5) ─────────────
   // All nullable so existing rows survive the migration. Populated going
@@ -2592,8 +2601,8 @@ model GrantingUnit {
   sortOrder    Int            @default(0)
   createdAt    DateTime       @default(now())
 
-  budgets  Budget[]
-  partners GrantPartner[]
+  budgets              Budget[]
+  partners             GrantPartner[]
   // Grant-ERP: unit-scoped authority rules, document requirements and calls.
   authorityRules       AuthorityRule[]
   documentRequirements GrantDocumentRequirement[]
@@ -2606,7 +2615,7 @@ model GrantingUnit {
 // the dashboard can aggregate approved amounts + utilisation per partner. Scoped
 // to a GrantingUnit so the same name can exist independently under each unit.
 model GrantPartner {
-  id String @id @default(cuid())
+  id                   String                  @id @default(cuid())
   /// Partner identity. Org (kind="partner") is the one registry every portal
   /// resolves a partner through — due diligence, budgets and the review portal
   /// included. A GrantPartner row is no longer an identity of its own: it is
@@ -2614,8 +2623,8 @@ model GrantPartner {
   /// organisation granting under both Bangalore and Chennai is one Org and two
   /// relationships. Restrict, not SetNull: an org that holds grants cannot be
   /// hard-deleted out from under them — archive it (Org.archivedAt) instead.
-  orgId String
-  org   Org    @relation("GrantPartnerOrg", fields: [orgId], references: [id], onDelete: Restrict)
+  orgId                String
+  org                  Org                     @relation("GrantPartnerOrg", fields: [orgId], references: [id], onDelete: Restrict)
   /// Denormalised labels, kept in step with `org` by the registry layer
   /// (lib/partners/registry.ts). Read `org.name` for display; these exist so
   /// historical exports and the dashboard's group-by keep working unchanged.
@@ -2654,9 +2663,9 @@ model GrantPartner {
 // grantee org. A person straddling two grantees would break every access check
 // downstream.
 model GrantPartnerUser {
-  id    String @id @default(cuid())
-  orgId String
-  org   Org    @relation("PartnerLoginOrg", fields: [orgId], references: [id], onDelete: Cascade)
+  id             String        @id @default(cuid())
+  orgId          String
+  org            Org           @relation("PartnerLoginOrg", fields: [orgId], references: [id], onDelete: Cascade)
   /// Legacy pointer at one grant relationship, kept nullable so historical rows
   /// still say which unit the login was first set up under. Never read for
   /// access — orgId is authoritative.
@@ -3396,7 +3405,7 @@ model Role {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  permissions RolePermission[]
+  permissions    RolePermission[]
   authorityRules AuthorityRule[]
 }
 
@@ -4192,8 +4201,8 @@ model ActionPoint {
 
   /// Set when this follow-up came out of grant monitoring, so corrective
   /// actions land in the tracker staff already use rather than a new one.
-  fundingBudgetId      String?
-  fundingBudget        Budget?                       @relation("ActionPointFundingBudget", fields: [fundingBudgetId], references: [id], onDelete: SetNull)
+  fundingBudgetId String?
+  fundingBudget   Budget? @relation("ActionPointFundingBudget", fields: [fundingBudgetId], references: [id], onDelete: SetNull)
 
   @@index([ownerId, status, dueDate])
   @@index([pitstopEventId])
@@ -4339,16 +4348,16 @@ model SeedingConfig {
 /// so this table must hold ONLY real geographies. Central/national outreach is
 /// modelled as a null geoId on the outreach tables, never as a 5th row here.
 model SeedingGeo {
-  id        String            @id @default(cuid())
-  key       String            @unique // bangalore_urban | odisha | eastern_up | north_east
-  label     String
-  sortOrder Int               @default(0)
-  funnel    SeedingFunnelGeo?
-  members   SeedingMember[]
-  subGeos   SeedingSubGeo[]
-  channels  SeedingChannel[]
-  sessions  SeedingSession[]
-  leads     SeedingLead[]
+  id                    String                 @id @default(cuid())
+  key                   String                 @unique // bangalore_urban | odisha | eastern_up | north_east
+  label                 String
+  sortOrder             Int                    @default(0)
+  funnel                SeedingFunnelGeo?
+  members               SeedingMember[]
+  subGeos               SeedingSubGeo[]
+  channels              SeedingChannel[]
+  sessions              SeedingSession[]
+  leads                 SeedingLead[]
   screeningApplications ScreeningApplication[]
   screeningScopes       ScreeningScope[]
 }
@@ -5296,15 +5305,15 @@ model RecruitmentJob {
 /// without re-generating. `jobId` is nullable so legacy blob-only docs still
 /// show up in listings.
 model RecruitmentScoutingDay {
-  id              String               @id @default(cuid())
-  slug            String               @unique
-  jobId           String?
-  job             RecruitmentJob?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  id                String               @id @default(cuid())
+  slug              String               @unique
+  jobId             String?
+  job               RecruitmentJob?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
   /// Which of the JD's cities this day was run for — the one whose context was
   /// baked into the prompt. Nullable: legacy days (and JD-less blob docs)
   /// predate multi-location, and their city lives in jobSnapshotJson.location.
-  locationId      String?
-  location        RecruitmentLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  locationId        String?
+  location          RecruitmentLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   /// This desk's role genuinely has NO location — remote, national, or a
   /// central team. Distinct from the "unplaced" desk, where the city is simply
   /// not known yet: unplaced asks the recruiter to work out where each person
@@ -5315,7 +5324,7 @@ model RecruitmentScoutingDay {
   /// column is for queries and chips, the sentinel is what every later
   /// re-scout reads. Write both or neither.
   /// A JD is still required — only the location is optional.
-  notCitySpecific Boolean              @default(false)
+  notCitySpecific   Boolean              @default(false)
   /// Set when an EXISTING desk's location was changed after it was scouted.
   /// The candidate write-ups were judged against the old location and are NOT
   /// rewritten by the change, so the desk page carries a standing warning
@@ -5328,19 +5337,19 @@ model RecruitmentScoutingDay {
   /// Null for an ordinary one-city desk. Not a foreign key: a desk outlives
   /// the run that made it, and the run row (RecruitmentBatchRun, whose id IS
   /// this value) is deletable once the desks exist without orphaning them.
-  batchId         String?
-  matchday        DateTime?
-  title           String
+  batchId           String?
+  matchday          DateTime?
+  title             String
   // The full JD frozen at generation time so subsequent JD edits don't rewrite
   // the doc's provenance. Same snapshot-on-use pattern as CentreCatalog.snapshot.
-  jobSnapshotJson Json?
+  jobSnapshotJson   Json?
   // Full ScoutDocData (candidates + axes + headlines + …). The HTML is a render
   // of this; Phase 3 extracts per-candidate rows from here for comparability.
-  snapshotJson    Json
-  renderedBlobUrl String?
-  createdById     String?
-  createdBy       User?                @relation("RecruitmentScoutingDayCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt       DateTime             @default(now())
+  snapshotJson      Json
+  renderedBlobUrl   String?
+  createdById       String?
+  createdBy         User?                @relation("RecruitmentScoutingDayCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime             @default(now())
 
   @@index([jobId])
   @@index([locationId])
@@ -5459,9 +5468,17 @@ model FieldStep {
   formKind   String? // null | "questionnaire" | "caregiver_practices"
   formSchema Json? // questionnaire field defs (null for caregiver_practices — uses its own tables)
 
+  // ── Closure ───────────────────────────────────────────────────────────────
+  // How the step is evidenced when it is marked done: "Activity" (a plain
+  // mark-done) | "Voice" (needs a voice note) | "Upload" (needs a photo/file).
+  // Independent of formKind — a checklist step may also need a voice note.
+  // Copied from the template at materialise / resync. See lib/field/closure.ts.
+  closureType String @default("Activity")
+
   // ── Completion (setup steps only; Visit recipes stay Todo) ─────────────────
   status          FieldStepStatus @default(Todo)
   answers         Json? // questionnaire answers blob for a Setup step
+  note            String? // voice-note transcript (setup steps)
   completedById   String?
   completedAt     DateTime?
   startedAt       DateTime?
@@ -5478,6 +5495,7 @@ model FieldStep {
   completedBy   User?            @relation("FieldStepCompleter", fields: [completedById], references: [id], onDelete: SetNull)
   lastUpdatedBy User?            @relation("FieldStepUpdater", fields: [lastUpdatedById], references: [id], onDelete: SetNull)
   visitSteps    FieldVisitStep[]
+  attachments   Attachment[]
 
   @@index([goalId, kind, order])
   @@index([goalId, status])
@@ -5514,6 +5532,7 @@ model FieldVisitStep {
   stepId          String // → FieldStep(kind=Visit) recipe row
   status          FieldStepStatus @default(Todo)
   answers         Json? // questionnaire answers for this occurrence
+  note            String? // voice-note transcript for this occurrence
   completedById   String?
   completedAt     DateTime?
   // Survives an untick, unlike completedById. See FieldStep.lastUpdatedById.
@@ -5521,10 +5540,11 @@ model FieldVisitStep {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  visit         FieldVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  step          FieldStep  @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  completedBy   User?      @relation("FieldVisitStepCompleter", fields: [completedById], references: [id], onDelete: SetNull)
-  lastUpdatedBy User?      @relation("FieldVisitStepUpdater", fields: [lastUpdatedById], references: [id], onDelete: SetNull)
+  visit         FieldVisit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  step          FieldStep    @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  completedBy   User?        @relation("FieldVisitStepCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+  lastUpdatedBy User?        @relation("FieldVisitStepUpdater", fields: [lastUpdatedById], references: [id], onDelete: SetNull)
+  attachments   Attachment[]
 
   @@unique([visitId, stepId])
   @@index([stepId, status])
@@ -5549,6 +5569,7 @@ model SetupStepTemplate {
   phaseTag     String?
   formKind     String? // null | "checklist" | "questionnaire" | "caregiver_practices"
   formSchema   Json?
+  closureType  String   @default("Activity") // Activity | Voice | Upload — see FieldStep.closureType
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -5559,17 +5580,18 @@ model SetupStepTemplate {
 
 // Per-domain visit recipe: steps materialised into FieldStep(kind=Visit) at go-live.
 model VisitStepTemplate {
-  id         String   @id @default(cuid())
-  domain     String
-  order      Int      @default(0)
-  stepKey    String
-  title      String
-  mandatory  Boolean  @default(true)
-  formKind   String?
-  formSchema Json?
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  domain      String
+  order       Int      @default(0)
+  stepKey     String
+  title       String
+  mandatory   Boolean  @default(true)
+  formKind    String?
+  formSchema  Json?
+  closureType String   @default("Activity") // Activity | Voice | Upload — see FieldStep.closureType
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([domain, stepKey])
   @@index([domain, order])
@@ -5604,47 +5626,47 @@ model FieldDomainConfig {
 // geography lead at L3 (Approve / Reject / Hold). See lib/seeding/screening/.
 
 enum ScreeningStatus {
-  new         // awaiting an L2 read
-  l2_hold     // held at L2; needs a second L2 read
-  l3_pending  // shortlisted; awaiting the geography lead
+  new // awaiting an L2 read
+  l2_hold // held at L2; needs a second L2 read
+  l3_pending // shortlisted; awaiting the geography lead
   l3_hold
   approved
   rejected
 }
 
 model ScreeningApplication {
-  id            String          @id @default(cuid())
+  id              String          @id @default(cuid())
   /// The application portal's reference. Intake is idempotent on it.
-  ref           String          @unique
-  geoId         String?
-  geo           SeedingGeo?     @relation(fields: [geoId], references: [id], onDelete: SetNull)
-  email         String
-  name          String
-  phone         String?
-  state         String?
-  district      String?
-  block         String?
-  theme         String?
-  isGroup       Boolean         @default(false)
+  ref             String          @unique
+  geoId           String?
+  geo             SeedingGeo?     @relation(fields: [geoId], references: [id], onDelete: SetNull)
+  email           String
+  name            String
+  phone           String?
+  state           String?
+  district        String?
+  block           String?
+  theme           String?
+  isGroup         Boolean         @default(false)
   /// Structured form answers, as { label: value }. Shape follows the portal.
-  profile       Json            @default("{}")
+  profile         Json            @default("{}")
   /// Long-form answers and the statement of purpose: [{ key, label, text }].
-  answers       Json            @default("[]")
+  answers         Json            @default("[]")
   /// Group members, entered by the primary applicant: [{ name, ... }].
-  members       Json            @default("[]")
+  members         Json            @default("[]")
   /// Criteria the portal computed as below threshold: [{ criterion, detail }].
-  criteriaFlags Json            @default("[]")
+  criteriaFlags   Json            @default("[]")
   /// Uploaded files: [{ kind, name, url }].
-  documents     Json            @default("[]")
-  cvText        String?
-  sopText       String?
-  status        ScreeningStatus @default(new)
+  documents       Json            @default("[]")
+  cvText          String?
+  sopText         String?
+  status          ScreeningStatus @default(new)
   /// red_flag | safeguarding | low_dimension | divergent
-  flags         String[]        @default([])
+  flags           String[]        @default([])
   /// People who declared a conflict of interest; they never see it again.
-  conflictUserIds String[]      @default([])
-  source        String          @default("import")
-  submittedAt   DateTime?
+  conflictUserIds String[]        @default([])
+  source          String          @default("import")
+  submittedAt     DateTime?
 
   /// pending | running | done | failed | off
   aiStatus        String    @default("pending")
@@ -5791,15 +5813,15 @@ model GrantDecision {
   budgetId String
   budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
-  outcome GrantDecisionOutcome
-  forum   GrantDecisionForum
+  outcome   GrantDecisionOutcome
+  forum     GrantDecisionForum
   /// The date the decision was taken — NOT the date it was keyed in.
-  decidedOn DateTime @db.Date
+  decidedOn DateTime             @db.Date
 
   /// The amount actually approved. Need not equal the budget's computed total:
   /// a committee may approve less, and that divergence is the point of
   /// `variationNote` rather than something to reconcile away.
-  approvedAmount Decimal  @db.Decimal(14, 2)
+  approvedAmount Decimal @db.Decimal(14, 2)
   variationNote  String?
   /// Approved horizon, where the committee shortened or extended it.
   approvedMonths Int?
@@ -5878,27 +5900,27 @@ model GrantCondition {
   decisionId String
   decision   GrantDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
 
-  text   String
-  timing GrantConditionTiming
+  text                String
+  timing              GrantConditionTiming
   /// For pre_tranche: which tranche this blocks. Null = every tranche.
   blocksTrancheNumber Int?
 
   status GrantConditionStatus @default(open)
-  dueOn  DateTime? @db.Date
+  dueOn  DateTime?            @db.Date
 
-  dischargedById   String?
-  dischargedBy     User?     @relation("ConditionDischarger", fields: [dischargedById], references: [id], onDelete: SetNull)
-  dischargedAt     DateTime?
-  dischargeNote    String?
+  dischargedById String?
+  dischargedBy   User?     @relation("ConditionDischarger", fields: [dischargedById], references: [id], onDelete: SetNull)
+  dischargedAt   DateTime?
+  dischargeNote  String?
   /// Waiving a condition is the quietest way to approve money without
   /// appearing to, so it carries its own authority check and its own note.
-  waivedById       String?
-  waivedBy         User?     @relation("ConditionWaiver", fields: [waivedById], references: [id], onDelete: SetNull)
-  waivedAt         DateTime?
-  waiverNote       String?
+  waivedById     String?
+  waivedBy       User?     @relation("ConditionWaiver", fields: [waivedById], references: [id], onDelete: SetNull)
+  waivedAt       DateTime?
+  waiverNote     String?
 
   documents GrantDocument[]
-  createdAt DateTime @default(now())
+  createdAt DateTime        @default(now())
 
   @@index([decisionId, status])
   @@index([status, timing, dueOn])
@@ -5906,17 +5928,17 @@ model GrantCondition {
 
 /// A convened approval forum. Several decisions per meeting.
 model GrantMeeting {
-  id       String             @id @default(cuid())
-  forum    GrantDecisionForum
-  heldOn   DateTime           @db.Date
-  reference String?
+  id          String             @id @default(cuid())
+  forum       GrantDecisionForum
+  heldOn      DateTime           @db.Date
+  reference   String?
   /// Attendance as names + roles: committee members are frequently not users.
-  attendance Json             @default("[]")
+  attendance  Json               @default("[]")
   minutesNote String?
 
   decisions GrantDecision[]
   documents GrantDocument[]
-  createdAt DateTime @default(now())
+  createdAt DateTime        @default(now())
 
   @@index([forum, heldOn])
 }
@@ -5998,8 +6020,8 @@ model GrantAgreement {
 
   signoff   GrantAgreementSignoff?
   documents GrantDocument[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
 
   @@index([status, executedOn])
 }
@@ -6011,16 +6033,16 @@ model GrantAgreementSignoff {
   agreementId String         @unique
   agreement   GrantAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
 
-  preparedById String?
-  preparedBy   User?     @relation("AgreementPreparer", fields: [preparedById], references: [id], onDelete: SetNull)
-  preparedAt   DateTime?
-  reviewedById String?
-  reviewedBy   User?     @relation("AgreementReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedAt   DateTime?
+  preparedById  String?
+  preparedBy    User?     @relation("AgreementPreparer", fields: [preparedById], references: [id], onDelete: SetNull)
+  preparedAt    DateTime?
+  reviewedById  String?
+  reviewedBy    User?     @relation("AgreementReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt    DateTime?
   reviewerNotes String?
-  approvedById String?
-  approvedBy   User?     @relation("AgreementApprover", fields: [approvedById], references: [id], onDelete: SetNull)
-  approvedAt   DateTime?
+  approvedById  String?
+  approvedBy    User?     @relation("AgreementApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt    DateTime?
   approvalNotes String?
 }
 
@@ -6051,34 +6073,34 @@ enum GrantDocumentKind {
 /// SchoolPlanArtifact, BudgetReport scan URLs) with no document set and no
 /// notion of completeness.
 model GrantDocument {
-  id       String            @id @default(cuid())
-  kind     GrantDocumentKind
-  title    String
-  fileUrl  String
-  mimeType String?
+  id        String            @id @default(cuid())
+  kind      GrantDocumentKind
+  title     String
+  fileUrl   String
+  mimeType  String?
   sizeBytes Int?
 
   /// Versioning, as SchoolPlanArtifact does it: a new version is a new row.
-  version    Int     @default(1)
-  supersedesId String? @unique
+  version      Int            @default(1)
+  supersedesId String?        @unique
   supersedes   GrantDocument? @relation("DocumentVersion", fields: [supersedesId], references: [id], onDelete: SetNull)
   supersededBy GrantDocument? @relation("DocumentVersion")
 
   /// Attachment points. A document hangs off exactly one of these.
-  budgetId      String?
-  budget        Budget?          @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  agreementId   String?
-  agreement     GrantAgreement?  @relation(fields: [agreementId], references: [id], onDelete: Cascade)
-  conditionId   String?
-  condition     GrantCondition?  @relation(fields: [conditionId], references: [id], onDelete: Cascade)
-  meetingId     String?
-  meeting       GrantMeeting?    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  budgetId       String?
+  budget         Budget?         @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  agreementId    String?
+  agreement      GrantAgreement? @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  conditionId    String?
+  condition      GrantCondition? @relation(fields: [conditionId], references: [id], onDelete: Cascade)
+  meetingId      String?
+  meeting        GrantMeeting?   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   disbursementId String?
-  disbursement  Disbursement?    @relation(fields: [disbursementId], references: [id], onDelete: Cascade)
-  closureId     String?
-  closure       GrantClosure?    @relation(fields: [closureId], references: [id], onDelete: Cascade)
-  proposalId    String?
-  proposal      Proposal?        @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  disbursement   Disbursement?   @relation(fields: [disbursementId], references: [id], onDelete: Cascade)
+  closureId      String?
+  closure        GrantClosure?   @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  proposalId     String?
+  proposal       Proposal?       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
   uploadedById String?
   uploadedBy   User?    @relation("GrantDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
@@ -6091,15 +6113,15 @@ model GrantDocument {
 /// What documents a grant must hold, and by when. Data rather than code so the
 /// set can change per granting unit without a deploy.
 model GrantDocumentRequirement {
-  id   String            @id @default(cuid())
-  kind GrantDocumentKind
+  id             String            @id @default(cuid())
+  kind           GrantDocumentKind
   /// Null = applies to every granting unit.
   grantingUnitId String?
-  grantingUnit   GrantingUnit? @relation(fields: [grantingUnitId], references: [id], onDelete: Cascade)
+  grantingUnit   GrantingUnit?     @relation(fields: [grantingUnitId], references: [id], onDelete: Cascade)
 
   /// Which gate this document blocks, mirroring GrantConditionTiming.
   timing   GrantConditionTiming
-  isActive Boolean @default(true)
+  isActive Boolean              @default(true)
   note     String?
 
   @@unique([kind, grantingUnitId, timing])
@@ -6151,8 +6173,8 @@ model GrantTranche {
 
   /// False until the year-boundary recompute confirms this year's figure.
   /// Nothing may be requested against an indicative tranche.
-  isCommitted Boolean   @default(false)
-  committedAt DateTime?
+  isCommitted        Boolean   @default(false)
+  committedAt        DateTime?
   /// What the figure was before the last restatement, so a changed projection
   /// can be explained rather than silently replaced.
   restatedFromAmount Decimal?  @db.Decimal(14, 2)
@@ -6162,8 +6184,8 @@ model GrantTranche {
   /// Extra release rule beyond conditions, e.g. "report for slot 2 approved".
   releaseRuleNote String?
   /// The report slot whose approval gates this tranche — the common real rule.
-  gatingSlotId String?
-  gatingSlot   BudgetReportSlot? @relation(fields: [gatingSlotId], references: [id], onDelete: SetNull)
+  gatingSlotId    String?
+  gatingSlot      BudgetReportSlot? @relation(fields: [gatingSlotId], references: [id], onDelete: SetNull)
 
   requests      DisbursementRequest[]
   disbursements Disbursement[]
@@ -6205,7 +6227,7 @@ model DisbursementRequest {
   disbursements Disbursement[]
   rejectionNote String?
   resolvedAt    DateTime?
-  createdAt     DateTime                  @default(now())
+  createdAt     DateTime               @default(now())
 
   @@index([trancheId])
   @@index([status, submittedAt])
@@ -6220,10 +6242,10 @@ model DisbursementApproval {
 
   /// The DoA rule this satisfies. Plain id, no FK: the rule may be edited or
   /// retired later and this record must not change meaning.
-  authorityRuleId String?
+  authorityRuleId   String?
   /// Denormalised at approval time — what the matrix said when it mattered,
   /// including the policy clause it came from.
-  authoritySnapshot Json @default("{}")
+  authoritySnapshot Json    @default("{}")
 
   approverId String
   approver   User     @relation("DisbursementApprover", fields: [approverId], references: [id], onDelete: Restrict)
@@ -6242,22 +6264,22 @@ model DisbursementApproval {
 /// `bankReference` is what ties the two systems together, so a released row
 /// without one is refused.
 model Disbursement {
-  id        String       @id @default(cuid())
+  id        String               @id @default(cuid())
   trancheId String
-  tranche   GrantTranche @relation(fields: [trancheId], references: [id], onDelete: Restrict)
+  tranche   GrantTranche         @relation(fields: [trancheId], references: [id], onDelete: Restrict)
   budgetId  String
-  budget    Budget       @relation(fields: [budgetId], references: [id], onDelete: Restrict)
+  budget    Budget               @relation(fields: [budgetId], references: [id], onDelete: Restrict)
   requestId String?
   request   DisbursementRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
 
-  amount Decimal @db.Decimal(14, 2)
+  amount    Decimal @db.Decimal(14, 2)
   /// TDS or bank charges withheld at source.
-  tdsAmount Decimal @db.Decimal(14, 2) @default(0)
+  tdsAmount Decimal @default(0) @db.Decimal(14, 2)
   /// amount − tdsAmount. Stored, because this is what the bank actually moved
   /// and what the grantee reconciles against.
   netAmount Decimal @db.Decimal(14, 2)
 
-  valueDate DateTime @db.Date
+  valueDate        DateTime @db.Date
   /// UTR / NEFT / cheque number. The reconciliation key against accounting.
   bankReference    String?
   instrument       String?
@@ -6267,11 +6289,11 @@ model Disbursement {
   failureNote String?
 
   /// Reconciliation against what the grantee reports having received.
-  reconciledReportId String?
-  reconciledReport   BudgetReport? @relation("DisbursementReconciliation", fields: [reconciledReportId], references: [id], onDelete: SetNull)
-  reconciledAt       DateTime?
+  reconciledReportId  String?
+  reconciledReport    BudgetReport? @relation("DisbursementReconciliation", fields: [reconciledReportId], references: [id], onDelete: SetNull)
+  reconciledAt        DateTime?
   /// Signed rupees: reported − released. Non-zero is a finding, not an error.
-  reconciliationDelta Decimal? @db.Decimal(14, 2)
+  reconciliationDelta Decimal?      @db.Decimal(14, 2)
 
   recordedById String?
   recordedBy   User?    @relation("DisbursementRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
@@ -6314,21 +6336,21 @@ model GrantClosure {
 
   /// Frozen at closure, not read live afterwards: a closed grant's numbers must
   /// not drift when the registry or the reports move underneath them.
-  totalReleased Decimal @db.Decimal(14, 2) @default(0)
-  totalUtilised Decimal @db.Decimal(14, 2) @default(0)
+  totalReleased Decimal @default(0) @db.Decimal(14, 2)
+  totalUtilised Decimal @default(0) @db.Decimal(14, 2)
   /// released − utilised − carriedForward, floored at 0.
-  unspentAmount Decimal @db.Decimal(14, 2) @default(0)
+  unspentAmount Decimal @default(0) @db.Decimal(14, 2)
 
   /// How the unspent balance was settled. Decided case by case, so there is NO
   /// DEFAULT and nothing is inferred: where unspentAmount > 0 a person must set
   /// this before closure can be signed off. A default here would quietly assert
   /// a financial position nobody took.
-  settlementMode String?
+  settlementMode       String?
   /// Required when settlementMode = adjusted_against_renewal: the budget the
   /// balance was carried into. Without it a carry-forward is untraceable and
   /// the money appears twice across two grants.
   adjustedIntoBudgetId String?
-  adjustedIntoBudget   Budget? @relation("ClosureAdjustment", fields: [adjustedIntoBudgetId], references: [id], onDelete: SetNull)
+  adjustedIntoBudget   Budget?   @relation("ClosureAdjustment", fields: [adjustedIntoBudgetId], references: [id], onDelete: SetNull)
   refundReceivedOn     DateTime? @db.Date
   refundAmount         Decimal?  @db.Decimal(14, 2)
   refundReference      String?
@@ -6362,12 +6384,12 @@ model GrantAsset {
   closureId String
   closure   GrantClosure @relation(fields: [closureId], references: [id], onDelete: Cascade)
 
-  description String
-  quantity    Int      @default(1)
-  cost        Decimal  @db.Decimal(14, 2)
-  acquiredOn  DateTime? @db.Date
+  description     String
+  quantity        Int       @default(1)
+  cost            Decimal   @db.Decimal(14, 2)
+  acquiredOn      DateTime? @db.Date
   /// retained_by_grantee | returned | transferred | written_off
-  disposition String
+  disposition     String
   dispositionNote String?
 
   @@index([closureId])
@@ -6414,28 +6436,28 @@ model AuthorityRule {
   /// grant's programme_finance must approve" binds to whoever holds that role
   /// on the grant in question, so the matrix never has to name individuals and
   /// does not go stale when someone moves on.
-  roleId String?
-  role   Role?   @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  userId String?
-  user   User?   @relation("AuthorityHolder", fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String?
+  role      Role?      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?      @relation("AuthorityHolder", fields: [userId], references: [id], onDelete: Cascade)
   grantRole GrantRole?
 
   /// Inclusive rupee ceiling. Null = unlimited.
-  maxAmount Decimal? @db.Decimal(14, 2)
+  maxAmount         Decimal? @db.Decimal(14, 2)
   /// How many distinct holders must approve. 2 = maker-checker at this level.
-  approvalsRequired Int @default(1)
+  approvalsRequired Int      @default(1)
   /// When true, the submitter may not be one of the approvers.
-  excludeSubmitter Boolean @default(true)
+  excludeSubmitter  Boolean  @default(true)
 
   /// Lower number wins when several rules match.
-  priority Int      @default(100)
-  isActive Boolean  @default(true)
-  note     String?
+  priority        Int      @default(100)
+  isActive        Boolean  @default(true)
+  note            String?
   /// The clause of the written DoA policy this rule encodes, e.g.
   /// "Finance Policy v4 §6.2(b)".
   policyReference String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([action, isActive, priority])
 }
@@ -6449,7 +6471,7 @@ model AuthorityDelegation {
   toUser     User   @relation("DelegationTo", fields: [toUserId], references: [id], onDelete: Cascade)
 
   /// Null = all actions the delegator holds.
-  action String?
+  action    String?
   /// A delegate may be capped below the delegator's own ceiling.
   maxAmount Decimal? @db.Decimal(14, 2)
 
@@ -6484,7 +6506,7 @@ model OrgCompliance {
   /// Null = no expiry (a PAN never expires; an FCRA certificate does).
   validUntil DateTime? @db.Date
 
-  documentId String?
+  documentId   String?
   verifiedById String?
   verifiedBy   User?     @relation("ComplianceVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
   verifiedAt   DateTime?
@@ -6511,9 +6533,9 @@ model ComplianceKindConfig {
   blocksRelease Boolean @default(false)
   isRequired    Boolean @default(true)
   /// Days before validUntil to start warning.
-  warnDays Int     @default(60)
-  isActive Boolean @default(true)
-  note     String?
+  warnDays      Int     @default(60)
+  isActive      Boolean @default(true)
+  note          String?
 }
 
 // ── 2.4 Conflict of interest ─────────────────────────────────────────────────
@@ -6570,19 +6592,19 @@ model FundingWindow {
   grantingUnitId String?
   grantingUnit   GrantingUnit? @relation(fields: [grantingUnitId], references: [id], onDelete: SetNull)
 
-  status    FundingWindowStatus @default(draft)
-  opensOn   DateTime?           @db.Date
-  closesOn  DateTime?           @db.Date
+  status        FundingWindowStatus @default(draft)
+  opensOn       DateTime?           @db.Date
+  closesOn      DateTime?           @db.Date
   /// Published guidance, eligibility and the question set, as data.
-  brief     String?
-  questions Json                @default("[]")
+  brief         String?
+  questions     Json                @default("[]")
   /// Indicative ceiling shown to applicants.
-  ceilingAmount Decimal? @db.Decimal(14, 2)
+  ceilingAmount Decimal?            @db.Decimal(14, 2)
 
   proposals Proposal[]
   rubrics   ProposalRubric[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@index([status, closesOn])
 }
@@ -6604,7 +6626,7 @@ enum ProposalStage {
 /// its own model: a grantee org and a fellowship applicant have genuinely
 /// different fields, and one polymorphic table would be worse.
 model Proposal {
-  id       String        @id @default(cuid())
+  id       String         @id @default(cuid())
   windowId String?
   window   FundingWindow? @relation(fields: [windowId], references: [id], onDelete: SetNull)
 
@@ -6614,12 +6636,12 @@ model Proposal {
 
   /// Applicant identity. `orgId` is set once the org is matched or created, so
   /// the free-text name is what the applicant typed, never the registry's.
-  orgId           String?
-  org             Org?    @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  orgId            String?
+  org              Org?    @relation(fields: [orgId], references: [id], onDelete: SetNull)
   applicantOrgName String
-  contactName     String
-  contactEmail    String
-  contactPhone    String?
+  contactName      String
+  contactEmail     String
+  contactPhone     String?
 
   title           String
   summary         String?
@@ -6628,11 +6650,11 @@ model Proposal {
   domains         String[] @default([])
   city            String?
 
-  answers   Json @default("{}")
+  answers           Json             @default("{}")
   /// Whether the applicant is asking for a first grant or a continuation.
   /// Carried onto the Budget at linkProposalToBudget().
-  continuity GrantContinuity?
-  stage     ProposalStage @default(received)
+  continuity        GrantContinuity?
+  stage             ProposalStage    @default(received)
   /// Required on ineligible / withdrawn, so a decline is never unexplained.
   declineReasonCode String?
   declineReasonNote String?
@@ -6658,8 +6680,8 @@ model Proposal {
   reviews   ProposalReview[]
   events    ProposalEvent[]
   documents GrantDocument[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@index([stage, createdAt])
   @@index([windowId, stage])
@@ -6671,7 +6693,7 @@ model Proposal {
 /// A versioned scoring sheet. The rubric is COPIED onto each review, so editing
 /// the rubric never changes a score already recorded.
 model ProposalRubric {
-  id       String        @id @default(cuid())
+  id       String         @id @default(cuid())
   windowId String?
   window   FundingWindow? @relation(fields: [windowId], references: [id], onDelete: SetNull)
 
@@ -6682,7 +6704,7 @@ model ProposalRubric {
   isActive Boolean @default(true)
 
   reviews   ProposalReview[]
-  createdAt DateTime @default(now())
+  createdAt DateTime         @default(now())
 
   @@index([windowId, isActive])
 }
@@ -6696,13 +6718,13 @@ model ProposalReview {
   reviewer   User   @relation("ProposalReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
   /// 1 = first pass, 2 = second. Divergence between two level-2 totals routes
   /// to the granting-unit lead.
-  level Int @default(1)
+  level      Int    @default(1)
 
-  rubricId String?
-  rubric   ProposalRubric? @relation(fields: [rubricId], references: [id], onDelete: SetNull)
+  rubricId       String?
+  rubric         ProposalRubric? @relation(fields: [rubricId], references: [id], onDelete: SetNull)
   /// The rubric as it stood when this review was scored.
-  rubricSnapshot Json @default("{}")
-  scores         Json @default("{}")
+  rubricSnapshot Json            @default("{}")
+  scores         Json            @default("{}")
   totalScore     Float?
 
   recommendation String?
@@ -6722,10 +6744,10 @@ model ProposalEvent {
   proposalId String
   proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
-  kind    String
-  detail  Json     @default("{}")
-  actorId String?
-  actor   User?    @relation("ProposalEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  kind      String
+  detail    Json     @default("{}")
+  actorId   String?
+  actor     User?    @relation("ProposalEventActor", fields: [actorId], references: [id], onDelete: SetNull)
   /// True for events the applicant may see on the public status page.
   isPublic  Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -6743,9 +6765,9 @@ model GrantResult {
   budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
   /// output | outcome
-  level     String  @default("output")
-  indicator String
-  unit      String?
+  level       String  @default("output")
+  indicator   String
+  unit        String?
   /// Null where the indicator is narrative-only.
   targetValue Float?
   /// Which domain of the grant this belongs to; null = whole grant.
@@ -6755,8 +6777,8 @@ model GrantResult {
   position    Int     @default(0)
 
   values    GrantResultValue[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
   @@index([budgetId])
 }
@@ -6764,16 +6786,16 @@ model GrantResult {
 /// One period's actual against a target. Both the grantee's figure and a
 /// reviewer's dispute are kept — neither overwrites the other.
 model GrantResultValue {
-  id       String      @id @default(cuid())
+  id       String           @id @default(cuid())
   resultId String
-  result   GrantResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  result   GrantResult      @relation(fields: [resultId], references: [id], onDelete: Cascade)
   slotId   String
   slot     BudgetReportSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
 
-  value  Float?
+  value         Float?
   /// derived | grantee | staff
-  source String  @default("grantee")
-  note   String?
+  source        String   @default("grantee")
+  note          String?
   reviewerValue Float?
   reviewerNote  String?
   updatedAt     DateTime @updatedAt
@@ -6789,7 +6811,7 @@ model BudgetReportNarrative {
   report   BudgetReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   /// [{ key, heading, body }] against a template on GrantingUnit.
-  sections Json    @default("[]")
+  sections       Json      @default("[]")
   /// Grantee-reported challenges and changes — the part funders actually read.
   deviationsNote String?
   submittedAt    DateTime?
@@ -6863,9 +6885,9 @@ enum Rag {
 /// trouble. Two axes rather than one, because the programme view and the
 /// finance view diverge often enough that averaging them hides the problem.
 model GrantAssessment {
-  id       String @id @default(cuid())
+  id       String            @id @default(cuid())
   budgetId String
-  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budget   Budget            @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   /// The reporting period assessed. Null for an off-cycle assessment, e.g.
   /// after a site visit that raised something.
   slotId   String?

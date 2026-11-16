@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const byKey = new Map(g.fieldSteps.map((s) => [s.stepKey, s]));
     for (const [i, t] of templates.entries()) {
       const dueDate = t.slaDays != null ? addDays(anchor, t.slaDays) : null;
-      const structure = { title: t.title, order: i, slaDays: t.slaDays, startSlaDays: t.startSlaDays, blockedByKey: t.blockedByKey, phaseTag: t.phaseTag, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, dueDate, templateSlug: MARKER };
+      const structure = { title: t.title, order: i, slaDays: t.slaDays, startSlaDays: t.startSlaDays, blockedByKey: t.blockedByKey, phaseTag: t.phaseTag, formKind: t.formKind, formSchema: (t.formSchema ?? undefined) as never, closureType: t.closureType, dueDate, templateSlug: MARKER };
       const ex = byKey.get(t.stepKey);
       if (ex) { await prisma.fieldStep.update({ where: { id: ex.id }, data: { ...structure, deletedAt: null } }); updated++; }
       else { await prisma.fieldStep.create({ data: { goalId: g.id, kind: "Setup", stepKey: t.stepKey, status: "Todo", ...structure } }); added++; }

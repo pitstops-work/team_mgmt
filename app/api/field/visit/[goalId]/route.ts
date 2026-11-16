@@ -10,6 +10,7 @@ import prisma from "@/lib/prisma";
 import { assertFieldGoalAccess } from "@/lib/field/access";
 import { reconcileScoredFollowups } from "@/lib/field/safety";
 import { computeCloseBlockers } from "@/lib/field/visitClose";
+import { proofBlocker } from "@/lib/field/closure";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
@@ -45,8 +46,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
       if (!v) return Response.json({ error: "No open visit" }, { status: 400 });
       const stepId: string = body?.stepId ?? "";
       const done: boolean = !!body?.done;
-      const step = await prisma.fieldStep.findFirst({ where: { id: stepId, goalId, kind: "Visit", deletedAt: null }, select: { id: true, formSchema: true } });
+      const step = await prisma.fieldStep.findFirst({ where: { id: stepId, goalId, kind: "Visit", deletedAt: null }, select: { id: true, formSchema: true, closureType: true } });
       if (!step) return Response.json({ error: "Unknown step" }, { status: 400 });
+
+      // A Voice / Upload step closes only with proof on THIS visit's occurrence.
+      if (done) {
+        const occ = await prisma.fieldVisitStep.findUnique({ where: { visitId_stepId: { visitId: v.id, stepId } }, select: { _count: { select: { attachments: true } } } });
+        const noProof = proofBlocker(step.closureType, occ?._count.attachments ?? 0);
+        if (noProof) return Response.json({ error: noProof }, { status: 400 });
+      }
 
       // Scored checklist (e.g. 24-point safety): reconcile follow-ups for failed
       // non-negotiables and persist { marks, raised } so re-saves stay idempotent.

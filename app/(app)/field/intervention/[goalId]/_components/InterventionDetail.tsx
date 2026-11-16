@@ -9,14 +9,17 @@ import {
 } from "lucide-react";
 import { CaregiverPracticeCapture } from "@/components/caregiver/CaregiverPracticeCapture";
 import { checklistGate } from "@/lib/field/stepGate";
+import { CLOSURE_LABEL, needsProof, normalizeClosureType, proofBlocker } from "@/lib/field/closure";
+import { StepProof, type Proof } from "./StepProof";
 
 // ── Types (dates arrive as ISO strings across the server→client boundary) ─────
 type FormField = { key: string; label?: string; text?: string; type?: string; options?: string[]; category?: string | null; nonNegotiable?: boolean; naAllowed?: boolean };
 type SetupStep = {
   id: string; title: string; status: string; dueDate: string | null; blocked: boolean;
   blockedByTitle: string | null; overdue: boolean; formKind: string | null; formSchema: any; answers: any;
+  closureType: string; proofs: Proof[]; note: string | null;
 };
-type VisitStep = { id: string; title: string; mandatory: boolean; formKind: string | null; formSchema: any; done: boolean; answers: any };
+type VisitStep = { id: string; title: string; mandatory: boolean; formKind: string | null; formSchema: any; done: boolean; answers: any; closureType: string; proofs: Proof[]; note: string | null };
 type Followup = { id: string; title: string; detail: string | null; dueDate: string | null; priority: string };
 type Data = {
   id: string; title: string; domainLabel: string; phase: "setting_up" | "live" | "done"; phaseLabel: string | null;
@@ -45,7 +48,13 @@ export function InterventionDetail({
   // One switch feeds every action button in this tree — the child views already
   // thread `busy` into each `disabled`.
   const locked = busy || readOnly;
-  const [formStep, setFormStep] = useState<{ kind: "setup" | "visit"; step: SetupStep | VisitStep } | null>(null);
+  // Held by id, not by object: recording a proof refreshes `data`, and the open
+  // form must see the new proof without being closed and reopened.
+  const [formRef, setFormRef] = useState<{ kind: "setup" | "visit"; id: string } | null>(null);
+  const formStep = formRef
+    ? { kind: formRef.kind, step: (formRef.kind === "setup" ? data.setupSteps : data.visitSteps).find((x) => x.id === formRef.id) }
+    : null;
+  const setFormStep = (v: { kind: "setup" | "visit"; step: SetupStep | VisitStep } | null) => setFormRef(v ? { kind: v.kind, id: v.step.id } : null);
   const [caregiverStepId, setCaregiverStepId] = useState<string | null>(null);
 
   async function post(url: string, body: unknown) {
@@ -95,12 +104,13 @@ export function InterventionDetail({
         </div>
       </div>
 
-      {data.phase === "setting_up" && <SetupView data={data} onOpenForm={(s) => setFormStep({ kind: "setup", step: s })} onComplete={(s) => post(`/api/field/step/${s.id}`, { action: s.status === "Done" ? "reopen" : "complete" })} busy={locked} />}
+      {data.phase === "setting_up" && <SetupView data={data} onOpenForm={(s) => setFormStep({ kind: "setup", step: s })} onComplete={(s) => post(`/api/field/step/${s.id}`, { action: s.status === "Done" ? "reopen" : "complete" })} onRecorded={() => router.refresh()} busy={locked} />}
       {data.phase === "live" && (
         <LiveView
           data={data}
           post={post}
           onOpenForm={(s) => (s.formKind === "caregiver_practices" ? setCaregiverStepId(s.id) : setFormStep({ kind: "visit", step: s }))}
+          onRecorded={() => router.refresh()}
           busy={locked}
         />
       )}
@@ -121,15 +131,20 @@ export function InterventionDetail({
         />
       )}
 
-      {formStep && (
+      {formStep?.step && (
         <StepFormModal
           step={formStep.step}
+          proofSlot={
+            <StepProof kind={formStep.kind} stepId={formStep.step.id} closureType={formStep.step.closureType} proofs={formStep.step.proofs} note={formStep.step.note}
+              done={formStep.kind === "setup" ? (formStep.step as SetupStep).status === "Done" : (formStep.step as VisitStep).done}
+              disabled={locked} onRecorded={() => router.refresh()} />
+          }
           onClose={() => setFormStep(null)}
           onSave={async (answers, complete) => {
             if (formStep.kind === "setup") {
-              await post(`/api/field/step/${formStep.step.id}`, { action: complete ? "complete" : "save", answers });
+              await post(`/api/field/step/${formStep.step!.id}`, { action: complete ? "complete" : "save", answers });
             } else {
-              await post(`/api/field/visit/${data.id}`, { action: "tick", stepId: formStep.step.id, done: complete, answers });
+              await post(`/api/field/visit/${data.id}`, { action: "tick", stepId: formStep.step!.id, done: complete, answers });
             }
             setFormStep(null);
           }}
@@ -140,7 +155,7 @@ export function InterventionDetail({
 }
 
 // ── Setting up: overall SLA + ordered steps ──────────────────────────────────
-function SetupView({ data, onOpenForm, onComplete, busy }: { data: Data; onOpenForm: (s: SetupStep) => void; onComplete: (s: SetupStep) => void; busy: boolean }) {
+function SetupView({ data, onOpenForm, onComplete, onRecorded, busy }: { data: Data; onOpenForm: (s: SetupStep) => void; onComplete: (s: SetupStep) => void; onRecorded: () => void; busy: boolean }) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-white px-4 py-3">
@@ -157,12 +172,16 @@ function SetupView({ data, onOpenForm, onComplete, busy }: { data: Data; onOpenF
       <ul className="space-y-2">
         {data.setupSteps.map((s, i) => {
           const done = s.status === "Done";
+          // A Voice / Photo step can't be ticked until its proof is recorded
+          // (the server refuses it too). Reopening a done step stays allowed.
+          const noProof = done ? null : proofBlocker(s.closureType, s.proofs.length);
           return (
             <li key={s.id} className={`rounded-xl border p-3.5 ${s.blocked ? "border-stone-100 bg-stone-50" : "border-stone-200 bg-white"}`}>
               <div className="flex items-start gap-3">
                 <button
-                  disabled={busy || s.blocked}
+                  disabled={busy || s.blocked || !!noProof}
                   onClick={() => onComplete(s)}
+                  title={noProof ?? undefined}
                   aria-label={done ? "Mark not done" : "Mark done"}
                   className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border transition ${
                     done ? "border-emerald-500 bg-emerald-500 text-white" : s.blocked ? "border-stone-200 text-stone-300" : "border-stone-300 text-transparent hover:border-emerald-400"
@@ -173,6 +192,7 @@ function SetupView({ data, onOpenForm, onComplete, busy }: { data: Data; onOpenF
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm ${done ? "text-stone-400 line-through" : "text-stone-900"}`}>
                     <span className="mr-1.5 text-xs text-stone-400">{i + 1}.</span>{s.title}
+                    <ClosureChip type={s.closureType} />
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
                     {s.blocked && <span className="text-stone-400">Waiting on “{s.blockedByTitle}”</span>}
@@ -184,6 +204,9 @@ function SetupView({ data, onOpenForm, onComplete, busy }: { data: Data; onOpenF
                       </button>
                     )}
                   </div>
+                  {needsProof(s.closureType) && !s.blocked && (
+                    <StepProof kind="setup" stepId={s.id} closureType={s.closureType} proofs={s.proofs} note={s.note} done={done} disabled={busy} onRecorded={onRecorded} />
+                  )}
                 </div>
               </div>
             </li>
@@ -195,7 +218,7 @@ function SetupView({ data, onOpenForm, onComplete, busy }: { data: Data; onOpenF
 }
 
 // ── Live: cadence + the current visit ─────────────────────────────────────────
-function LiveView({ data, post, onOpenForm, busy }: { data: Data; post: (u: string, b: unknown) => Promise<void>; onOpenForm: (s: VisitStep) => void; busy: boolean }) {
+function LiveView({ data, post, onOpenForm, onRecorded, busy }: { data: Data; post: (u: string, b: unknown) => Promise<void>; onOpenForm: (s: VisitStep) => void; onRecorded: () => void; busy: boolean }) {
   const behind = data.visitDoneThisMonth < data.visitRequired;
   const v = data.openVisit;
   return (
@@ -224,10 +247,15 @@ function LiveView({ data, post, onOpenForm, busy }: { data: Data; post: (u: stri
             )}
           </div>
           <ul className="space-y-1.5">
-            {data.visitSteps.map((s) => (
+            {data.visitSteps.map((s) => {
+              // Form steps open their form (which carries the proof capture);
+              // a bare Voice / Photo step ticks only once its proof is in.
+              const noProof = s.done || s.formKind ? null : proofBlocker(s.closureType, s.proofs.length);
+              return (
               <li key={s.id} className="flex items-start gap-3">
                 <button
-                  disabled={busy}
+                  disabled={busy || !!noProof}
+                  title={noProof ?? undefined}
                   onClick={() => (s.formKind ? onOpenForm(s) : post(`/api/field/visit/${data.id}`, { action: "tick", stepId: s.id, done: !s.done }))}
                   className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border transition ${s.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-stone-300 text-transparent hover:border-emerald-400"}`}
                   aria-label={s.done ? "Mark not done" : "Mark done"}
@@ -237,6 +265,7 @@ function LiveView({ data, post, onOpenForm, busy }: { data: Data; post: (u: stri
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm ${s.done ? "text-stone-400 line-through" : "text-stone-800"}`}>
                     {s.title}
+                    <ClosureChip type={s.closureType} />
                     {s.mandatory && !s.done && <span className="ml-1.5 text-[10px] font-medium text-stone-400">REQUIRED</span>}
                   </p>
                   {s.formKind && (
@@ -244,9 +273,15 @@ function LiveView({ data, post, onOpenForm, busy }: { data: Data; post: (u: stri
                       <ClipboardList size={12} /> {s.formKind === "caregiver_practices" ? "Observe caregiver practices" : "Open form"}
                     </button>
                   )}
+                  {/* Inline for every step, form steps included: the caregiver
+                      capture has no form modal to carry it. */}
+                  {needsProof(s.closureType) && (
+                    <StepProof kind="visit" stepId={s.id} closureType={s.closureType} proofs={s.proofs} note={s.note} done={s.done} disabled={busy} onRecorded={onRecorded} />
+                  )}
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
           <div className="space-y-2 border-t border-stone-100 pt-3">
             {data.closeBlockers.length > 0 && (
@@ -345,7 +380,7 @@ function FollowUpsPanel({ goalId, followups, post, busy }: { goalId: string; fol
 }
 
 // ── Generic form modal: checklist / questionnaire / caregiver-practices ───────
-function StepFormModal({ step, onClose, onSave }: { step: SetupStep | VisitStep; onClose: () => void; onSave: (answers: any, complete: boolean) => void | Promise<void> }) {
+function StepFormModal({ step, proofSlot, onClose, onSave }: { step: SetupStep | VisitStep; proofSlot: React.ReactNode; onClose: () => void; onSave: (answers: any, complete: boolean) => void | Promise<void> }) {
   const kind = step.formKind;
   const schema = step.formSchema ?? {};
   const scored = kind === "checklist" && schema.scored === true;
@@ -355,7 +390,10 @@ function StepFormModal({ step, onClose, onSave }: { step: SetupStep | VisitStep;
 
   // Checklist completion gate (scored: rate every non-neg; plain: check every
   // non-neg + at least one item). Same rule the API enforces server-side.
-  const gate = checklistGate(kind, schema, answers);
+  const formGate = checklistGate(kind, schema, answers);
+  // The closure proof (voice note / photo) gates "mark done" on top of the form.
+  const noProof = proofBlocker(step.closureType, step.proofs.length);
+  const gate = !formGate.canComplete ? formGate : noProof ? { canComplete: false, reason: noProof } : formGate;
   const canMarkDone = gate.canComplete;
 
   return (
@@ -389,6 +427,13 @@ function StepFormModal({ step, onClose, onSave }: { step: SetupStep | VisitStep;
                 )}
               </label>
             ))}
+          </div>
+        )}
+
+        {needsProof(step.closureType) && (
+          <div className="mt-4 rounded-lg border border-stone-200 bg-stone-50 p-3">
+            <p className="text-xs font-medium text-stone-600">To close this step: {CLOSURE_LABEL[normalizeClosureType(step.closureType)].toLowerCase()}</p>
+            {proofSlot}
           </div>
         )}
 
@@ -494,6 +539,13 @@ function ChecklistBody({ items, scored, answers, setAnswers }: { items: FormFiel
       ))}
     </div>
   );
+}
+
+// Shows how a Voice / Photo step is closed; a plain mark-done step gets no chip.
+function ClosureChip({ type }: { type: string }) {
+  const t = normalizeClosureType(type);
+  if (t === "Activity") return null;
+  return <span className="ml-1.5 rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">{CLOSURE_LABEL[t]}</span>;
 }
 
 function answeredCount(answers: any) {
