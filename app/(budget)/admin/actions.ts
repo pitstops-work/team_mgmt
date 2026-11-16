@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/lib/auth";
+import { isBudgetAdminOrSuperAdmin } from "@/lib/roleGuard";
 import prisma from "@/lib/prisma";
 import { getDefaultsForCity } from "@/lib/budget-costs";
 import { getTemplatesForCity } from "@/lib/line-template-seeds";
@@ -16,6 +17,28 @@ import type { BudgetSection, InflationType } from "@/app/generated/prisma/client
 import { revalidatePath } from "next/cache";
 
 /**
+ * The gate for every action in this file.
+ *
+ * All 32 of them checked `session?.user?.id` and nothing else — which answers
+ * "is anyone there", not "may they do this". What they write is the cost
+ * registry: the rates every future budget is generated from, plus the line
+ * templates, the domains and the published registry versions. So any logged-in
+ * account, a grantee login included, could change the unit cost of a creche or
+ * delete a line template, and the next budget generated anywhere would come out
+ * of the change without anyone having approved it.
+ *
+ * The /admin pages compute `isBudgetAdmin(session)` to decide what to render.
+ * That is a rendering decision; a hidden button is not a closed door, and these
+ * actions are callable by name.
+ */
+async function requireRegistryAdmin() {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  if (!isBudgetAdminOrSuperAdmin(session)) throw new Error("Forbidden");
+  return session;
+}
+
+/**
  * Author the "working" for a registry item: replace its component breakup and
  * free-text derivation. When components are present, the item's unit cost is set
  * to the rollup (Σ qty×unitCost) — a cost is the sum of its working — and the
@@ -28,8 +51,7 @@ export async function saveCostComponents(
   derivation: string | null,
   meta: { unit: string; domain?: string | null; currentCost: number },
 ) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const clean = rows
     .map(r => ({ label: (r.label ?? "").trim(), spec: (r.spec ?? "")?.toString().trim() || null, qty: Number(r.qty) || 0, unitCost: Number(r.unitCost) || 0 }))
@@ -65,8 +87,7 @@ export async function saveCostComponents(
 
 /** Change history for one registry item, newest first (for the portal timeline). */
 export async function getCostHistory(city: string, itemKey: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   const rows = await prisma.costRegistryHistory.findMany({
     where: { city, itemKey },
     orderBy: { changedAt: "desc" },
@@ -90,8 +111,7 @@ export async function getCostHistory(city: string, itemKey: string) {
 }
 
 export async function seedCostRegistry(city = "Bangalore") {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const defaults = getDefaultsForCity(city);
   // Log creations only: seed never overwrites existing edits (update:{}), so
@@ -136,8 +156,7 @@ export async function addCostItem(
   city: string,
   data: { domain?: string | null; itemKey: string; unit: string; unitCost: number; notes?: string; displayGroup?: string | null }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   await prisma.costRegistry.create({
     data: {
       city,
@@ -162,8 +181,7 @@ export async function updateCostRegistry(
   id: string, unitCost: number, notes?: string,
   displayGroup?: string | null, needsDomain?: string | null
 ) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const before = await prisma.costRegistry.findUnique({ where: { id } });
   await prisma.costRegistry.update({
@@ -185,8 +203,7 @@ export async function updateCostRegistry(
 }
 
 export async function seedProgrammeInputs(city: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   await prisma.$transaction(
     STANDARD_PROG_INPUTS.map(d =>
@@ -202,8 +219,7 @@ export async function seedProgrammeInputs(city: string) {
 
 // Back-fills displayGroup AND fixes notes (removes "Typical" etc.) on existing standard items
 export async function backfillDisplayGroups(city: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   await prisma.$transaction(
     STANDARD_PROG_INPUTS.map(d =>
@@ -218,8 +234,7 @@ export async function backfillDisplayGroups(city: string) {
 
 /** Publish the scope's registry as a named revision, e.g. "FY27 rates". */
 export async function publishCostVersion(city: string, label: string, effectiveFrom: string, notes?: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   const clean = label.trim();
   if (!clean) throw new Error("A version needs a label");
 
@@ -235,8 +250,7 @@ export async function publishCostVersion(city: string, label: string, effectiveF
 
 /** Put the scope's registry back to a published revision. Generated budgets are unaffected. */
 export async function restoreCostVersion(versionId: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   const result = await restoreRegistryVersion(versionId, session.user.id);
   revalidatePath("/admin");
   revalidatePath("/budget/admin");
@@ -259,8 +273,7 @@ export async function overrideCostItem(
   displayGroup?: string | null,
   needsDomain?: string | null,
 ) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const before = await prisma.costRegistry.findUnique({
     where: { city_itemKey: { city, itemKey: item.itemKey } },
@@ -292,15 +305,13 @@ export async function overrideCostItem(
  * an edit is saved so the admin knows what they are moving away from.
  */
 export async function costItemImpact(city: string, itemKey: string): Promise<RegistryImpact> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   return registryImpact(city, itemKey);
 }
 
 /** Standard lines that consistently underspend, and the rate that would imply. */
 export async function listLapseSuggestions(city: string): Promise<LapseSuggestion[]> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   return lapseSuggestions(city);
 }
 
@@ -310,8 +321,7 @@ export async function listLapseSuggestions(city: string): Promise<LapseSuggestio
  * same history row — distinguished only by where the number came from.
  */
 export async function applyLapseSuggestion(unitName: string, itemKey: string, newCost: number, reason: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   // The suggestion was read off the standard set this unit generates from, so
   // the correction belongs there too.
@@ -347,15 +357,13 @@ export async function applyLapseSuggestion(unitName: string, itemKey: string, ne
 
 /** Rates where one unit sits far from the shared layer or from its peers. */
 export async function listCostOutliers(thresholdPct: number): Promise<CostOutlier[]> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   return costOutliers(thresholdPct);
 }
 
 /** Drop a unit's own row so the item falls back to the shared layer again. */
 export async function revertToSharedCost(city: string, itemKey: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const [own, shared] = await Promise.all([
     prisma.costRegistry.findUnique({ where: { city_itemKey: { city, itemKey } } }),
@@ -384,8 +392,7 @@ export async function revertToSharedCost(city: string, itemKey: string) {
  * drift this layer exists to remove.
  */
 export async function promoteCostToShared(city: string, itemKey: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   if (city === GLOBAL_SCOPE) return;
 
   const own = await prisma.costRegistry.findUnique({ where: { city_itemKey: { city, itemKey } } });
@@ -427,8 +434,7 @@ export async function promoteCostToShared(city: string, itemKey: string) {
 }
 
 export async function deleteCostItem(id: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   const before = await prisma.costRegistry.findUnique({ where: { id } });
   await prisma.costRegistry.delete({ where: { id } });
   if (before) {
@@ -442,8 +448,7 @@ export async function deleteCostItem(id: string) {
 }
 
 export async function resetCostRegistry(id: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const entry = await prisma.costRegistry.findUnique({ where: { id } });
   if (!entry) return;
@@ -498,15 +503,13 @@ export type LineTemplateFields = {
 };
 
 export async function toggleLineTemplate(id: string, isActive: boolean) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   await prisma.lineTemplate.update({ where: { id }, data: { isActive } });
   revalidatePath("/admin");
 }
 
 export async function addLineTemplate(city: string, fields: LineTemplateFields) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const maxPos = await prisma.lineTemplate.aggregate({
     where: { city },
@@ -522,22 +525,19 @@ export async function addLineTemplate(city: string, fields: LineTemplateFields) 
 }
 
 export async function updateLineTemplate(id: string, fields: Partial<LineTemplateFields>) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   await prisma.lineTemplate.update({ where: { id }, data: fields });
   revalidatePath("/admin");
 }
 
 export async function deleteLineTemplate(id: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   await prisma.lineTemplate.delete({ where: { id } });
   revalidatePath("/admin");
 }
 
 export async function reorderLineTemplates(city: string, orderedIds: string[]) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   await prisma.$transaction(
     orderedIds.map((id, position) => prisma.lineTemplate.update({ where: { id }, data: { position } }))
   );
@@ -564,8 +564,7 @@ async function ensureBeneficiaryVar(city: string, varName: string) {
 }
 
 export async function addDomain(city: string, key: string, fields: DomainConfigFields) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const maxPos = await prisma.budgetDomainConfig.aggregate({
     where: { city },
@@ -579,8 +578,7 @@ export async function addDomain(city: string, key: string, fields: DomainConfigF
 }
 
 export async function updateDomain(id: string, fields: Partial<DomainConfigFields>) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   if (fields.beneficiaryVar) {
     const domain = await prisma.budgetDomainConfig.findUnique({ where: { id }, select: { city: true } });
     if (domain) await ensureBeneficiaryVar(domain.city, fields.beneficiaryVar);
@@ -590,15 +588,13 @@ export async function updateDomain(id: string, fields: Partial<DomainConfigField
 }
 
 export async function toggleDomain(id: string, isActive: boolean) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   await prisma.budgetDomainConfig.update({ where: { id }, data: { isActive } });
   revalidatePath("/admin");
 }
 
 export async function reorderDomains(city: string, orderedIds: string[]) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
   await prisma.$transaction(
     orderedIds.map((id, position) => prisma.budgetDomainConfig.update({ where: { id }, data: { position } }))
   );
@@ -606,8 +602,7 @@ export async function reorderDomains(city: string, orderedIds: string[]) {
 }
 
 export async function seedDomains(city: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const defaults = [
     { key: "Children",     label: "Children",                     description: "CLCs, after-school, camps",           position: 0, beneficiaryLabel: "Children",       beneficiaryVar: "nCLCs",        beneficiaryMult: 100 },
@@ -639,8 +634,7 @@ export async function getGeoChildren(
   level: "city" | "zone" | "cluster",
   parentId: string
 ): Promise<{ id: string; name: string }[]> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   if (level === "city") {
     const cities = await prisma.city.findMany({ where: { name: parentId }, select: { id: true } });
@@ -716,8 +710,7 @@ export async function loadNeedsScenario(
   geoId: string,
   metric: "need" | "addressable" | "existing" | "plan" | "gap"
 ): Promise<Record<string, number>> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   // ── Resolve settlement + cluster IDs in scope ──────────────────────────────
   let allSettlementIds: string[] = [];
@@ -868,8 +861,7 @@ export async function loadNeedsScenario(
 }
 
 export async function seedLineTemplates(city: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const specs = getTemplatesForCity(city);
   await prisma.$transaction(
@@ -938,8 +930,7 @@ export async function loadBudgetForCompare(budgetId: string): Promise<{
     y5Total: number;
   }>;
 }> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  const session = await requireRegistryAdmin();
 
   const budget = await prisma.budget.findUnique({
     where: { id: budgetId },

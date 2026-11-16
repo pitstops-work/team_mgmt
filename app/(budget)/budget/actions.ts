@@ -113,6 +113,7 @@ function lineCreateData(l: ReturnType<typeof generateBudgetLines>[number]) {
 export async function listGrantPartners(city: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
+  if (!isBudgetAdminOrSuperAdmin(session)) throw new Error("Forbidden");
   return prisma.grantPartner.findMany({
     where: { city, isActive: true },
     orderBy: { name: "asc" },
@@ -138,6 +139,7 @@ export async function createGrantPartner(
 ): Promise<{ id: string; name: string; orgId: string }> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
+  if (!isBudgetAdminOrSuperAdmin(session)) throw new Error("Forbidden");
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Partner name required");
 
@@ -172,9 +174,17 @@ export async function addGrantPartnerFromRegistry(
  * label, as this used to, made the budget portal disagree with every other
  * portal about what the partner was called.
  */
+/**
+ * Renames the ORG, not the grant relationship — `renamePartner(rel.orgId, …)`.
+ * `Org` is the partner identity across due diligence, budget and review, so
+ * this was a global rename of a grantee, reachable by any logged-in account.
+ * The project has already watched the app agree with itself on a misspelt
+ * partner name; this is the write that produces that.
+ */
 export async function renameGrantPartner(id: string, name: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
+  if (!isBudgetAdminOrSuperAdmin(session)) throw new Error("Forbidden");
   const rel = await prisma.grantPartner.findUnique({ where: { id }, select: { orgId: true } });
   if (!rel) throw new Error("Partner not found");
   await renamePartner(rel.orgId, name);
@@ -186,6 +196,7 @@ export async function renameGrantPartner(id: string, name: string) {
 export async function toggleGrantPartner(id: string, isActive: boolean) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
+  if (!isBudgetAdminOrSuperAdmin(session)) throw new Error("Forbidden");
   await prisma.grantPartner.update({ where: { id }, data: { isActive } });
   revalidatePath("/budget/admin/partners");
 }

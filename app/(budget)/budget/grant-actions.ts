@@ -166,6 +166,109 @@ async function requireInternalGrantReader(budgetId: string) {
   return session;
 }
 
+/**
+ * The role, with no grant to scope it to.
+ *
+ * For the portfolio-wide reads and the organisation-keyed writes. There is no
+ * `budgetId` to check record access against, so the role IS the gate — which is
+ * worth stating rather than leaving as the absence of a second check.
+ *
+ * What this does NOT do is narrow a portfolio read to the granting units the
+ * reader can reach. That is true of every portfolio view in this app and is a
+ * real limit, not a decision.
+ */
+async function requireInternalStaff() {
+  const session = await requireSession();
+  if (!(isSuperAdmin(session) || isBudgetAdmin(session))) throw new Error("Forbidden");
+  return session;
+}
+
+/**
+ * Which grant does this child row belong to?
+ *
+ * Half the actions in this file are keyed on a child id — a condition, a
+ * tranche, a release request, a disbursement, a reporting slot — and not on a
+ * budget. That is why they ended up with `requireSession()` and nothing else:
+ * there was no `budgetId` in the signature to hand to a gate, so no gate was
+ * written. Resolving ownership is three lines; not resolving it left the
+ * release and payment path open to anyone with a login.
+ *
+ * Returns null when the row does not exist, so the caller refuses rather than
+ * silently passing a gate on `undefined`.
+ */
+type GrantRef =
+  | { kind: "condition"; id: string }
+  | { kind: "tranche"; id: string }
+  | { kind: "request"; id: string }
+  | { kind: "disbursement"; id: string }
+  | { kind: "slot"; id: string }
+  | { kind: "roleAssignment"; id: string };
+
+async function budgetIdFor(ref: GrantRef): Promise<string | null> {
+  switch (ref.kind) {
+    case "condition": {
+      const row = await prisma.grantCondition.findUnique({
+        where: { id: ref.id },
+        select: { decision: { select: { budgetId: true } } },
+      });
+      return row?.decision.budgetId ?? null;
+    }
+    case "tranche": {
+      const row = await prisma.grantTranche.findUnique({
+        where: { id: ref.id },
+        select: { budgetId: true },
+      });
+      return row?.budgetId ?? null;
+    }
+    case "request": {
+      const row = await prisma.disbursementRequest.findUnique({
+        where: { id: ref.id },
+        select: { tranche: { select: { budgetId: true } } },
+      });
+      return row?.tranche.budgetId ?? null;
+    }
+    case "disbursement": {
+      // Straight off the row. `Disbursement.requestId` is nullable with
+      // `onDelete: SetNull` — a payment can outlive the request behind it — so
+      // resolving through the request would have left an orphaned payment
+      // permanently ungateable, and therefore unfixable.
+      const row = await prisma.disbursement.findUnique({
+        where: { id: ref.id },
+        select: { budgetId: true },
+      });
+      return row?.budgetId ?? null;
+    }
+    case "slot": {
+      const row = await prisma.budgetReportSlot.findUnique({
+        where: { id: ref.id },
+        select: { budgetId: true },
+      });
+      return row?.budgetId ?? null;
+    }
+    case "roleAssignment": {
+      const row = await prisma.grantRoleAssignment.findUnique({
+        where: { id: ref.id },
+        select: { budgetId: true },
+      });
+      return row?.budgetId ?? null;
+    }
+  }
+}
+
+/** Write access to the grant a child row belongs to. */
+async function requireGrantReviewerVia(ref: GrantRef) {
+  const budgetId = await budgetIdFor(ref);
+  if (!budgetId) throw new Error("Not found");
+  return requireGrantReviewer(budgetId);
+}
+
+/** Read access to the grant a child row belongs to, grantee included. */
+async function requireGrantReaderVia(ref: GrantRef) {
+  const budgetId = await budgetIdFor(ref);
+  if (!budgetId) throw new Error("Not found");
+  return requireGrantReader(budgetId);
+}
+
 function asFormError(err: unknown): { ok: false; error: string; reason?: string } {
   if (err instanceof AuthorityError) {
     return { ok: false, error: err.message, reason: err.reason };
@@ -192,7 +295,13 @@ export async function recordGrantDecision(input: {
   baselineIsReconstructed?: boolean;
   reconstructionNote?: string;
 }) {
-  const session = await requireSession();
+  // `recordDecision` does check `requireAuthority("grant_decision")`, which is
+  // why this was survivable: no authority rule, no decision. But authority
+  // answers "may this person approve amounts of this size" — not "does this
+  // person have any business with THIS grant". Today all 14 rules are scoped to
+  // an RBAC role, so the role check below is partly belt-and-braces; the record
+  // check is not, and it is the one authority will never make.
+  const session = await requireGrantReviewer(input.budgetId);
   try {
     const decision = await recordDecision(session, {
       ...input,
@@ -211,7 +320,7 @@ export async function recordGrantDecision(input: {
 }
 
 export async function dischargeCondition(conditionId: string, note: string) {
-  const session = await requireSession();
+  const session = await requireGrantReviewerVia({ kind: "condition", id: conditionId });
   try {
     await resolveCondition(session, conditionId, { mode: "discharge", note });
     revalidatePath("/budget");
@@ -222,7 +331,11 @@ export async function dischargeCondition(conditionId: string, note: string) {
 }
 
 export async function waiveCondition(conditionId: string, note: string) {
-  const session = await requireSession();
+  // Waiving reaches `requireAuthority("condition_waive")` inside
+  // `resolveCondition`; discharging does not reach any authority check at all,
+  // and a discharged pre-disbursement condition opens the release gate just as
+  // a waived one does.
+  const session = await requireGrantReviewerVia({ kind: "condition", id: conditionId });
   try {
     await resolveCondition(session, conditionId, { mode: "waive", note });
     revalidatePath("/budget");
@@ -232,8 +345,16 @@ export async function waiveCondition(conditionId: string, note: string) {
   }
 }
 
+/**
+ * Internal, despite `PARTNER_VISIBLE.decision` being true.
+ *
+ * A grantee may see THAT a decision exists and on what terms; this returns the
+ * forum, the reason codes and the decline notes, which the decision screen
+ * itself says are "written for institutional memory rather than for the
+ * applicant".
+ */
 export async function getGrantDecision(budgetId: string) {
-  await requireSession();
+  await requireInternalGrantReader(budgetId);
   const [decision, history, variance] = await Promise.all([
     activeDecision(budgetId),
     decisionHistory(budgetId),
@@ -372,7 +493,23 @@ export async function attachGrantDocument(input: {
   /** The document this replaces — a new version is a new row. */
   supersedesId?: string;
 }) {
-  const session = await requireSession();
+  // Every anchor is optional, so there is not always a `budgetId` to gate on —
+  // which is how this ended up ungated. An unanchored document is refused
+  // rather than gated loosely: a row in the grant document set belonging to no
+  // grant is not a thing anyone asked for, and it is exactly what an
+  // unauthenticated-feeling write would produce.
+  const anchorBudgetId =
+    input.budgetId ??
+    (input.conditionId ? await budgetIdFor({ kind: "condition", id: input.conditionId }) : null) ??
+    (input.disbursementId
+      ? await budgetIdFor({ kind: "disbursement", id: input.disbursementId })
+      : null);
+  if (!anchorBudgetId) {
+    throw new Error(
+      "Attach the document to a grant. The grantee-facing upload is /api/grants/documents/upload, which has its own gate on the document KIND.",
+    );
+  }
+  const session = await requireGrantReviewer(anchorBudgetId);
   const anchors = [
     input.budgetId,
     input.agreementId,
@@ -428,8 +565,12 @@ export async function attachGrantDocument(input: {
 
 // ── 1.3 Tranches and disbursement ────────────────────────────────────────────
 
+/**
+ * Writes the whole release schedule: how much the grantee is told they will
+ * receive, and when. It reached no authority check and no role check.
+ */
 export async function generateSchedule(budgetId: string, opts?: { frequency?: TrancheFrequency; startOn?: string }) {
-  const session = await requireSession();
+  const session = await requireGrantReviewer(budgetId);
   try {
     const planned = await generateTrancheSchedule(session.user!.id!, budgetId, {
       frequency: opts?.frequency,
@@ -452,7 +593,7 @@ export async function generateSchedule(budgetId: string, opts?: { frequency?: Tr
 }
 
 export async function recomputeYear(budgetId: string, grantYear: number) {
-  const session = await requireSession();
+  const session = await requireGrantReviewer(budgetId);
   try {
     const result = await recomputeGrantYear(session.user!.id!, budgetId, grantYear);
     revalidatePath(`/budget/${budgetId}/disbursements`);
@@ -462,8 +603,13 @@ export async function recomputeYear(budgetId: string, grantYear: number) {
   }
 }
 
+/**
+ * Read, grantee included: the releases page is in the partner allowlist on
+ * purpose — what is coming, what is blocking the next tranche, and the bank
+ * references to match against their own statement.
+ */
 export async function getTrancheView(budgetId: string) {
-  await requireSession();
+  await requireGrantReader(budgetId);
   const [tranches, totals] = await Promise.all([
     prisma.grantTranche.findMany({
       where: { budgetId },
@@ -509,12 +655,12 @@ export async function getTrancheView(budgetId: string) {
 }
 
 export async function getReleaseGate(trancheId: string) {
-  await requireSession();
+  await requireGrantReaderVia({ kind: "tranche", id: trancheId });
   return releaseGate(trancheId);
 }
 
 export async function requestRelease(input: { trancheId: string; requestedAmount?: number; justification: string }) {
-  const session = await requireSession();
+  const session = await requireGrantReviewerVia({ kind: "tranche", id: input.trancheId });
   try {
     const result = await submitDisbursementRequest(session, input);
     revalidatePath("/budget/disbursements");
@@ -525,7 +671,7 @@ export async function requestRelease(input: { trancheId: string; requestedAmount
 }
 
 export async function approveRelease(requestId: string, opts?: { note?: string; overrideReason?: string }) {
-  const session = await requireSession();
+  const session = await requireGrantReviewerVia({ kind: "request", id: requestId });
   try {
     const result = await approveDisbursementRequest(session, requestId, {
       note: opts?.note,
@@ -539,7 +685,7 @@ export async function approveRelease(requestId: string, opts?: { note?: string; 
 }
 
 export async function rejectRelease(requestId: string, note: string) {
-  const session = await requireSession();
+  const session = await requireGrantReviewerVia({ kind: "request", id: requestId });
   try {
     await rejectDisbursementRequest(session, requestId, note);
     revalidatePath("/budget/disbursements");
@@ -558,7 +704,16 @@ export async function confirmPayment(input: {
   instrument?: string;
   fromAccountLabel?: string;
 }) {
-  const session = await requireSession();
+  // ── The find of this audit ────────────────────────────────────────────────
+  // This records money as having left the building: amount, value date, bank
+  // reference. `recordDisbursement` checks only that the caller is logged in
+  // and that the request is already `approved` — nothing about who they are.
+  // The releases page is grantee-reachable and hides these controls behind a
+  // `canRecord` prop, which is a UI flag and not a gate, so a grantee could
+  // confirm a payment on their own approved tranche with a bank reference they
+  // invented. The row would then drop off `approvedUnpaid()` — the report whose
+  // whole job is to show money approved and not yet paid.
+  const session = await requireGrantReviewerVia({ kind: "request", id: input.requestId });
   try {
     const row = await recordDisbursement(session, { ...input, valueDate: new Date(input.valueDate) });
     revalidatePath("/budget/disbursements");
@@ -572,7 +727,7 @@ export async function markPaymentFailed(
   disbursementId: string,
   input: { status: "failed" | "returned" | "recovered"; note: string },
 ) {
-  const session = await requireSession();
+  const session = await requireGrantReviewerVia({ kind: "disbursement", id: disbursementId });
   try {
     await markDisbursementFailed(session, disbursementId, input);
     revalidatePath("/budget/disbursements");
@@ -583,7 +738,7 @@ export async function markPaymentFailed(
 }
 
 export async function reconcileReportSlot(slotId: string) {
-  const session = await requireSession();
+  const session = await requireGrantReviewerVia({ kind: "slot", id: slotId });
   try {
     const result = await reconcileSlot(session, slotId);
     return { ok: true as const, ...result };
@@ -593,8 +748,14 @@ export async function reconcileReportSlot(slotId: string) {
 }
 
 /** The gap: approved for release, not yet confirmed paid by accounting. */
+/**
+ * Portfolio-wide when called with no argument, so the role is the gate. With a
+ * `budgetId` it is scoped to that grant and checked against it, because a
+ * reviewer who may read one grant is not thereby allowed to read the rest.
+ */
 export async function getApprovedUnpaid(budgetId?: string) {
-  await requireSession();
+  if (budgetId) await requireInternalGrantReader(budgetId);
+  else await requireInternalStaff();
   return approvedUnpaid(budgetId ? { budgetId } : undefined);
 }
 
@@ -747,7 +908,7 @@ export async function getClosureAssets(budgetId: string) {
 }
 
 export async function getOverdueClosures() {
-  await requireSession();
+  await requireInternalStaff();
   return overdueForClosure();
 }
 
@@ -767,7 +928,11 @@ export async function canIApprove(input: {
   orgId?: string | null;
   submittedById?: string | null;
 }) {
-  const session = await requireSession();
+  // Asks about the caller's own authority, which sounds self-scoped — but the
+  // refusal path calls `authorityHoldersFor()` and names the people who CAN
+  // approve. That is the internal approval chain, and it is not a grantee's to
+  // read.
+  const session = await requireInternalStaff();
   const verdict = await checkAuthority(session, input);
   if (verdict.ok) return { ok: true as const, remainingApprovals: verdict.remainingApprovals };
 
@@ -787,13 +952,26 @@ export async function canIApprove(input: {
 
 // ── Second pass: roles, assessment, renewal, grantee financials ──────────────
 
+/**
+ * ── The escalation chain ──────────────────────────────────────────────────
+ * `checkAuthority` matches rules on the grant roles the caller holds
+ * (`authority.ts`: `rolesHeldBy(check.budgetId, userId)` feeding
+ * `grantRole: { in: grantRoles }`). So assigning a grant role can confer
+ * approval authority over that grant's money — and this action asked only for
+ * a session. Any logged-in user could give themselves a role on any grant.
+ *
+ * Latent rather than live today: of the 14 authority rules in the database, 0
+ * are scoped to a grant role, so there is currently nothing to escalate INTO.
+ * One policy row scoped to "programme finance" would have made it live, and
+ * nothing in the code would have changed to tell anyone.
+ */
 export async function setGrantRole(input: {
   budgetId: string;
   role: GrantRole;
   userId: string;
   note?: string;
 }) {
-  const session = await requireSession();
+  const session = await requireGrantReviewer(input.budgetId);
   try {
     const result = await assignGrantRole(session, input);
     revalidatePath(`/budget/${input.budgetId}`);
@@ -804,7 +982,15 @@ export async function setGrantRole(input: {
 }
 
 export async function clearGrantRole(assignmentId: string, budgetId: string, note?: string) {
-  const session = await requireSession();
+  // Gated on the assignment's OWN grant, not on the `budgetId` the caller
+  // passed. The two are separate arguments and nothing tied them together, so
+  // a caller with access to one grant could have ended a role on another by
+  // naming their own budget here — the revalidate path would even look right.
+  const session = await requireGrantReviewerVia({ kind: "roleAssignment", id: assignmentId });
+  const ownerBudgetId = await budgetIdFor({ kind: "roleAssignment", id: assignmentId });
+  if (ownerBudgetId !== budgetId) {
+    throw new Error("That role assignment belongs to a different grant.");
+  }
   try {
     await endGrantRole(session, assignmentId, note);
     revalidatePath(`/budget/${budgetId}`);
@@ -814,8 +1000,9 @@ export async function clearGrantRole(assignmentId: string, budgetId: string, not
   }
 }
 
+/** Who holds what on this grant — the internal org chart for it. */
 export async function getGrantRoles(budgetId: string) {
-  await requireSession();
+  await requireInternalGrantReader(budgetId);
   const [holders, unfilled] = await Promise.all([
     grantRoleHolders(budgetId),
     unfilledRoles(budgetId),
@@ -865,8 +1052,7 @@ export async function getAssessments(budgetId: string) {
  * to copy.
  */
 export async function getPortfolioHealth(grantingUnitId?: string) {
-  const session = await requireSession();
-  if (!(isSuperAdmin(session) || isBudgetAdmin(session))) throw new Error("Forbidden");
+  await requireInternalStaff();
   const [rows, unassessed] = await Promise.all([
     portfolioHealth(grantingUnitId ? { grantingUnitId } : undefined),
     unassessedPeriods(),
@@ -879,7 +1065,12 @@ export async function setRenewal(input: {
   renewsBudgetId: string;
   continuity?: GrantContinuity;
 }) {
-  const session = await requireSession();
+  // BOTH grants, because this writes a relationship between them and the
+  // predecessor's history is what a renewal appraisal then leans on. Access to
+  // the new grant alone would let someone attach it to a predecessor they
+  // cannot see.
+  const session = await requireGrantReviewer(input.budgetId);
+  await requireInternalGrantReader(input.renewsBudgetId);
   try {
     await linkRenewal(session, input.budgetId, input.renewsBudgetId, input.continuity);
     revalidatePath(`/budget/${input.budgetId}`);
@@ -889,8 +1080,13 @@ export async function setRenewal(input: {
   }
 }
 
+/**
+ * Internal: `partnerGrantHistory` returns this grantee's OTHER grants, so a
+ * grantee reading it would see the portfolio we hold on them — and a reviewer
+ * with access to one grant would see the rest.
+ */
 export async function getRenewalContext(budgetId: string) {
-  await requireSession();
+  await requireInternalGrantReader(budgetId);
   const budget = await prisma.budget.findUnique({
     where: { id: budgetId },
     select: { grantPartnerId: true },
@@ -910,7 +1106,11 @@ export async function saveOrgFinancialYear(input: {
   isAudited?: boolean;
   source?: string;
 }) {
-  const session = await requireSession();
+  // Keyed on an organisation, not a grant, so the role is the gate. These
+  // figures are the denominator of the dependency ratio an appraisal leans on:
+  // overstate the expenditure and a grant that would have looked like most of
+  // an organisation's income looks like a modest share of it.
+  const session = await requireInternalStaff();
   try {
     const row = await recordFinancialYear(session, input);
     return { ok: true as const, id: row.id };
@@ -930,7 +1130,7 @@ export async function getDependencyRatio(input: {
   amount: number;
   months?: number;
 }) {
-  await requireSession();
+  await requireInternalStaff();
   const [ratio, history] = await Promise.all([
     dependencyRatio(input.orgId, input.amount, { months: input.months }),
     financialHistory(input.orgId),
@@ -939,6 +1139,6 @@ export async function getDependencyRatio(input: {
 }
 
 export async function getStaleFinancials() {
-  await requireSession();
+  await requireInternalStaff();
   return staleFinancials();
 }
