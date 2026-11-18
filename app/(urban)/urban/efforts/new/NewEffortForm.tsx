@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { createEffortAction, type FormState } from "../../actions";
+import { searchPlaces } from "@/lib/urban/placeSearch";
 
 export type ProgrammeOption = {
   id: string; name: string; level: string; partnerOptional: boolean;
@@ -34,10 +35,8 @@ export function NewEffortForm({
 
   const programme = programmes.find((p) => p.id === programmeId);
   const levelPlaces = useMemo(() => places.filter((p) => p.level === programme?.level), [places, programme?.level]);
-  const shown = useMemo(() => {
-    const q = placeQuery.trim().toLowerCase();
-    return (q ? levelPlaces.filter((p) => p.path.toLowerCase().includes(q)) : levelPlaces).slice(0, 60);
-  }, [levelPlaces, placeQuery]);
+  const matches = useMemo(() => searchPlaces(levelPlaces, placeQuery), [levelPlaces, placeQuery]);
+  const shown = matches.slice(0, 100);
   const place = places.find((p) => p.id === placeId);
   const partner = partners.find((p) => p.id === partnerId);
 
@@ -94,6 +93,9 @@ export function NewEffortForm({
                   <button type="button" onClick={() => setPlaceId(p.id)} className="block w-full truncate px-3 py-1.5 text-left text-sm text-stone-700 hover:bg-stone-50">{p.path}</button>
                 </li>
               ))}
+              {matches.length > shown.length && (
+                <li className="border-t border-stone-100 px-3 py-1.5 text-[11px] text-stone-500">Showing {shown.length} of {matches.length} — keep typing to narrow.</li>
+              )}
               {!shown.length && (
                 <li className="px-3 py-3 text-xs text-stone-500">
                   {levelPlaces.length ? "No match." : `No ${LEVEL_LABEL[programme?.level ?? ""]}s yet.`}

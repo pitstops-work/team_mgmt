@@ -50,7 +50,7 @@ function countByLevel(places: { level: string }[]) {
   return c;
 }
 
-async function People({ placeOptions }: { placeOptions: { id: string; level: string; path: string }[] }) {
+async function People({ placeOptions }: { placeOptions: { id: string; level: string; name: string; path: string }[] }) {
   const users = await prisma.user.findMany({
     where: { role: { in: ["member", "admin", "super-admin", "viewer"] } },
     select: { id: true, name: true, email: true, role: true, designation: true, reportsTo: { select: { name: true, email: true } }, uoAssignments: { select: { id: true, placeId: true, programmeKey: true } } },

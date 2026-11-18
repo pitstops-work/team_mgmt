@@ -2,9 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { searchPlaces, PLACE_LEVELS_ORDERED } from "@/lib/urban/placeSearch";
 import { addAssignment, removeAssignment, importPlacesAction, importPartnersAction, addSite, savePartner } from "../actions";
 
-type PlaceOpt = { id: string; level: string; path: string; name?: string; imported?: boolean };
+type PlaceOpt = { id: string; level: string; path: string; name: string; imported?: boolean };
 
 function useAct() {
   const router = useRouter();
@@ -24,13 +25,19 @@ function Notice({ n }: { n: { tone: "ok" | "err"; text: string } | null }) {
   return <p className={`mb-3 rounded-lg px-3 py-2 text-sm ${n.tone === "ok" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>{n.text}</p>;
 }
 
+const MAX_SHOWN = 100;
+
+/**
+ * Search places by name (ranked: exact, starts with, word starts with, contains, path), with
+ * optional level chips. Opens on focus, so you can browse a level without typing.
+ */
 function PlacePicker({ places, value, onChange, levels, placeholder }: { places: PlaceOpt[]; value: string; onChange: (id: string) => void; levels?: string[]; placeholder: string }) {
   const [q, setQ] = useState("");
-  const pool = useMemo(() => (levels ? places.filter((p) => levels.includes(p.level)) : places), [places, levels]);
-  const shown = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return s ? pool.filter((p) => p.path.toLowerCase().includes(s)).slice(0, 40) : [];
-  }, [pool, q]);
+  const [open, setOpen] = useState(false);
+  const available = useMemo(() => PLACE_LEVELS_ORDERED.filter((l) => (!levels || levels.includes(l)) && places.some((p) => p.level === l)), [places, levels]);
+  const [level, setLevel] = useState<string>(""); // "" = every allowed level
+  const matches = useMemo(() => searchPlaces(places, q, level ? [level] : levels), [places, q, level, levels]);
+  const shown = matches.slice(0, MAX_SHOWN);
   const sel = places.find((p) => p.id === value);
   if (sel) {
     return (
@@ -41,18 +48,33 @@ function PlacePicker({ places, value, onChange, levels, placeholder }: { places:
     );
   }
   return (
-    <div className="relative">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} className="w-full rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-stone-500" />
-      {shown.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-stone-200 bg-white shadow-lg">
-          {shown.map((p) => (
-            <li key={p.id}>
-              <button type="button" onClick={() => { onChange(p.id); setQ(""); }} className="block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-stone-50">
-                <span className="mr-1 text-[10px] uppercase text-stone-400">{p.level}</span>{p.path}
-              </button>
-            </li>
-          ))}
-        </ul>
+    <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
+      <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder={placeholder} className="w-full rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-stone-500" />
+      {open && (
+        <div className="absolute z-10 mt-1 w-full rounded-lg border border-stone-200 bg-white shadow-lg">
+          {available.length > 1 && (
+            <div className="flex flex-wrap gap-1 border-b border-stone-100 px-2 py-1.5">
+              {["", ...available].map((l) => (
+                <button key={l || "all"} type="button" onClick={() => setLevel(l)} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${level === l ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}>
+                  {l ? `${l === "city" ? "Cities" : `${l[0].toUpperCase()}${l.slice(1)}s`} · ${places.filter((p) => p.level === l).length}` : "All"}
+                </button>
+              ))}
+            </div>
+          )}
+          <ul className="max-h-64 overflow-y-auto">
+            {shown.map((p) => (
+              <li key={p.id}>
+                <button type="button" onClick={() => { onChange(p.id); setQ(""); setOpen(false); }} className="block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-stone-50">
+                  <span className="mr-1 text-[10px] uppercase text-stone-400">{p.level}</span>{p.path}
+                </button>
+              </li>
+            ))}
+            {!shown.length && <li className="px-3 py-2 text-xs text-stone-500">No match.</li>}
+          </ul>
+          {matches.length > shown.length && (
+            <p className="border-t border-stone-100 px-3 py-1.5 text-[11px] text-stone-500">Showing {shown.length} of {matches.length} — keep typing or pick a level to narrow.</p>
+          )}
+        </div>
       )}
     </div>
   );
