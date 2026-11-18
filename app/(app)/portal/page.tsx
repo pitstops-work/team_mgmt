@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CalendarClock, Target, BarChart3, FileText, ClipboardCheck, Sprout, GraduationCap, UserSearch } from "lucide-react";
+import { CalendarClock, Target, BarChart3, FileText, ClipboardCheck, Sprout, GraduationCap, UserSearch, Building2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import SignOutButton from "@/components/SignOutButton";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
@@ -28,6 +28,10 @@ export default async function PortalPage() {
   // gate the nav-bar entry.
   const rbacCtx = await buildRbacContext(session);
   const canRecruit = await can(rbacCtx, "recruitment", "list");
+  // Urban Operations — the new portal (docs/urban-operations-spec.md). Pilot:
+  // admins plus URBAN_PILOT_EMAILS; the same rule gates /urban itself.
+  const { canEnterUrban } = await import("@/lib/urban/access");
+  const showUrban = await canEnterUrban();
 
   return (
     <SurfaceProvider id="portal.view">
@@ -81,6 +85,22 @@ export default async function PortalPage() {
           </div>
         </Link>
         </>
+        )}
+
+        {/* Urban Operations (pilot) */}
+        {showUrban && (
+          <Link
+            href="/urban"
+            className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md"
+          >
+            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-teal-600" />
+            </div>
+            <div>
+              <p className="text-stone-800 font-semibold text-base">Urban Operations <span className="ml-1 align-middle text-[10px] font-medium uppercase tracking-wider text-teal-600">pilot</span></p>
+              <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Partner programmes · Setup · Reviews · Follow-ups</p>
+            </div>
+          </Link>
         )}
 
         {/* Grants */}

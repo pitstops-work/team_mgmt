@@ -211,6 +211,10 @@ model User {
   grantRolesAssigned        GrantRoleAssignment[]          @relation("GrantRoleAssigner")
   grantAssessments          GrantAssessment[]              @relation("GrantAssessor")
   orgFinancialsRecorded     OrgFinancialYear[]             @relation("OrgFinancialRecorder")
+  // Urban Operations (see docs/urban-operations-spec.md)
+  uoAssignments             UoAssignment[]                 @relation("UoAssignee")
+  uoEffortsOwned            UoEffort[]                     @relation("UoEffortOwner")
+  uoTasksOwned              UoTask[]                       @relation("UoTaskOwner")
 }
 
 model Account {
@@ -6955,4 +6959,253 @@ model OrgFinancialYear {
 
   @@unique([orgId, yearEnding])
   @@index([orgId, yearEnding])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Urban Operations — the RP's support-and-review tool (/urban).
+// Spec: docs/urban-operations-spec.md. Self-contained: shares only User with the
+// rest of the app. Every table is prefixed uo_. Actor ids on Task.doneById /
+// Event.actorId etc. are plain strings on purpose (history must survive a user
+// delete, and it keeps the User model's back-relations to the three that matter).
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// One geography tree: city → zone → cluster → settlement → site.
+model UoPlace {
+  id        String   @id @default(cuid())
+  parentId  String?
+  /// city | zone | cluster | settlement | site
+  level     String
+  name      String
+  lat       Float?
+  lng       Float?
+  /// Id of the City / Zone / Cluster / Settlement row this was copied from (null for sites made here).
+  legacyId  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent      UoPlace?       @relation("UoPlaceTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children    UoPlace[]      @relation("UoPlaceTree")
+  efforts     UoEffort[]
+  assignments UoAssignment[]
+
+  @@unique([level, legacyId])
+  @@index([parentId])
+  @@map("uo_place")
+}
+
+/// The organisations doing the work. Never users of this tool.
+model UoPartner {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  /// The partner's own MIS for this work, e.g. "Shishughar", "Frappe".
+  mis         String?
+  /// Org.id in the partner registry this was copied from.
+  legacyOrgId String?  @unique
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  efforts UoEffort[]
+
+  @@map("uo_partner")
+}
+
+/// Settings for one kind of work. `settings` is validated by lib/urban/settings.ts.
+model UoProgramme {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  /// Bumped on every save; the Event log keeps each version's settings.
+  version   Int      @default(1)
+  settings  Json
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  efforts UoEffort[]
+
+  @@map("uo_programme")
+}
+
+/// Who covers what. programmeKey "" = every programme in that place.
+model UoAssignment {
+  id           String   @id @default(cuid())
+  userId       String
+  placeId      String
+  programmeKey String   @default("")
+  createdAt    DateTime @default(now())
+
+  user  User    @relation("UoAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  place UoPlace @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, placeId, programmeKey])
+  @@index([placeId])
+  @@map("uo_assignment")
+}
+
+/// One running instance of a programme in a place, with a partner, owned by an RP.
+/// Phase is DERIVED (uo_effort_status view), never stored.
+model UoEffort {
+  id           String    @id @default(cuid())
+  programmeId  String
+  placeId      String
+  /// Null for a city-level effort that spans partners (e.g. the all-partner creche meeting).
+  partnerId    String?
+  ownerId      String
+  title        String
+  /// new | already_running — decides which setup items apply.
+  startMode    String
+  startedOn    DateTime  @db.Date
+  closedAt     DateTime?
+  closedReason String?
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  programme UoProgramme @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+  place     UoPlace     @relation(fields: [placeId], references: [id], onDelete: Restrict)
+  partner   UoPartner?  @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  owner     User        @relation("UoEffortOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  tasks     UoTask[]
+  sessions  UoSession[]
+  readings  UoReading[]
+
+  @@index([ownerId])
+  @@index([placeId])
+  @@index([programmeId])
+  @@map("uo_effort")
+}
+
+/// Every unit of work: a setup item, an item inside a session, or a follow-up.
+model UoTask {
+  id           String    @id @default(cuid())
+  effortId     String
+  /// setup | session | followup
+  kind         String
+  sessionId    String?
+  /// Stable key from the programme settings (null for follow-ups). (effortId, kind, key) is the sync identity.
+  key          String?
+  /// Setup phase label, e.g. "Approval" (setup tasks only).
+  phase        String?
+  title        String
+  ownerId      String?
+  /// us | partner — whose action it is (follow-ups).
+  who          String    @default("us")
+  due          DateTime? @db.Date
+  /// auto = derived from settings (startedOn + due_in_days); manual = rescheduled by a person, never overwritten.
+  dueSource    String    @default("auto")
+  /// open | done | skipped
+  status       String    @default("open")
+  required     Boolean   @default(true)
+  /// tick | voice | photo | rating | number | observation | note
+  checkType    String    @default("tick")
+  /// Check-specific config copied from settings, e.g. rating points, reading key.
+  checkConfig  Json?
+  /// The answer: rating marks, a number, a note.
+  result       Json?
+  sortOrder    Int       @default(0)
+  /// For a follow-up: the task it was raised from.
+  sourceTaskId String?
+  doneAt       DateTime?
+  doneById     String?
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  effort   UoEffort     @relation(fields: [effortId], references: [id], onDelete: Cascade)
+  session  UoSession?   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  owner    User?        @relation("UoTaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  evidence UoEvidence[]
+
+  @@index([effortId, kind])
+  @@index([ownerId, status, due])
+  @@index([sessionId])
+  @@map("uo_task")
+}
+
+/// One run of a routine: a visit, a review meeting or a call.
+model UoSession {
+  id          String    @id @default(cuid())
+  effortId    String
+  routineKey  String
+  /// The period it counts for: 2026-11 (monthly), 2026-11-A / -B (fortnightly), 2026-W47 (weekly).
+  period      String
+  /// visit | meeting | call
+  mode        String
+  startedAt   DateTime  @default(now())
+  startedById String
+  arrivedAt   DateTime?
+  closedAt    DateTime?
+  closedById  String?
+  closedNote  String?
+
+  effort   UoEffort    @relation(fields: [effortId], references: [id], onDelete: Cascade)
+  tasks    UoTask[]
+  readings UoReading[]
+
+  @@unique([effortId, routineKey, period])
+  @@map("uo_session")
+}
+
+/// A voice note, photo or file that closes or supports a task.
+model UoEvidence {
+  id          String   @id @default(cuid())
+  taskId      String
+  /// voice | photo | file
+  kind        String
+  url         String
+  name        String
+  mimeType    String?
+  size        Int?
+  transcript  String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  task UoTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("uo_evidence")
+}
+
+/// A number at a date — an MIS figure the RP typed in, or one an API sync wrote.
+/// One row per (effort, key, dimension, asOf), so a sync writes the same row a person would.
+model UoReading {
+  id          String   @id @default(cuid())
+  effortId    String
+  key         String
+  /// e.g. the scheme for entitlements; "" when the reading has no dimension.
+  dimension   String   @default("")
+  value       Float
+  asOf        DateTime @db.Date
+  sessionId   String?
+  /// manual | api | observed
+  source      String   @default("manual")
+  enteredById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  effort  UoEffort   @relation(fields: [effortId], references: [id], onDelete: Cascade)
+  session UoSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([effortId, key, dimension, asOf])
+  @@map("uo_reading")
+}
+
+/// Append-only history. Every write in /urban adds one.
+model UoEvent {
+  id       String   @id @default(cuid())
+  actorId  String
+  /// place | partner | programme | assignment | effort | task | session | evidence | reading
+  entity   String
+  entityId String
+  action   String
+  before   Json?
+  after    Json?
+  reason   String?
+  at       DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([actorId, at])
+  @@map("uo_event")
 }
