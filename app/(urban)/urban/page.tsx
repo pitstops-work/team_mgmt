@@ -1,77 +1,81 @@
 import Link from "next/link";
-import { requireActor, can } from "@/lib/urban/access";
-import { listEfforts, type EffortRow } from "@/lib/urban/queries";
-import { formatDay, relativeDue, todayIST } from "@/lib/urban/time";
 import prisma from "@/lib/prisma";
-import { Card, Empty, PageTitle, PhaseChip } from "./_ui";
+import { requireActor } from "@/lib/urban/access";
+import { loadToday, type TodayItem, type TodayRoutine } from "@/lib/urban/queries";
+import { CHECK_LABEL, type CheckType } from "@/lib/urban/settings";
+import { formatDay, relativeDue, todayIST } from "@/lib/urban/time";
+import { Card, Empty, PageTitle } from "./_ui";
 
 export const dynamic = "force-dynamic";
 
-export default async function UrbanHome() {
-  const actor = await requireActor();
-  const [efforts, canCreate, programmeCount] = await Promise.all([
-    listEfforts(actor),
-    can(actor, "effort.create"),
-    prisma.uoProgramme.count({ where: { active: true } }),
-  ]);
-  const today = todayIST();
+const MODE: Record<string, string> = { visit: "Visit", meeting: "Meeting", call: "Call" };
 
-  // Group by programme, keeping the list's order (open first, newest first).
-  const groups = new Map<string, { name: string; rows: EffortRow[] }>();
-  for (const e of efforts) {
-    const g = groups.get(e.programme.key) ?? { name: e.programme.name, rows: [] };
-    g.rows.push(e);
-    groups.set(e.programme.key, g);
-  }
+// Today (spec §7): one list of MY work — overdue first, then today, then this
+// week; routines due this period; and what's waiting on partners. Rescheduled
+// items stay here (rule R7); they just carry their new date.
+export default async function TodayPage() {
+  const actor = await requireActor();
+  const today = todayIST();
+  const [t, effortCount] = await Promise.all([loadToday(actor), prisma.uoEffort.count({ where: { ownerId: actor.id, closedAt: null } })]);
+  const nothing = !t.overdue.length && !t.today.length && !t.week.length && !t.routines.length && !t.partner.length;
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageTitle
-        title="Efforts"
-        sub={efforts.length ? `${efforts.length} effort${efforts.length === 1 ? "" : "s"} you can see` : undefined}
-        action={canCreate && programmeCount > 0 ? (
-          <Link href="/urban/efforts/new" className="rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-700">New effort</Link>
-        ) : undefined}
+        title="Today"
+        sub={`${formatDay(today, today)} · ${effortCount} effort${effortCount === 1 ? "" : "s"} you own`}
+        action={<Link href="/urban/efforts" className="text-sm font-medium text-stone-600 hover:text-stone-900">All efforts →</Link>}
       />
 
-      {programmeCount === 0 ? (
-        <Empty>
-          No programmes yet.{" "}
-          {actor.role === "admin" ? <Link href="/urban/admin/programmes" className="font-medium text-stone-800 underline">Load the starter programmes</Link> : "An admin needs to set them up."}
-        </Empty>
-      ) : efforts.length === 0 ? (
-        <Empty>No efforts yet.{canCreate && " Start one with New effort."}</Empty>
-      ) : (
-        <div className="space-y-6">
-          {[...groups.entries()].map(([key, g]) => (
-            <section key={key}>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-400">{g.name} · {g.rows.length}</h2>
-              <Card className="divide-y divide-stone-100">
-                {g.rows.map((e) => (
-                  <Link key={e.id} href={`/urban/efforts/${e.id}`} className="flex items-start gap-3 px-4 py-3 hover:bg-stone-50">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-sm font-medium text-stone-900">{e.title}</span>
-                        <PhaseChip phase={e.status.phase} />
-                      </div>
-                      <p className="mt-0.5 truncate text-xs text-stone-500">
-                        {e.placePath}{e.partner ? ` · ${e.partner}` : ""} · {e.owner}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right text-xs">
-                      {e.status.phase === "setting_up" && (
-                        <p className="text-stone-600">{e.status.setupClosed}/{e.status.setupTotal} setup</p>
-                      )}
-                      {e.status.overdue > 0 && <p className="font-medium text-red-600">{e.status.overdue} overdue</p>}
-                      {e.status.overdue === 0 && e.status.nextDue && <p className="text-stone-400">next {formatDay(e.status.nextDue, today)} · {relativeDue(e.status.nextDue, today)}</p>}
-                    </div>
-                  </Link>
-                ))}
-              </Card>
-            </section>
-          ))}
-        </div>
+      {nothing && <Empty>Nothing due this week.{effortCount === 0 ? " You don't own any efforts yet." : ""}</Empty>}
+
+      {t.overdue.length > 0 && <Section title="Overdue" tone="red" items={t.overdue} today={today} />}
+
+      {t.routines.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-400">Due this period · {t.routines.length}</h2>
+          <Card className="divide-y divide-stone-100">
+            {t.routines.map((r) => <RoutineLine key={`${r.effortId}:${r.routineKey}`} r={r} today={today} />)}
+          </Card>
+        </section>
       )}
+
+      {t.today.length > 0 && <Section title="Today" items={t.today} today={today} />}
+      {t.week.length > 0 && <Section title="This week" items={t.week} today={today} />}
+      {t.partner.length > 0 && <Section title="Waiting on partner" items={t.partner} today={today} muted />}
     </div>
+  );
+}
+
+function Section({ title, items, today, tone, muted }: { title: string; items: TodayItem[]; today: string; tone?: "red"; muted?: boolean }) {
+  return (
+    <section>
+      <h2 className={`mb-2 text-xs font-semibold uppercase tracking-wider ${tone === "red" ? "text-red-600" : "text-stone-400"}`}>{title} · {items.length}</h2>
+      <Card className="divide-y divide-stone-100">
+        {items.map((i) => (
+          <Link key={i.id} href={`/urban/efforts/${i.effort.id}`} className="flex items-start gap-3 px-4 py-2.5 hover:bg-stone-50">
+            <div className="min-w-0 flex-1">
+              <p className={`text-sm ${muted ? "text-stone-600" : "text-stone-800"}`}>{i.title}</p>
+              <p className="mt-0.5 truncate text-xs text-stone-500">
+                {i.effort.title} · {i.kind === "followup" ? "follow-up" : i.phase ?? "setup"} · {CHECK_LABEL[i.checkType as CheckType] ?? i.checkType}
+              </p>
+            </div>
+            {i.due && <span className={`shrink-0 text-xs ${tone === "red" ? "font-medium text-red-600" : "text-stone-500"}`}>{relativeDue(i.due, today)}</span>}
+          </Link>
+        ))}
+      </Card>
+    </section>
+  );
+}
+
+function RoutineLine({ r, today }: { r: TodayRoutine; today: string }) {
+  return (
+    <Link href={r.sessionId ? `/urban/efforts/${r.effortId}/sessions/${r.sessionId}` : `/urban/efforts/${r.effortId}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-stone-800">{r.name}</p>
+        <p className="truncate text-xs text-stone-500">{r.effortTitle} · {MODE[r.mode] ?? r.mode}</p>
+      </div>
+      <span className="shrink-0 text-xs text-stone-500">{r.sessionId ? `in progress · ${r.open} open` : `by ${formatDay(r.periodEnd, today)}`}</span>
+    </Link>
   );
 }

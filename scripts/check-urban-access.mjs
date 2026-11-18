@@ -69,8 +69,15 @@ for (const file of dirs.flatMap(walk)) {
     problems.push(`${r}: a page/layout must call requireActor() (R1)`);
   }
   // R1 — route handlers
-  if (r.startsWith("app/api/urban") && base === "route.ts" && !/\brequireActorForAction\(\)/.test(src)) {
-    problems.push(`${r}: a route handler must call requireActorForAction() (R1)`);
+  // R1 — route handlers: each exported handler calls requireActorForAction() (writes) or
+  // requireActorForView() (reads), and then can()/authorize() for the specific record.
+  if (r.startsWith("app/api/urban") && base === "route.ts") {
+    for (const f of exportedFunctions(src)) {
+      const guard = /\brequireActorForAction\(\)/.test(f.body) || (f.name === "GET" && /\brequireActorForView\(\)/.test(f.body));
+      if (!guard || !/\b(authorize|can)\(/.test(f.body)) {
+        problems.push(`${r}: ${f.name} must call requireActorForAction() (or requireActorForView() for GET) and can()/authorize() (R1)`);
+      }
+    }
   }
   // R1 — server actions
   if (inApp && /^\s*["']use server["']/m.test(src.split("\n").slice(0, 5).join("\n"))) {

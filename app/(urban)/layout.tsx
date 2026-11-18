@@ -18,7 +18,8 @@ export default async function UrbanLayout({ children }: { children: React.ReactN
           <Link href="/portal" className="shrink-0 text-xs text-stone-400 hover:text-stone-700">← Portal</Link>
           <Link href="/urban" className="shrink-0 text-sm font-semibold tracking-tight text-stone-900">Urban Operations</Link>
           <nav className="ml-auto flex items-center gap-4 overflow-x-auto text-sm">
-            <Link href="/urban" className="shrink-0 text-stone-600 hover:text-stone-900">Efforts</Link>
+            <Link href="/urban" className="shrink-0 text-stone-600 hover:text-stone-900">Today</Link>
+            <Link href="/urban/efforts" className="shrink-0 text-stone-600 hover:text-stone-900">Efforts</Link>
             {admin && <Link href="/urban/admin/programmes" className="shrink-0 text-stone-600 hover:text-stone-900">Programmes</Link>}
             {admin && <Link href="/urban/admin/people" className="shrink-0 text-stone-600 hover:text-stone-900">People &amp; places</Link>}
             <span className="hidden shrink-0 text-xs text-stone-400 sm:inline">{actor.name} · {ROLE_LABEL[actor.role]}</span>

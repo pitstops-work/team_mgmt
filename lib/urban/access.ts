@@ -94,6 +94,13 @@ export async function requireActorForAction(): Promise<Actor> {
   return actor;
 }
 
+/** For read-only route handlers (e.g. serving a photo): the actor, or an error. View-only accounts pass. */
+export async function requireActorForView(): Promise<Actor> {
+  const actor = await getActor();
+  if (!actor || !mayEnter(actor)) throw new UrbanAccessError("Not allowed");
+  return actor;
+}
+
 export class UrbanAccessError extends Error {}
 
 // ── Trees ──────────────────────────────────────────────────────────────────
