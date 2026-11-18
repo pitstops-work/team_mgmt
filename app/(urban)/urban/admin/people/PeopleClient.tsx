@@ -48,10 +48,14 @@ function PlacePicker({ places, value, onChange, levels, placeholder }: { places:
     );
   }
   return (
-    <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
+    <div className="relative" onBlur={() => setOpen(false)}>
       <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder={placeholder} className="w-full rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-stone-500" />
       {open && (
-        <div className="absolute z-10 mt-1 w-full rounded-lg border border-stone-200 bg-white shadow-lg">
+        // preventDefault on mousedown keeps focus in the search box, so the list is
+        // still mounted when the click lands. Safari doesn't focus a clicked
+        // <button>, so without this the input's blur closed the list first and
+        // the click hit nothing.
+        <div onMouseDown={(e) => e.preventDefault()} className="absolute z-10 mt-1 w-full rounded-lg border border-stone-200 bg-white shadow-lg">
           {available.length > 1 && (
             <div className="flex flex-wrap gap-1 border-b border-stone-100 px-2 py-1.5">
               {["", ...available].map((l) => (
