@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { searchPlaces, PLACE_LEVELS_ORDERED } from "@/lib/urban/placeSearch";
-import { addAssignment, removeAssignment, importPlacesAction, importPartnersAction, addSite, savePartner } from "../actions";
+import { addAssignment, removeAssignment, setMember, importPlacesAction, importPartnersAction, addSite, savePartner } from "../actions";
 
 type PlaceOpt = { id: string; level: string; path: string; name: string; imported?: boolean };
 
@@ -86,7 +86,7 @@ function PlacePicker({ places, value, onChange, levels, placeholder }: { places:
 
 // ── People ─────────────────────────────────────────────────────────────────
 
-type Person = { id: string; name: string; email: string; role: string; readOnly: boolean; reportsTo: string | null; assignments: { id: string; place: string; programme: string }[] };
+type Person = { id: string; name: string; email: string; role: string; readOnly: boolean; isAdmin: boolean; member: boolean; reportsTo: string | null; assignments: { id: string; place: string; programme: string }[] };
 
 export function AssignmentsPanel({ people, places, programmes }: { people: Person[]; places: PlaceOpt[]; programmes: { key: string; name: string }[] }) {
   const { pending, notice, run } = useAct();
@@ -94,14 +94,21 @@ export function AssignmentsPanel({ people, places, programmes }: { people: Perso
   const [placeId, setPlaceId] = useState("");
   const [programmeKey, setProgrammeKey] = useState("");
   const [q, setQ] = useState("");
-  const shown = people.filter((p) => !q || `${p.name} ${p.email} ${p.role}`.toLowerCase().includes(q.toLowerCase()));
+  const [onlyMembers, setOnlyMembers] = useState(false);
+  const shown = people.filter((p) => (!onlyMembers || p.member || p.isAdmin) && (!q || `${p.name} ${p.email} ${p.role}`.toLowerCase().includes(q.toLowerCase())));
+  const memberCount = people.filter((p) => p.member).length;
 
   return (
     <div>
       <Notice n={notice} />
       {places.length === 0 && <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">No places yet — import them on the Places tab first.</p>}
       <div className="mb-3 flex items-center justify-between gap-3">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${people.length} people…`} className="w-full max-w-xs rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm outline-none" />
+        <div className="flex w-full flex-wrap items-center gap-3">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${people.length} people…`} className="w-full max-w-xs rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm outline-none" />
+          <label className="flex items-center gap-1.5 text-xs text-stone-600">
+            <input type="checkbox" checked={onlyMembers} onChange={(e) => setOnlyMembers(e.target.checked)} /> Only people who can open Urban Operations ({memberCount} + admins)
+          </label>
+        </div>
         <p className="hidden text-xs text-stone-500 sm:block">Role and reporting line come from the user settings; assignments are set here.</p>
       </div>
       <div className="divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white">
@@ -111,7 +118,18 @@ export function AssignmentsPanel({ people, places, programmes }: { people: Perso
               <span className="text-sm font-medium text-stone-900">{p.name}</span>
               <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-600">{p.role}{p.readOnly ? " · view only" : ""}</span>
               {p.reportsTo && <span className="text-xs text-stone-400">reports to {p.reportsTo}</span>}
-              <button onClick={() => { setOpen(open === p.id ? null : p.id); setPlaceId(""); setProgrammeKey(""); }} className="ml-auto text-xs font-medium text-stone-600 hover:text-stone-900">
+              {p.isAdmin ? (
+                <span className="ml-auto text-xs text-stone-400">admin · always has access</span>
+              ) : (
+                <label className="ml-auto flex items-center gap-1.5 text-xs text-stone-600">
+                  <input
+                    type="checkbox" checked={p.member} disabled={pending}
+                    onChange={(e) => { const on = e.target.checked; run(() => setMember(p.id, on), () => (on ? `${p.name} can now open Urban Operations.` : `${p.name} can no longer open Urban Operations.`)); }}
+                  />
+                  Can open
+                </label>
+              )}
+              <button onClick={() => { setOpen(open === p.id ? null : p.id); setPlaceId(""); setProgrammeKey(""); }} className="text-xs font-medium text-stone-600 hover:text-stone-900">
                 {open === p.id ? "Done" : "+ Assign"}
               </button>
             </div>

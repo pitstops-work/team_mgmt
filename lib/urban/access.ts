@@ -29,6 +29,8 @@ export type Actor = {
   role: UrbanRole;
   /** A "viewer" account: can look, never write. */
   readOnly: boolean;
+  /** Added as a member by an admin (uo_member). */
+  member: boolean;
 };
 
 export const ROLE_LABEL: Record<UrbanRole, string> = {
@@ -53,11 +55,12 @@ export function urbanRoleOf(appRole: string | null | undefined, designation: str
 }
 
 /**
- * Pilot gate (spec §10, Phase 1–2: admins only). Widen later by listing
- * emails in URBAN_PILOT_EMAILS (comma-separated) — no code change needed.
+ * Who may open /urban: admins, people an admin added as members (People &
+ * places → People, stored in uo_member), and — kept as a fallback — any email
+ * listed in URBAN_PILOT_EMAILS.
  */
 function mayEnter(actor: Actor): boolean {
-  if (actor.role === "admin") return true;
+  if (actor.role === "admin" || actor.member) return true;
   const list = (process.env.URBAN_PILOT_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   return list.includes(actor.email.toLowerCase());
 }
@@ -67,9 +70,9 @@ export async function getActor(): Promise<Actor | null> {
   const session = await auth();
   const id = session?.user?.id;
   if (!id) return null;
-  const u = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true, designation: true } });
+  const u = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true, designation: true, uoMember: { select: { userId: true } } } });
   if (!u) return null;
-  return { id: u.id, name: u.name ?? u.email, email: u.email, role: urbanRoleOf(u.role, u.designation), readOnly: u.role === "viewer" };
+  return { id: u.id, name: u.name ?? u.email, email: u.email, role: urbanRoleOf(u.role, u.designation), readOnly: u.role === "viewer", member: !!u.uoMember };
 }
 
 /** Whether the signed-in user may open /urban (drives the /portal card; same rule as the gate). */
@@ -140,6 +143,12 @@ export async function visibleEffortsWhere(actor: Actor): Promise<Prisma.UoEffort
   return { OR: [{ ownerId: { in: team } }, { placeId: { in: places } }] };
 }
 
+/** The actor and everyone below them (admins/leaders: "any"). Team screen scope. */
+export async function teamOf(actor: Actor): Promise<string[] | "any"> {
+  if (actor.role === "admin" || actor.role === "leader") return "any";
+  return teamIds(actor.id);
+}
+
 /** Users the actor may make an effort's owner: themselves and everyone below them (admins/leaders: anyone). */
 export async function assignableOwnerIds(actor: Actor): Promise<string[] | "any"> {
   if (actor.role === "admin" || actor.role === "leader") return "any";
@@ -154,20 +163,28 @@ export type UrbanAction =
   | "effort.view"
   | "effort.create"
   | "effort.manage"    // reassign, close, reopen
-  | "effort.work";     // do tasks, run sessions, add follow-ups (Phase 2)
+  | "effort.work"      // do tasks, run sessions, add follow-ups (Phase 2)
+  | "team.view"        // the Team screen: exceptions for the people under me
+  | "programme.view";  // the Programme screen: need vs delivered, place roll-ups
 
 /**
  * May the actor do `action` (on this effort, where it applies)?
  * Write actions are refused for read-only accounts.
  */
 export async function can(actor: Actor, action: UrbanAction, effortId?: string): Promise<boolean> {
-  const write = action !== "effort.view";
+  const write = action !== "effort.view" && action !== "team.view" && action !== "programme.view";
   if (write && actor.readOnly) return false;
 
   switch (action) {
     case "programme.edit":
     case "setup.edit":
       return actor.role === "admin";
+    case "team.view":
+      return actor.role === "admin" || actor.role === "leader" || actor.role === "pm" || actor.role === "zl";
+    case "programme.view":
+      // Aggregate numbers (need, delivered, saturation) for the whole programme.
+      // Effort lists on that screen are still scoped by visibleEffortsWhere.
+      return actor.role === "admin" || actor.role === "leader" || actor.role === "pm";
     case "effort.create":
       return actor.role === "admin" || actor.role === "leader" || actor.role === "pm" || actor.role === "zl";
     case "effort.view":

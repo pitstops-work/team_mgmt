@@ -89,7 +89,7 @@ export type EffortDetail = {
   status: EffortStatus; setup: TaskView[]; followups: TaskView[];
   routines: RoutineStatus[];
   pastSessions: { id: string; routine: string; period: string; closedAt: string | null; closedNote: string | null; early: boolean }[];
-  readings: { key: string; label: string; unit?: string; dimension: string; dimensionLabel: string | null; value: number; asOf: Ymd }[];
+  readings: { key: string; label: string; unit?: string; dimension: string; dimensionLabel: string | null; value: number; asOf: Ymd; history: { value: number; asOf: Ymd }[] }[];
   check: CheckContext;
   events: { id: string; at: string; actor: string; action: string; entity: string; reason: string | null; after: unknown }[];
   canManage: boolean; canWork: boolean;
@@ -169,16 +169,18 @@ export async function loadEffort(actor: Actor, id: string): Promise<EffortDetail
   const routineName = new Map((settings?.routines ?? []).map((r) => [r.key, r.name]));
 
   // Latest value per (reading, dimension).
-  const seen = new Set<string>();
+  const seen = new Map<string, EffortDetail["readings"][number]>();
   const ctx = checkContext(settings);
   const dimLabel = (per: string | undefined, key: string) => (per ? settings?.dimensions[per]?.find((d) => d.key === key)?.label ?? key : null);
   const readings: EffortDetail["readings"] = [];
   for (const r of readingsRaw) {
     const k = `${r.key}|${r.dimension}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
+    const cur = seen.get(k);
+    if (cur) { if (cur.history.length < 11) cur.history.push({ value: r.value, asOf: fromDb(r.asOf) }); continue; }
     const def = settings?.readings.find((x) => x.key === r.key);
-    readings.push({ key: r.key, label: def?.label ?? r.key, unit: def?.unit, dimension: r.dimension, dimensionLabel: r.dimension ? dimLabel(def?.per, r.dimension) : null, value: r.value, asOf: fromDb(r.asOf) });
+    const row = { key: r.key, label: def?.label ?? r.key, unit: def?.unit, dimension: r.dimension, dimensionLabel: r.dimension ? dimLabel(def?.per, r.dimension) : null, value: r.value, asOf: fromDb(r.asOf), history: [] };
+    seen.set(k, row);
+    readings.push(row);
   }
 
   return {

@@ -97,13 +97,24 @@ export default async function EffortPage({ params }: { params: Promise<{ id: str
 
       {e.readings.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-stone-800">Latest figures</h2>
+          <h2 className="mb-2 text-sm font-semibold text-stone-800">Figures <span className="font-normal text-stone-400">· latest, with change since the last entry — tap for history</span></h2>
           <Card className="divide-y divide-stone-50">
             {e.readings.map((r) => (
-              <div key={`${r.key}|${r.dimension}`} className="flex items-baseline justify-between gap-3 px-4 py-2 text-sm">
-                <span className="text-stone-700">{r.label}{r.dimensionLabel ? <span className="text-stone-400"> · {r.dimensionLabel}</span> : null}</span>
-                <span className="shrink-0 tabular-nums text-stone-900">{r.value}{r.unit ? ` ${r.unit}` : ""} <span className="text-xs text-stone-400">· {formatDay(r.asOf, today)}</span></span>
-              </div>
+              <details key={`${r.key}|${r.dimension}`} className="group px-4 py-2 text-sm">
+                <summary className={`flex items-baseline justify-between gap-3 ${r.history.length ? "cursor-pointer" : "pointer-events-none list-none"}`}>
+                  <span className="text-stone-700">{r.label}{r.dimensionLabel ? <span className="text-stone-400"> · {r.dimensionLabel}</span> : null}</span>
+                  <span className="shrink-0 tabular-nums text-stone-900">
+                    {r.value}{r.unit ? ` ${r.unit}` : ""}
+                    {r.history[0] && <span className={`ml-1 text-xs ${r.value >= r.history[0].value ? "text-emerald-600" : "text-red-600"}`}>{r.value >= r.history[0].value ? "+" : "−"}{Math.abs(Math.round((r.value - r.history[0].value) * 10) / 10)}</span>}
+                    <span className="text-xs text-stone-400"> · {formatDay(r.asOf, today)}</span>
+                  </span>
+                </summary>
+                {r.history.length > 0 && (
+                  <ul className="mt-1 space-y-0.5 border-l border-stone-100 pl-3">
+                    {r.history.map((h) => <li key={h.asOf} className="flex justify-between text-xs text-stone-500"><span>{formatDay(h.asOf, today)}</span><span className="tabular-nums">{h.value}</span></li>)}
+                  </ul>
+                )}
+              </details>
             ))}
           </Card>
         </section>

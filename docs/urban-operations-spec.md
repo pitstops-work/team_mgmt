@@ -351,5 +351,6 @@ read-only and enforced on the server, not just in the browser.
 | Q4 | City-level routines | **City-level Effort** (the all-partner creche meeting). |
 | Q5 | Which WR template | **"Temporary" = running programmes (routines); "new" = new programmes (setup).** "Existing" is superseded. |
 | Q6 | URL | **`/urban`** |
+| Q7 | Letting field users in | **People & places → "Can open"** (stored in `uo_member`); no redeploy. `URBAN_PILOT_EMAILS` still works as a fallback. |
 
 Still worth a read by whoever runs each programme: the item lists in §5 and §6.

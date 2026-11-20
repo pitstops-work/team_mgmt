@@ -6,7 +6,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 type Db = Prisma.TransactionClient | typeof prisma;
 
 export type UrbanEntity =
-  | "place" | "partner" | "programme" | "assignment"
+  | "place" | "partner" | "programme" | "assignment" | "member"
   | "effort" | "task" | "session" | "evidence" | "reading";
 
 export type EventInput = {

@@ -215,6 +215,7 @@ model User {
   uoAssignments             UoAssignment[]                 @relation("UoAssignee")
   uoEffortsOwned            UoEffort[]                     @relation("UoEffortOwner")
   uoTasksOwned              UoTask[]                       @relation("UoTaskOwner")
+  uoMember                  UoMember?                      @relation("UoMember")
 }
 
 model Account {
@@ -7208,4 +7209,16 @@ model UoEvent {
   @@index([entity, entityId])
   @@index([actorId, at])
   @@map("uo_event")
+}
+
+/// Who may open /urban besides admins (spec §10 Phase 3: first field users).
+/// Managed on People & places; replaces editing URBAN_PILOT_EMAILS.
+model UoMember {
+  userId    String   @id
+  addedById String
+  createdAt DateTime @default(now())
+
+  user User @relation("UoMember", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("uo_member")
 }

@@ -53,7 +53,7 @@ function countByLevel(places: { level: string }[]) {
 async function People({ placeOptions }: { placeOptions: { id: string; level: string; name: string; path: string }[] }) {
   const users = await prisma.user.findMany({
     where: { role: { in: ["member", "admin", "super-admin", "viewer"] } },
-    select: { id: true, name: true, email: true, role: true, designation: true, reportsTo: { select: { name: true, email: true } }, uoAssignments: { select: { id: true, placeId: true, programmeKey: true } } },
+    select: { id: true, name: true, email: true, role: true, designation: true, reportsTo: { select: { name: true, email: true } }, uoMember: { select: { userId: true } }, uoAssignments: { select: { id: true, placeId: true, programmeKey: true } } },
     orderBy: [{ designation: "asc" }, { name: "asc" }],
   });
   const programmes = await prisma.uoProgramme.findMany({ select: { key: true, name: true }, orderBy: { name: "asc" } });
@@ -63,7 +63,7 @@ async function People({ placeOptions }: { placeOptions: { id: string; level: str
   const rows = users
     .map((u) => ({
       id: u.id, name: u.name ?? u.email, email: u.email, role: ROLE_LABEL[role(u.role, u.designation)], roleKey: role(u.role, u.designation),
-      readOnly: u.role === "viewer", reportsTo: u.reportsTo ? u.reportsTo.name ?? u.reportsTo.email : null,
+      readOnly: u.role === "viewer", isAdmin: role(u.role, u.designation) === "admin", member: !!u.uoMember, reportsTo: u.reportsTo ? u.reportsTo.name ?? u.reportsTo.email : null,
       assignments: u.uoAssignments.map((a) => ({ id: a.id, place: pathById.get(a.placeId) ?? "(inactive place)", programme: programmes.find((p) => p.key === a.programmeKey)?.name ?? (a.programmeKey ? a.programmeKey : "All programmes") })),
     }))
     .sort((a, b) => order.indexOf(a.roleKey) - order.indexOf(b.roleKey) || a.name.localeCompare(b.name));

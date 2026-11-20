@@ -198,3 +198,25 @@ export async function removeAssignment(id: string): Promise<Result> {
     return fail(e);
   }
 }
+
+// ── Members (who may open /urban besides admins) ───────────────────────────
+
+export async function setMember(userId: string, on: boolean): Promise<Result> {
+  try {
+    const actor = await requireActorForAction();
+    await authorize(actor, "setup.edit");
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new UrbanInputError("That person no longer exists");
+    await prisma.$transaction(async (tx) => {
+      const cur = await tx.uoMember.findUnique({ where: { userId } });
+      if (on && !cur) await tx.uoMember.create({ data: { userId, addedById: actor.id } });
+      else if (!on && cur) await tx.uoMember.delete({ where: { userId } });
+      else return;
+      await logEvent(tx, { actorId: actor.id, entity: "member", entityId: userId, action: on ? "added" : "removed" });
+    });
+    done();
+    return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
